@@ -3472,14 +3472,57 @@ Phase 3:
 - Mailgun
 - Postmark
 
-## 14.3 Payment Gateway Integration (Future)
+## 14.3 Firebase Cloud Messaging (Push Notifications)
+
+### Purpose
+- Real-time push notifications to mobile (iOS/Android) and web
+- Transaction notifications
+- Points credit/debit alerts
+- Redemption confirmations
+- Expiry reminders (30, 7, 1 days before)
+- Admin broadcast announcements
+
+### Current Implementation (Integrated)
+Firebase Admin SDK is integrated for FCM push notifications:
+
+- **Provider:** Firebase Cloud Messaging (FCM)
+- **Platforms:** Android, iOS, Web Push
+- **Token Management:** FCM tokens stored per user (`FcmTokens` array in User model)
+- **Topic Subscription:** Tokens subscribe to topic `"all"` for broadcast notifications
+
+### Features
+- **Send to All:** Broadcast to all subscribed devices (topic: `all`)
+- **Send to Users:** Targeted notifications to specific user IDs
+- **Token Subscribe:** `POST /api/notifications/subscribeToken` — subscribe device token to topic
+- **My Notifications:** `GET /api/notifications/my` — fetch notifications for logged-in user
+- **Delete My Notifications:** `DELETE /api/notifications/my` — user-specific deletion
+- **Notification Persistence:** Each notification stored in MongoDB with user association for in-app history
+
+### Data Model
+- **Notification** (MongoDB): `title`, `body`, `link`, `img`, `NotificationTime`, `groupName`, `user[]`
+- Per-user storage enables user-specific deletion while retaining broadcast capability
+
+### API Endpoints
+- `POST /api/notifications/all` — Send notification to topic "all"
+- `POST /api/notifications/` — Send notification to specific userIds
+- `GET /api/notifications/` — List notifications (admin)
+- `GET /api/notifications/my` — Get logged-in user's notifications (protected)
+- `DELETE /api/notifications/my` — Delete user's notifications (protected)
+- `POST /api/notifications/subscribeToken` — Subscribe FCM token to topic
+
+### Requirements
+- Firebase Admin SDK with service account credentials
+- FCM tokens captured from mobile app / web client at login or app launch
+- User model must have `FcmTokens` array field
+
+## 14.4 Payment Gateway Integration (Future)
 
 ### Purpose
 - Direct point purchases
 - Cashback transfers
 - Refund processing
 
-## 14.4 POS System Integration (Future)
+## 14.5 POS System Integration (Future)
 
 ### Purpose
 - Real-time transaction sync
@@ -3491,7 +3534,7 @@ Phase 3:
 - Webhook support
 - Offline sync capability
 
-## 14.5 Cloud Storage Integration
+## 14.6 Cloud Storage Integration
 
 ### Purpose
 - QR code storage
@@ -3694,6 +3737,9 @@ SMS_SENDER_ID=...
 
 # Email
 EMAIL_SERVICE_API_KEY=...
+
+# Firebase (Push Notifications)
+# Service account JSON file or GOOGLE_APPLICATION_CREDENTIALS path
 ```
 
 ## 17.4 Backup & Recovery
