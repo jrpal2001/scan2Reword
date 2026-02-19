@@ -4,6 +4,7 @@ import * as adminController from '../controllers/admin.controller.js';
 import * as pumpController from '../controllers/pump.controller.js';
 import * as walletController from '../controllers/wallet.controller.js';
 import * as campaignController from '../controllers/campaign.controller.js';
+import * as bannerController from '../controllers/banner.controller.js';
 import { verifyJWT } from '../middlewares/auth.middleware.js';
 import { requireRoles } from '../middlewares/rbac.middleware.js';
 import { validateRequest } from '../middlewares/validateRequest.js';
@@ -12,6 +13,7 @@ import { adminValidation } from '../validation/admin.validation.js';
 import { pumpValidation } from '../validation/pump.validation.js';
 import { walletValidation } from '../validation/wallet.validation.js';
 import { campaignValidation } from '../validation/campaign.validation.js';
+import { bannerValidation } from '../validation/banner.validation.js';
 import { ROLES } from '../constants/roles.js';
 
 const router = Router();
@@ -116,6 +118,44 @@ router.delete(
   verifyJWT,
   requireRoles([ROLES.ADMIN]),
   campaignController.deleteCampaign
+);
+
+// Banners CRUD
+router.post(
+  '/banners',
+  verifyJWT,
+  requireRoles([ROLES.ADMIN]),
+  validateRequest(bannerValidation.create),
+  bannerController.createBanner
+);
+
+router.get(
+  '/banners',
+  verifyJWT,
+  requireRoles([ROLES.ADMIN]),
+  bannerController.listBanners
+);
+
+router.get(
+  '/banners/:bannerId',
+  verifyJWT,
+  requireRoles([ROLES.ADMIN]),
+  bannerController.getBannerById
+);
+
+router.put(
+  '/banners/:bannerId',
+  verifyJWT,
+  requireRoles([ROLES.ADMIN]),
+  validateRequest(bannerValidation.update),
+  bannerController.updateBanner
+);
+
+router.delete(
+  '/banners/:bannerId',
+  verifyJWT,
+  requireRoles([ROLES.ADMIN]),
+  bannerController.deleteBanner
 );
 
 export default router;
