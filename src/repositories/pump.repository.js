@@ -22,12 +22,22 @@ export const pumpRepository = {
   },
 
   async create(data) {
-    const pump = await Pump.create(data);
+    // Ensure managerId is null if empty string
+    const pumpData = {
+      ...data,
+      managerId: data.managerId === '' || data.managerId === undefined ? null : data.managerId,
+    };
+    const pump = await Pump.create(pumpData);
     return pump;
   },
 
   async update(id, data) {
-    const pump = await Pump.findByIdAndUpdate(id, { $set: data }, { new: true }).lean();
+    // Ensure managerId is null if empty string
+    const updateData = {
+      ...data,
+      managerId: data.managerId === '' || data.managerId === undefined ? null : data.managerId,
+    };
+    const pump = await Pump.findByIdAndUpdate(id, { $set: updateData }, { new: true }).lean();
     return pump;
   },
 

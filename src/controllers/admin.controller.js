@@ -18,6 +18,7 @@ export const createUser = asyncHandler(async (req, res) => {
     fullName: v.fullName,
     email: v.email || undefined,
     role: v.role,
+    password: v.password || undefined, // Password required for manager/staff
   };
   const result = await userService.createUserByAdmin(userData, v.vehicle || null, req.user._id);
 
@@ -43,24 +44,35 @@ export const createUser = asyncHandler(async (req, res) => {
 
 /**
  * POST /api/manager/users or POST /api/staff/users
- * Body: req.validated (mobile, fullName, email?, vehicle?)
- * Manager/Staff create customer (role=user) only; optional vehicle.
+ * Body: req.validated (mobile, fullName, email?, role?, vehicle?)
+ * Manager can create staff or user, Staff can only create user
  */
 export const createUserByOperator = asyncHandler(async (req, res) => {
   const v = req.validated;
+  const operatorRole = (req.userType || req.user?.role || '').toLowerCase();
+  
+  // Staff cannot create staff, only managers can
+  if (v.role === ROLES.STAFF && operatorRole !== ROLES.MANAGER) {
+    return res.status(HTTP_STATUS.FORBIDDEN).json(
+      ApiResponse.error('Only managers can create staff members')
+    );
+  }
+
   const userData = {
     mobile: v.mobile,
     fullName: v.fullName,
     email: v.email || undefined,
-    role: ROLES.USER,
+    role: v.role || ROLES.USER, // Use role from validation (defaults to USER)
+    password: v.password || undefined, // Password required for staff
   };
-  const role = (req.userType || req.user?.role || '').toLowerCase();
+  
   const result = await userService.createUserByManagerOrStaff(
     userData,
     v.vehicle || null,
     req.user._id,
-    role
+    operatorRole
   );
+  
   return res.status(HTTP_STATUS.CREATED).json(
     ApiResponse.success(
       { user: result.user, vehicle: result.vehicle },

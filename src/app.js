@@ -24,13 +24,18 @@ import { config } from './config/index.js';
 
 const app = express();
 
-// Request logging middleware (for debugging)
+// VERY EARLY Request logging middleware (for debugging) - MUST BE FIRST
 app.use((req, res, next) => {
-  console.log(`[Request] ${req.method} ${req.path}`, {
+  console.log('='.repeat(50));
+  console.log(`[REQUEST RECEIVED] ${req.method} ${req.path}`);
+  console.log('Headers:', {
     origin: req.headers.origin,
     'content-type': req.headers['content-type'],
     'user-agent': req.headers['user-agent']?.substring(0, 50),
+    host: req.headers.host,
   });
+  console.log('Body:', req.body);
+  console.log('='.repeat(50));
   next();
 });
 
@@ -67,20 +72,37 @@ app.use(
 );
 
 // Middleware
-// Form-data parser (for POST/PATCH requests with multipart/form-data)
-app.use(formDataParser);
 // JSON and URL-encoded body parsers (for application/json and application/x-www-form-urlencoded)
+// IMPORTANT: These must come BEFORE formDataParser for JSON requests
 app.use(express.json({ limit: '16kb' }));
 app.use(express.urlencoded({ extended: true, limit: '16kb' }));
+
+// Log after body parsing
+app.use((req, res, next) => {
+  console.log('[After Body Parsing]', {
+    method: req.method,
+    path: req.path,
+    body: req.body,
+    'content-type': req.headers['content-type'],
+  });
+  next();
+});
+
+// Form-data parser (for POST/PATCH requests with multipart/form-data)
+app.use(formDataParser);
 
 // Rate limiting (global - applies to all routes) - COMMENTED OUT FOR DEBUGGING
 // app.use(rateLimiter({ windowMs: 15 * 60 * 1000, maxRequests: 100 })); // 100 requests per 15 minutes per IP
 
 // API base path
+console.log('[App] Registering routes...');
 app.use('/api/auth', authRoutes);
 app.use('/api/scan', scanRoutes);
 app.use('/api/user', userRoutes);
-app.use('/api/admin', adminRoutes);
+app.use('/api/admin', (req, res, next) => {
+  console.log('[App] Admin route matched:', req.method, req.path);
+  next();
+}, adminRoutes);
 app.use('/api/manager', managerRoutes);
 app.use('/api/staff', staffRoutes);
 app.use('/api/transactions', transactionRoutes);
@@ -89,6 +111,7 @@ app.use('/api/rewards', rewardRoutes);
 app.use('/api/redeem', redemptionRoutes);
 app.use('/api/notifications', notificationRoutes);
 app.use('/api/owner', ownerRoutes);
+console.log('[App] All routes registered');
 
 // Health check (for liveness/readiness)
 app.get('/health', (req, res) => {

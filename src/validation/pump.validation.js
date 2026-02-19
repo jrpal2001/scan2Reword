@@ -14,7 +14,21 @@ export const pumpValidation = {
   create: Joi.object({
     name: Joi.string().trim().min(2).max(100).required(),
     code: Joi.string().trim().min(2).max(20).uppercase().required(),
-    managerId: Joi.string().hex().length(24).allow(null).optional(),
+    managerId: Joi.string()
+      .trim()
+      .allow('', null)
+      .custom((value, helpers) => {
+        // If empty string, convert to null
+        if (value === '') {
+          return null;
+        }
+        // If provided, validate it's a valid MongoDB ObjectId (24 hex chars)
+        if (value && !/^[0-9a-fA-F]{24}$/.test(value)) {
+          return helpers.error('any.invalid');
+        }
+        return value;
+      })
+      .optional(),
     location: locationSchema.optional(),
     status: Joi.string().valid(...Object.values(PUMP_STATUS)).default(PUMP_STATUS.ACTIVE),
     settings: Joi.object().optional(),
@@ -25,7 +39,21 @@ export const pumpValidation = {
   update: Joi.object({
     name: Joi.string().trim().min(2).max(100).optional(),
     code: Joi.string().trim().min(2).max(20).uppercase().optional(),
-    managerId: Joi.string().hex().length(24).allow(null).optional(),
+    managerId: Joi.string()
+      .trim()
+      .allow('', null)
+      .custom((value, helpers) => {
+        // If empty string, convert to null
+        if (value === '') {
+          return null;
+        }
+        // If provided, validate it's a valid MongoDB ObjectId (24 hex chars)
+        if (value && !/^[0-9a-fA-F]{24}$/.test(value)) {
+          return helpers.error('any.invalid');
+        }
+        return value;
+      })
+      .optional(),
     location: locationSchema.optional(),
     status: Joi.string().valid(...Object.values(PUMP_STATUS)).optional(),
     settings: Joi.object().optional(),

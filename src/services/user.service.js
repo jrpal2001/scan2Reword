@@ -158,6 +158,12 @@ export const userService = {
       throw new ApiError(HTTP_STATUS.CONFLICT, 'User with this mobile number already exists');
     }
 
+    // Hash password if provided (required for manager/staff)
+    let passwordHash = null;
+    if (userData.password) {
+      passwordHash = await authService.hashPassword(userData.password);
+    }
+
     // Auto-generate referral code for manager/staff roles
     let referralCode = userData.referralCode || null;
     if ([ROLES.MANAGER, ROLES.STAFF].includes(userData.role?.toLowerCase())) {
@@ -174,8 +180,12 @@ export const userService = {
       }
     }
 
+    // Remove password from userData (we use passwordHash instead)
+    const { password, ...userDataWithoutPassword } = userData;
+
     const user = await userRepository.create({
-      ...userData,
+      ...userDataWithoutPassword,
+      passwordHash,
       referralCode,
       walletSummary: { totalEarned: 0, availablePoints: 0, redeemedPoints: 0, expiredPoints: 0 },
       status: 'active',
@@ -198,7 +208,9 @@ export const userService = {
 
   /**
    * Create user by Manager/Staff (at pump)
-   * Credits registration points to operator
+   * Manager can create staff or user, Staff can only create user
+   * Credits registration points to operator (only for regular users, not staff)
+   * Auto-generates referral code for staff created by manager
    */
   async createUserByManagerOrStaff(userData, vehicleData, operatorId, operatorRole) {
     const existing = await userRepository.findByMobile(userData.mobile);
@@ -206,8 +218,40 @@ export const userService = {
       throw new ApiError(HTTP_STATUS.CONFLICT, 'User with this mobile number already exists');
     }
 
+    // Validate: Staff cannot create staff, only managers can
+    const userRole = (userData.role || ROLES.USER).toLowerCase();
+    if (userRole === ROLES.STAFF && operatorRole !== ROLES.MANAGER) {
+      throw new ApiError(HTTP_STATUS.FORBIDDEN, 'Only managers can create staff members');
+    }
+
+    // Hash password if provided (required for staff)
+    let passwordHash = null;
+    if (userData.password) {
+      passwordHash = await authService.hashPassword(userData.password);
+    }
+
+    // Auto-generate referral code for staff created by manager
+    let referralCode = userData.referralCode || null;
+    if (userRole === ROLES.STAFF) {
+      // Generate unique referral code
+      let code;
+      let exists = true;
+      while (exists) {
+        code = generateReferralCode();
+        const existing = await userRepository.findByReferralCode(code);
+        exists = !!existing;
+      }
+      referralCode = code;
+    }
+
+    // Remove password from userData (we use passwordHash instead)
+    const { password, ...userDataWithoutPassword } = userData;
+
     const user = await userRepository.create({
-      ...userData,
+      ...userDataWithoutPassword,
+      role: userRole,
+      passwordHash,
+      referralCode,
       walletSummary: { totalEarned: 0, availablePoints: 0, redeemedPoints: 0, expiredPoints: 0 },
       status: 'active',
       createdBy: operatorId,
@@ -224,23 +268,25 @@ export const userService = {
       });
     }
 
-    // Credit registration points to operator (manager/staff)
-    try {
-      const systemConfig = await systemConfigService.getConfig();
-      const registrationPoints = systemConfig.points?.registration || 0;
-      
-      if (registrationPoints > 0) {
-        await pointsService.creditPoints({
-          userId: operatorId,
-          points: registrationPoints,
-          type: 'credit',
-          reason: `Registration bonus - Created user ${user._id} (${user.fullName})`,
-          createdBy: operatorId,
-        });
+    // Credit registration points to operator (manager/staff) - only for regular users, not staff
+    if (userRole === ROLES.USER) {
+      try {
+        const systemConfig = await systemConfigService.getConfig();
+        const registrationPoints = systemConfig.points?.registration || 0;
+        
+        if (registrationPoints > 0) {
+          await pointsService.creditPoints({
+            userId: operatorId,
+            points: registrationPoints,
+            type: 'credit',
+            reason: `Registration bonus - Created user ${user._id} (${user.fullName})`,
+            createdBy: operatorId,
+          });
+        }
+      } catch (error) {
+        console.error('Failed to credit registration points:', error.message);
+        // Don't fail user creation if registration points credit fails
       }
-    } catch (error) {
-      console.error('Failed to credit registration points:', error.message);
-      // Don't fail user creation if registration points credit fails
     }
 
     return { user: await userRepository.findById(user._id), vehicle };

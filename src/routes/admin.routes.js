@@ -23,6 +23,12 @@ import { ROLES } from '../constants/roles.js';
 
 const router = Router();
 
+// Debug logging for admin routes
+router.use((req, res, next) => {
+  console.log('[Admin Routes] Request:', req.method, req.path, { body: req.body, validated: req.validated });
+  next();
+});
+
 // Admin login (legacy Admin model — email + password, cookies)
 router.post('/login', validateRequest(adminValidation.login), adminLogin);
 

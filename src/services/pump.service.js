@@ -13,6 +13,11 @@ export const pumpService = {
       throw new ApiError(HTTP_STATUS.CONFLICT, 'Pump code already exists');
     }
 
+    // Convert empty string managerId to null
+    if (data.managerId === '' || data.managerId === undefined) {
+      data.managerId = null;
+    }
+
     // Validate managerId if provided
     if (data.managerId) {
       const manager = await userRepository.findById(data.managerId);
@@ -26,6 +31,7 @@ export const pumpService = {
 
     const pump = await pumpRepository.create({
       ...data,
+      managerId: data.managerId || null, // Ensure null if empty
       status: data.status || PUMP_STATUS.ACTIVE,
     });
     return pump;
@@ -45,23 +51,29 @@ export const pumpService = {
       }
     }
 
+    // Convert empty string managerId to null
+    if (data.managerId === '' || data.managerId === undefined) {
+      data.managerId = null;
+    }
+
     // Validate managerId if provided
-    if (data.managerId !== undefined) {
-      if (data.managerId === null) {
-        // Allow removing manager
-        data.managerId = null;
-      } else {
-        const manager = await userRepository.findById(data.managerId);
-        if (!manager) {
-          throw new ApiError(HTTP_STATUS.NOT_FOUND, 'Manager not found');
-        }
-        if (manager.role?.toLowerCase() !== ROLES.MANAGER) {
-          throw new ApiError(HTTP_STATUS.BAD_REQUEST, 'User must have manager role');
-        }
+    if (data.managerId !== undefined && data.managerId !== null) {
+      const manager = await userRepository.findById(data.managerId);
+      if (!manager) {
+        throw new ApiError(HTTP_STATUS.NOT_FOUND, 'Manager not found');
+      }
+      if (manager.role?.toLowerCase() !== ROLES.MANAGER) {
+        throw new ApiError(HTTP_STATUS.BAD_REQUEST, 'User must have manager role');
       }
     }
 
-    const pump = await pumpRepository.update(pumpId, data);
+    // Ensure managerId is explicitly set to null if empty
+    const updateData = {
+      ...data,
+      managerId: data.managerId !== undefined ? (data.managerId || null) : undefined,
+    };
+
+    const pump = await pumpRepository.update(pumpId, updateData);
     return pump;
   },
 

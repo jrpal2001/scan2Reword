@@ -21,14 +21,29 @@ export const userValidation = {
     fullName: Joi.string().trim().min(2).max(100).required(),
     email: Joi.string().email().trim().lowercase().allow('').optional(),
     role: Joi.string().valid(ROLES.USER, ROLES.MANAGER, ROLES.STAFF).default(ROLES.USER),
+    password: Joi.string().min(6).when('role', {
+      is: Joi.string().valid(ROLES.MANAGER, ROLES.STAFF),
+      then: Joi.required(),
+      otherwise: Joi.optional(),
+    }).messages({
+      'string.min': 'Password must be at least 6 characters long',
+    }),
     vehicle: vehicleSchema.optional(),
   }),
 
-  /** Manager/Staff create user — customer only, optional vehicle */
+  /** Manager/Staff create user — Manager can create staff or user, Staff can only create user */
   createUserByOperator: Joi.object({
     mobile: mobileSchema,
     fullName: Joi.string().trim().min(2).max(100).required(),
     email: Joi.string().email().trim().lowercase().allow('').optional(),
+    role: Joi.string().valid(ROLES.USER, ROLES.STAFF).default(ROLES.USER), // Manager can create staff, Staff can only create user
+    password: Joi.string().min(6).when('role', {
+      is: ROLES.STAFF,
+      then: Joi.required(),
+      otherwise: Joi.optional(),
+    }).messages({
+      'string.min': 'Password must be at least 6 characters long',
+    }),
     vehicle: vehicleSchema.optional(),
   }),
 
