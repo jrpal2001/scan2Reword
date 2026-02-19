@@ -6,6 +6,7 @@ import { config } from '../config/index.js';
 import { ROLES, STAFF_ROLES } from '../constants/roles.js';
 import ApiError from '../utils/ApiError.js';
 import { ERROR_CODES, HTTP_STATUS } from '../constants/errorCodes.js';
+import { smsService } from './sms.service.js';
 
 const SALT_ROUNDS = 10;
 
@@ -19,13 +20,23 @@ function generateOtp(length = config.otp?.length || 6) {
   return otp;
 }
 
-/** Send OTP via SMS - stub; integrate with Twilio/MSG91/AWS SNS */
+/** Send OTP via SMS using DLT provider */
 async function sendOtpSms(mobile, otp) {
-  // TODO: integrate SMS provider
-  if (config.nodeEnv !== 'production') {
-    console.log(`[SMS stub] OTP for ${mobile}: ${otp}`);
+  try {
+    await smsService.sendOTP(mobile, otp);
+    if (config.nodeEnv !== 'production') {
+      console.log(`[SMS] OTP sent to ${mobile}: ${otp}`);
+    }
+    return true;
+  } catch (error) {
+    // Log error but don't fail the request if SMS fails
+    console.error(`Failed to send OTP SMS to ${mobile}:`, error.message);
+    // In production, you might want to still throw or handle differently
+    if (config.nodeEnv === 'production') {
+      throw error;
+    }
+    return false;
   }
-  return true;
 }
 
 export const authService = {

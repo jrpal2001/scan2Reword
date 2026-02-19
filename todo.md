@@ -190,24 +190,24 @@ Backend follows **Controller → Service → Repository → Model** plus cross-c
 
 ## System config
 
-- [ ] **SystemConfig** (or first-doc config) — Registration points, referral points, fuel points per liter, other category rules (e.g. points per ₹100), points expiry duration, expiry notification days
-- [ ] **Admin config APIs** — GET/PUT points rules and config (admin only)
+- [x] **SystemConfig** — `src/models/SystemConfig.model.js`: Singleton model with registration points, referral points, fuel points per liter, other category rules (points per ₹100), points expiry duration (months), expiry notification days (array)
+- [x] **Admin config APIs** — `GET /api/admin/config` and `PUT /api/admin/config` (admin only); Joi validation; singleton pattern ensures only one config document
 
 ---
 
 ## File storage
 
-- [ ] **Cloudinary or S3** — Upload middleware (e.g. multer + Cloudinary/S3); use for bill photos and receipts only (no QR images)
-- [ ] **Store URLs** — Save returned URLs in transaction.attachments and elsewhere as needed
-- [ ] **Validation** — File type and size limits
+- [x] **Cloudinary or S3** — Upload middleware (`src/middlewares/uploadToS3.js`) with multer + AWS S3; image compression using sharp (`src/utils/imageCompressor.js`) before upload; used for bill photos, receipts, user photos, vehicle RC photos
+- [x] **Store URLs** — URLs saved in `transaction.attachments`, `user.profilePhoto/driverPhoto/ownerPhoto`, `vehicle.rcPhoto` after S3 upload
+- [x] **Validation** — File type and size limits in `src/utils/multerConfig.js` (JPEG, PNG, PDF; 5MB limit)
 
 ---
 
 ## Integrations
 
-- [ ] **SMS** — Provider-agnostic service (Twilio/MSG91/AWS SNS); send OTP and optional alerts; retry and log failures
-- [ ] **Email** — Send welcome, receipts, redemption confirmations; template engine; track failures
-- [ ] **Firebase FCM** — See Notifications section above
+- [x] **SMS** — `src/utils/smsUtils.js` and `src/services/sms.service.js`: DLT provider (Edumarc/Combirds) via `smsUtils.js`; `sendSMS()`, `sendOTP()` methods with retry logic (3 attempts with exponential backoff); integrated into auth service for OTP sending; failure logging
+- [x] **Email** — `src/services/email.service.js`: Nodemailer (SMTP) for email sending; `sendEmail()`, `sendWelcomeEmail()`, `sendReceiptEmail()`, `sendRedemptionConfirmationEmail()` methods; HTML templates; retry logic (3 attempts) and failure logging
+- [x] **Firebase FCM** — See Notifications section above (already implemented)
 
 ---
 

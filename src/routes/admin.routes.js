@@ -6,6 +6,7 @@ import * as walletController from '../controllers/wallet.controller.js';
 import * as campaignController from '../controllers/campaign.controller.js';
 import * as bannerController from '../controllers/banner.controller.js';
 import * as rewardController from '../controllers/reward.controller.js';
+import * as systemConfigController from '../controllers/systemConfig.controller.js';
 import { verifyJWT } from '../middlewares/auth.middleware.js';
 import { requireRoles } from '../middlewares/rbac.middleware.js';
 import { validateRequest } from '../middlewares/validateRequest.js';
@@ -16,6 +17,7 @@ import { walletValidation } from '../validation/wallet.validation.js';
 import { campaignValidation } from '../validation/campaign.validation.js';
 import { bannerValidation } from '../validation/banner.validation.js';
 import { rewardValidation } from '../validation/reward.validation.js';
+import { systemConfigValidation } from '../validation/systemConfig.validation.js';
 import { ROLES } from '../constants/roles.js';
 
 const router = Router();
@@ -196,6 +198,22 @@ router.delete(
   verifyJWT,
   requireRoles([ROLES.ADMIN]),
   rewardController.deleteReward
+);
+
+// System Config
+router.get(
+  '/config',
+  verifyJWT,
+  requireRoles([ROLES.ADMIN]),
+  systemConfigController.getConfig
+);
+
+router.put(
+  '/config',
+  verifyJWT,
+  requireRoles([ROLES.ADMIN]),
+  validateRequest(systemConfigValidation.update),
+  systemConfigController.updateConfig
 );
 
 export default router;

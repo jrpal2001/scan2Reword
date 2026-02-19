@@ -1,5 +1,6 @@
 import { asyncHandler } from '../utils/asyncHandler.js';
 import { putObject } from '../utils/Aws/putObject.js';
+import { compressMulterFile } from '../utils/imageCompressor.js';
 import ApiError from '../utils/ApiError.js';
 import { HTTP_STATUS } from '../constants/errorCodes.js';
 import path from 'path';
@@ -22,12 +23,15 @@ export const uploadToS3 = (folder = 'uploads') =>
       // Handle multer.array() - array of files
       if (Array.isArray(req.files)) {
         for (const file of req.files) {
-          const ext = path.extname(file.originalname) || '';
+          // Compress image before uploading
+          const compressedFile = await compressMulterFile(file);
+          
+          const ext = path.extname(compressedFile.originalname) || '';
           const timestamp = Date.now();
           const random = Math.random().toString(36).substring(7);
           const s3Key = `${folder}/${timestamp}-${random}${ext}`;
           
-          const { url } = await putObject(file, s3Key);
+          const { url } = await putObject(compressedFile, s3Key);
           uploads.push(url);
         }
       } 
@@ -39,12 +43,15 @@ export const uploadToS3 = (folder = 'uploads') =>
           
           const fieldUploads = [];
           for (const file of fileArray) {
-            const ext = path.extname(file.originalname) || '';
+            // Compress image before uploading
+            const compressedFile = await compressMulterFile(file);
+            
+            const ext = path.extname(compressedFile.originalname) || '';
             const timestamp = Date.now();
             const random = Math.random().toString(36).substring(7);
             const s3Key = `${folder}/${fieldName}-${timestamp}-${random}${ext}`;
             
-            const { url } = await putObject(file, s3Key);
+            const { url } = await putObject(compressedFile, s3Key);
             fieldUploads.push(url);
           }
           
