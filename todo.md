@@ -152,12 +152,12 @@ Backend follows **Controller → Service → Repository → Model** plus cross-c
 
 ## Banners
 
-- [ ] **Banner model** — title, description, imageUrl, linkUrl, startTime, endTime, pumpIds (empty = global), createdBy, createdByRole, status, createdAt, updatedAt
-- [ ] **GET active banners** — `GET /api/banners`; filter startTime ≤ now and endTime > now; optional pumpId (no expiry/refresh for QR; this is banner end time)
-- [ ] **Admin banners** — CRUD `/api/admin/banners`; global or per pumpIds
-- [ ] **Manager banners** — CRUD `/api/manager/banners`; only for manager’s pump(s)
-- [ ] **Auto-removal** — Return only banners where endTime > now (no cron needed if query-time filter)
-- [ ] **Indexes** — startTime, endTime, pumpIds, status
+- [x] **Banner model** — `src/models/Banner.model.js`: title, description, imageUrl, linkUrl, startTime, endTime, pumpIds (empty = global), createdBy, createdByRole (admin|manager), status (active|expired), createdAt, updatedAt
+- [x] **GET active banners** — `GET /api/banners` (public); filters startTime ≤ now and endTime > now; optional `?pumpId` query param; returns only active banners (auto-removal via query-time filter)
+- [x] **Admin banners** — CRUD `POST/GET/PUT/DELETE /api/admin/banners`; Joi validation; can set any pumpIds or global (empty array)
+- [x] **Manager banners** — CRUD `POST/GET/PUT/DELETE /api/manager/banners`; Joi validation; pumpIds restricted to manager's assigned pump(s) only; manager must assign to at least one pump — CRUD `/api/manager/banners`; only for manager’s pump(s)
+- [x] **Auto-removal** — `bannerRepository.findActiveBanners()` returns only banners where endTime > now (no cron needed, query-time filter)
+- [x] **Indexes** — startTime, endTime, pumpIds, status, (startTime, endTime) composite
 
 ---
 
