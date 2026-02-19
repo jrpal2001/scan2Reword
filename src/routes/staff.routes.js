@@ -9,12 +9,6 @@ import { ROLES } from '../constants/roles.js';
 const router = Router();
 
 router.post(
-  '/users',
-  verifyJWT,
-  requireRoles([ROLES.STAFF]),
-  attachPumpScope,
-  validateRequest(userValidation.createUserByOperator),
-  adminController.createUserByOperator
-);
+  '/users',verifyJWT,requireRoles([ROLES.STAFF]),attachPumpScope,validateRequest(userValidation.createUserByOperator),adminController.createUserByOperator);
 
 export default router;

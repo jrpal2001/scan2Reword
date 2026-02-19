@@ -45,6 +45,9 @@ export const userService = {
       walletSummary: { totalEarned: 0, availablePoints: 0, redeemedPoints: 0, expiredPoints: 0 },
       status: 'active',
       mobileVerified: true,
+      profilePhoto: userData.profilePhoto || null,
+      driverPhoto: userData.driverPhoto || null,
+      ownerPhoto: userData.ownerPhoto || null,
     });
 
     // Create vehicle with loyaltyId
@@ -78,6 +81,9 @@ export const userService = {
       walletSummary: { totalEarned: 0, availablePoints: 0, redeemedPoints: 0, expiredPoints: 0 },
       status: 'active',
       createdBy: adminId,
+      profilePhoto: userData.profilePhoto || null,
+      driverPhoto: userData.driverPhoto || null,
+      ownerPhoto: userData.ownerPhoto || null,
     });
 
     let vehicle = null;
@@ -106,6 +112,9 @@ export const userService = {
       walletSummary: { totalEarned: 0, availablePoints: 0, redeemedPoints: 0, expiredPoints: 0 },
       status: 'active',
       createdBy: operatorId,
+      profilePhoto: userData.profilePhoto || null,
+      driverPhoto: userData.driverPhoto || null,
+      ownerPhoto: userData.ownerPhoto || null,
     });
 
     let vehicle = null;

@@ -27,6 +27,9 @@ const userSchema = new mongoose.Schema(
       state: String,
       pincode: String,
     },
+    profilePhoto: { type: String, default: null },
+    driverPhoto: { type: String, default: null },
+    ownerPhoto: { type: String, default: null },
     createdBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User', default: null },
   },
   { timestamps: true }

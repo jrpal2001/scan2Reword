@@ -7,6 +7,7 @@ import managerRoutes from './routes/manager.routes.js';
 import staffRoutes from './routes/staff.routes.js';
 import authRoutes from './routes/auth.routes.js';
 import scanRoutes from './routes/scan.routes.js';
+import transactionRoutes from './routes/transaction.routes.js';
 import { errorHandler } from './middlewares/errorHandler.js';
 import { config } from './config/index.js';
 
@@ -43,6 +44,7 @@ app.use('/api/user', userRoutes);
 app.use('/api/admin', adminRoutes);
 app.use('/api/manager', managerRoutes);
 app.use('/api/staff', staffRoutes);
+app.use('/api/transactions', transactionRoutes);
 
 // Health check (for liveness/readiness)
 app.get('/health', (req, res) => {

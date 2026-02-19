@@ -2,12 +2,14 @@ import { Router } from 'express';
 import { adminLogin } from '../controllers/adminAuth.controller.js';
 import * as adminController from '../controllers/admin.controller.js';
 import * as pumpController from '../controllers/pump.controller.js';
+import * as walletController from '../controllers/wallet.controller.js';
 import { verifyJWT } from '../middlewares/auth.middleware.js';
 import { requireRoles } from '../middlewares/rbac.middleware.js';
 import { validateRequest } from '../middlewares/validateRequest.js';
 import { userValidation } from '../validation/userValidation.js';
 import { adminValidation } from '../validation/admin.validation.js';
 import { pumpValidation } from '../validation/pump.validation.js';
+import { walletValidation } from '../validation/wallet.validation.js';
 import { ROLES } from '../constants/roles.js';
 
 const router = Router();
@@ -65,6 +67,15 @@ router.delete(
   verifyJWT,
   requireRoles([ROLES.ADMIN]),
   pumpController.deletePump
+);
+
+// Wallet adjustment
+router.post(
+  '/wallet/adjust',
+  verifyJWT,
+  requireRoles([ROLES.ADMIN]),
+  validateRequest(walletValidation.adjust),
+  walletController.adjustWallet
 );
 
 export default router;

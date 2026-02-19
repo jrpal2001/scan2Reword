@@ -19,6 +19,7 @@ const vehicleSchema = new mongoose.Schema(
     brand: { type: String, trim: true },
     model: { type: String, trim: true },
     yearOfManufacture: { type: Number },
+    rcPhoto: { type: String, default: null },
     status: { type: String, enum: Object.values(VEHICLE_STATUS), default: VEHICLE_STATUS.ACTIVE },
   },
   { timestamps: true }

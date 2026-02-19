@@ -117,26 +117,26 @@ Backend follows **Controller → Service → Repository → Model** plus cross-c
 
 *Layers: Model → transactionRepository → transactionService (+ pointsService, campaignService) → transactionController.*
 
-- [ ] **Transaction model** — `src/models/Transaction.model.js`: pumpId, vehicleId (optional if owner QR used), userId (vehicle/driver OR owner if owner QR scanned), operatorId, amount, **liters**, category, billNumber (unique per pump), paymentMode, pointsEarned, campaignId, status, **attachments**, createdAt, updatedAt
-- [ ] **transactionRepository** — create, findById, findByPumpAndBillNumber (duplicate check), list (filters, pagination, pump scope)
-- [ ] **transactionService** — createTransaction (validate identifier: loyaltyId → vehicle/driver user, **owner ID → owner user**; duplicate check, points calculation via pointsService, campaign lookup), listTransactions; call file upload util for attachments
-- [ ] **Points calculation** — In pointsService or transactionService: Fuel = f(liters); others = f(amount); apply campaign multiplier
-- [ ] **POST /api/transactions** — Controller → transactionService; body includes identifier (loyaltyId for vehicle/driver OR **owner ID** for fleet owner); validation middleware for body (liters required for Fuel, attachments for Fuel)
-- [ ] **File upload** — Middleware (multer + Cloudinary/S3); attach URLs to req; transactionService saves in transaction.attachments
-- [ ] **GET transactions** — Controller → transactionService → transactionRepository; pump-scoped for manager/staff
-- [ ] **Idempotency** — Optional `Idempotency-Key` in middleware or transactionService
-- [ ] **Indexes** — pumpId, vehicleId, userId, (pumpId, billNumber) unique, createdAt
+- [x] **Transaction model** — `src/models/Transaction.model.js`: pumpId, vehicleId (optional if owner QR used), userId (vehicle/driver OR owner if owner QR scanned), operatorId, amount, **liters**, category, billNumber (unique per pump), paymentMode, pointsEarned, campaignId, status, **attachments**, createdAt, updatedAt
+- [x] **transactionRepository** — create, findById, findByPumpAndBillNumber (duplicate check), list (filters, pagination, pump scope)
+- [x] **transactionService** — createTransaction (validate identifier: loyaltyId → vehicle/driver user, **owner ID → owner user**; duplicate check, points calculation via pointsService, campaign lookup placeholder), listTransactions; file upload URLs attached
+- [x] **Points calculation** — `src/services/points.service.js`: Fuel = f(liters, 1 point/liter); others = f(amount, 5 points/₹100); campaign multiplier placeholder (TODO: integrate campaign lookup)
+- [x] **POST /api/transactions** — Controller → transactionService; body includes identifier (loyaltyId for vehicle/driver OR **owner ID** for fleet owner); Joi validation; liters/attachments validated in service for Fuel
+- [x] **File upload** — Middleware `uploadFilesToCloudinary` (multer + Cloudinary); uploads files, attaches URLs to `req.uploadedFiles`; transactionService saves in transaction.attachments
+- [x] **GET transactions** — `GET /api/transactions`; Controller → transactionService → transactionRepository; pump-scoped for manager/staff via `req.allowedPumpIds`
+- [ ] **Idempotency** — Optional `Idempotency-Key` in middleware or transactionService (TODO)
+- [x] **Indexes** — pumpId, vehicleId, userId, (pumpId, billNumber) unique, createdAt
 
 ---
 
 ## Points & wallet
 
-- [ ] **PointsLedger model** — userId, transactionId, redemptionId, type (credit/debit/expiry/adjustment/refund), points, balanceAfter, expiryDate (credits), reason, createdBy, createdAt
-- [ ] **Wallet summary** — On user: totalEarned, availablePoints, redeemedPoints, expiredPoints; update on ledger changes
-- [ ] **GET wallet** — `GET /api/users/:userId/wallet` and ledger (with pagination), expiry schedule
-- [ ] **Manual adjustment** — `POST /api/admin/wallet/adjust`, `POST /api/manager/wallet/adjust` (manager pump-scoped); create ledger entry; audit log
-- [ ] **Points expiry** — Configurable duration (e.g. 12 months); FIFO; daily job to expire and create expiry ledger entries; optional notifications (30/7/1 days before)
-- [ ] **Indexes** — userId, createdAt, expiryDate on PointsLedger
+- [x] **PointsLedger model** — `src/models/PointsLedger.model.js`: userId, transactionId, redemptionId, type (credit/debit/expiry/adjustment/refund), points (signed), balanceAfter, expiryDate (credits), reason, createdBy, createdAt
+- [x] **Wallet summary** — On user: totalEarned, availablePoints, redeemedPoints, expiredPoints; updated automatically on ledger changes via pointsService
+- [x] **GET wallet** — `GET /api/users/:userId/wallet`; returns wallet summary and ledger (with pagination); user can access own, admin/manager/staff can access any
+- [x] **Manual adjustment** — `POST /api/admin/wallet/adjust`, `POST /api/manager/wallet/adjust` (manager pump-scoped); Joi validation; creates ledger entry; updates wallet summary
+- [ ] **Points expiry** — Configurable duration (12 months default); FIFO logic in pointsLedgerRepository.findExpiringPoints; TODO: daily job to expire and create expiry ledger entries; optional notifications (30/7/1 days before)
+- [x] **Indexes** — userId, createdAt, expiryDate, (userId, createdAt), transactionId, redemptionId on PointsLedger
 
 ---
 
