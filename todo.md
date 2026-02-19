@@ -29,7 +29,7 @@ Backend follows **Controller → Service → Repository → Model** plus cross-c
 - [x] **Env** — `.env` for `NODE_ENV`, `PORT`, `MONGODB_URI`, `JWT_SECRET` / `ACCESS_TOKEN_SECRET`, `JWT_EXPIRY`, etc.
 - [x] **Response envelope** — In `utils`: ApiResponse, ApiError (existing)
 - [x] **Global error handler** — `src/middlewares/errorHandler.js`; used in `app.js`
-- [ ] **Structured logging** — In `utils`; JSON logs, log level from env, requestId; no secrets in logs
+- [ ] **Structured logging** — In `utils`; JSON logs, log level from env, requestId; no secrets in logs (SKIPPED - using console.log instead)
 - [x] **Health check** — `GET /health` and `GET /api/health` in `app.js`
 
 ---
@@ -49,7 +49,7 @@ Backend follows **Controller → Service → Repository → Model** plus cross-c
 - [x] **Password hashing** — Bcrypt in authService (hashPassword, compare in loginWithPassword)
 - [x] **Auth middleware** — `src/middlewares/auth.middleware.js` (verifyJWT); attach req.user, req.userType
 - [x] **OTP flow** — Generate, store in `Otp.model.js`, send via SMS stub; verify in verifyOtp; resend = sendOtp again
-- [ ] **Refresh token** — `POST /api/auth/refresh` (optional)
+- [x] **Refresh token** — `POST /api/auth/refresh`; `issueRefreshToken()` in authService; refresh endpoint validates refresh token and returns new access + refresh tokens; both tokens returned on login/verifyOtp
 
 ---
 
@@ -75,7 +75,7 @@ Backend follows **Controller → Service → Repository → Model** plus cross-c
 - [x] **Staff create user** — `POST /api/staff/users`; Joi userValidation.createUserByOperator; attachPumpScope; credit registration points to staff (TODO: config)
 - [ ] **Referral code** — Generate/assign in userService for manager/staff; validate on self-register; credit referral points from SystemConfig
 - [ ] **Registration points** — SystemConfig for points per registration; credit in userService via pointsService/ledger
-- [ ] **Account types** — Support Individual and Organization (fleet); **fleet owner** has their own User account with ID; fleet driver users have `ownerId` pointing to owner; owner aggregate in userService
+- [x] **Account types** — Support Individual and Organization (fleet) registration; **fleet owner** has their own User account with ID; fleet driver users have `ownerId` pointing to owner; registration supports registered owner (search by ID/phone) and non-registered owner (create owner + driver + vehicle); owner endpoints: search owner, add vehicle to fleet, get fleet vehicles
 
 ---
 

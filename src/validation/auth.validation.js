@@ -30,11 +30,43 @@ export const authValidation = {
     password: Joi.string().min(1).required(),
   }),
 
+  refresh: Joi.object({
+    refreshToken: Joi.string().trim().required(),
+  }),
+
   register: Joi.object({
+    accountType: Joi.string().valid('individual', 'organization').required(),
+    // Individual registration
     mobile: mobileSchema,
     fullName: Joi.string().trim().min(2).max(100).required(),
     email: Joi.string().email().trim().lowercase().allow('').optional(),
     referralCode: Joi.string().trim().allow('').optional(),
     vehicle: vehicleSchema.required(),
+    // Organization (Fleet) registration
+    ownerType: Joi.when('accountType', {
+      is: 'organization',
+      then: Joi.string().valid('registered', 'non-registered').required(),
+      otherwise: Joi.optional(),
+    }),
+    ownerIdentifier: Joi.when('ownerType', {
+      is: 'registered',
+      then: Joi.string().trim().required(),
+      otherwise: Joi.optional(),
+    }),
+    owner: Joi.when('ownerType', {
+      is: 'non-registered',
+      then: Joi.object({
+        fullName: Joi.string().trim().min(2).max(100).required(),
+        mobile: mobileSchema,
+        email: Joi.string().email().trim().lowercase().allow('').optional(),
+        address: Joi.object({
+          street: Joi.string().trim().optional(),
+          city: Joi.string().trim().optional(),
+          state: Joi.string().trim().optional(),
+          pincode: Joi.string().trim().optional(),
+        }).optional(),
+      }).required(),
+      otherwise: Joi.optional(),
+    }),
   }),
 };

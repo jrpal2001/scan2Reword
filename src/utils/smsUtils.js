@@ -1,9 +1,10 @@
 import axios from "axios";
+import { config } from "../config/index.js";
 
-const SMS_BASE_URL = process.env.SMS_BASE_URL || "https://smsapi.edumarcsms.com/api/v1/sendsms";
-const SMS_API_KEY = process.env.SMS_API_KEY || "";
-const SENDER_ID = process.env.SENDER_ID || "";
-const TEMPLATE_ID = process.env.TEMPLATE_ID || "";
+const SMS_BASE_URL = config.sms.baseUrl;
+const SMS_API_KEY = config.sms.apiKey;
+const SENDER_ID = config.sms.senderId;
+const TEMPLATE_ID = config.sms.templateId;
 
 /**
  * Send SMS via DLT provider (e.g. Edumarc). Used by sendOtp.
@@ -59,7 +60,7 @@ const DEFAULT_OTP_MESSAGE =
  * Replaces {{otp}}, ${otp}, and {#var#} with the actual OTP.
  */
 export const sendOtpSMS = async ({ number, otp }) => {
-  const template = process.env.SMS_OTP_MESSAGE || DEFAULT_OTP_MESSAGE;
+  const template = config.sms.otpMessage || DEFAULT_OTP_MESSAGE;
   const message = template
     .replace(/\{\{otp\}\}/g, otp)
     .replace(/\$\{otp\}/g, otp)

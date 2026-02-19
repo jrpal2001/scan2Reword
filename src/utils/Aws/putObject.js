@@ -1,5 +1,6 @@
 import { s3Client } from "./s3-credentials.js";
 import { PutObjectCommand } from "@aws-sdk/client-s3";
+import { config } from "../../config/index.js";
 
 // export const putObject = async (file, fileName) => {
 //   try {
@@ -45,8 +46,12 @@ export const putObject = async (file, fileName) => {
       throw new Error("File data is missing or empty");
     }
 
+    if (!config.aws.s3Bucket) {
+      throw new Error("AWS_S3_BUCKET is not set in .env");
+    }
+
     const params = {
-      Bucket: process.env.AWS_S3_BUCKET,
+      Bucket: config.aws.s3Bucket,
       Key: fileName,
       Body: fileData,
       ContentType: contentType,
@@ -59,7 +64,7 @@ export const putObject = async (file, fileName) => {
       throw new Error("Failed to upload file to S3");
     }
 
-    const url = `https://${process.env.AWS_S3_BUCKET}.s3.${process.env.AWS_REGION}.amazonaws.com/${params.Key}`;
+    const url = `https://${config.aws.s3Bucket}.s3.${config.aws.region}.amazonaws.com/${params.Key}`;
 
     return { url, key: params.Key };
   } catch (err) {

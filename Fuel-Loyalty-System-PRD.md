@@ -412,21 +412,85 @@ Upon successful registration:
 **QR code:** The backend **does not generate or store** QR code images. After registration, the backend returns the **loyaltyId** (and vehicleId/userId as needed). The **frontend** generates the QR code from this ID. For scan/verification, the QR content is this **same ID**; the backend only needs the ID to validate and look up the user/vehicle. No QR images or QR metadata are saved in the backend.
 
 #### Registration Flow
-1. User enters personal details
-2. System validates mobile number format
-3. OTP sent to mobile number
-4. User enters OTP
-5. System verifies OTP
-6. User enters vehicle details
-7. System validates vehicle number uniqueness
-8. System generates loyalty ID (and vehicleId)
-9. Wallet initialized
-10. Backend returns userId, vehicleId, loyaltyId to frontend; **frontend generates QR code from this ID** (backend does not store QR)
-11. Registration confirmation sent
-12. User redirected to dashboard
+
+**Individual Registration:**
+1. User selects "Individual" account type
+2. User enters personal details (fullName, mobile, email)
+3. System validates mobile number format
+4. OTP sent to mobile number
+5. User enters OTP
+6. System verifies OTP
+7. User enters vehicle details (vehicleNumber, vehicleType, fuelType, etc.)
+8. Optional: User uploads photos (profilePhoto, driverPhoto, rcPhoto)
+9. System validates vehicle number uniqueness
+10. System creates user account and vehicle
+11. System generates loyalty ID (and vehicleId)
+12. Wallet initialized
+13. Backend returns userId, vehicleId, loyaltyId to frontend; **frontend generates QR code from this ID** (backend does not store QR)
+14. Registration confirmation sent (SMS/Email)
+15. User redirected to dashboard
+
+**Organization (Fleet) Registration:**
+
+**Option A: Registered Owner**
+1. User selects "Organization" account type
+2. User selects "Registered Owner"
+3. User enters owner identifier (owner ID or phone number)
+4. System searches for owner by identifier
+5. If owner found, system displays owner details
+6. User enters driver details (mobile, fullName, email)
+7. System validates driver mobile number format
+8. OTP sent to driver mobile number
+9. User enters OTP
+10. System verifies OTP
+11. User enters vehicle details (vehicleNumber, vehicleType, fuelType, etc.)
+12. Optional: User uploads photos (profilePhoto, driverPhoto, rcPhoto)
+13. System creates driver user account linked to owner (ownerId = owner's _id)
+14. System creates vehicle for driver
+15. System generates loyalty ID (and vehicleId)
+16. Wallet initialized for driver
+17. Backend returns userId, vehicleId, loyaltyId, ownerId to frontend
+18. Registration confirmation sent (SMS/Email)
+19. User redirected to dashboard
+
+**Option B: Non-Registered Owner**
+1. User selects "Organization" account type
+2. User selects "Non-Registered Owner"
+3. User enters owner details (fullName, mobile, email, address)
+4. System validates owner mobile number format
+5. OTP sent to owner mobile number (if owner mobile provided)
+6. User enters OTP (if applicable)
+7. System verifies OTP
+8. System creates owner account
+9. User enters driver details (mobile, fullName, email)
+10. System validates driver mobile number format
+11. OTP sent to driver mobile number
+12. User enters OTP
+13. System verifies OTP
+14. User enters vehicle details (vehicleNumber, vehicleType, fuelType, etc.)
+15. Optional: User uploads photos (profilePhoto, driverPhoto, rcPhoto)
+16. System creates driver user account linked to owner (ownerId = owner's _id)
+17. System creates vehicle for driver
+18. System generates loyalty ID (and vehicleId)
+19. Wallet initialized for driver
+20. Backend returns userId, vehicleId, loyaltyId, ownerId to frontend
+21. Registration confirmation sent (SMS/Email)
+22. User redirected to dashboard
+
+**Owner Management:**
+- Owners can search for their account: `GET /api/owner/search?identifier=phone_or_id`
+- Owners can add vehicles to their fleet: `POST /api/owner/vehicles` (authenticated)
+- Owners can view all vehicles in their fleet: `GET /api/owner/vehicles` (authenticated)
 
 #### API Endpoints
-- `POST /api/auth/register` - Self-registration (optional referral code in body)
+- `POST /api/auth/register` - Self-registration
+  - Body: `{ accountType: 'individual' | 'organization', mobile, fullName, email?, referralCode?, vehicle, ownerType?, ownerIdentifier?, owner? }`
+  - For organization: `ownerType: 'registered' | 'non-registered'`
+  - If registered: `ownerIdentifier` (owner ID or phone) required
+  - If non-registered: `owner` object (fullName, mobile, email?, address?) required
+- `GET /api/owner/search?identifier=phone_or_id` - Search owner (for registration flow)
+- `POST /api/owner/vehicles` - Owner adds vehicle to fleet (authenticated owner)
+- `GET /api/owner/vehicles` - Owner views fleet vehicles (authenticated owner)
 - `POST /api/admin/users` - Admin creates user
 - `POST /api/manager/users` - Manager creates user
 - `POST /api/staff/users` - Staff creates user

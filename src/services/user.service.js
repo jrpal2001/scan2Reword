@@ -17,11 +17,28 @@ function generateReferralCode() {
 export const userService = {
   /**
    * Register user (self-registration with OTP verified)
+   * Supports Individual and Organization (Fleet) registration
    * Creates user + vehicle, returns userId, vehicleId, loyaltyId
    */
-  async register(userData, vehicleData, referralCode = null) {
+  async register(registrationData) {
+    const {
+      accountType,
+      mobile,
+      fullName,
+      email,
+      referralCode,
+      vehicle,
+      ownerType,
+      ownerIdentifier,
+      owner,
+      profilePhoto,
+      driverPhoto,
+      ownerPhoto,
+      rcPhoto,
+    } = registrationData;
+
     // Check if mobile already exists
-    const existing = await userRepository.findByMobile(userData.mobile);
+    const existing = await userRepository.findByMobile(mobile);
     if (existing) {
       throw new ApiError(HTTP_STATUS.CONFLICT, 'User with this mobile number already exists');
     }
@@ -38,32 +55,76 @@ export const userService = {
       }
     }
 
-    // Create user
+    let ownerId = null;
+
+    // Handle Organization (Fleet) registration
+    if (accountType === 'organization') {
+      if (ownerType === 'registered') {
+        // Search for existing owner by ID or phone
+        const foundOwner = await userRepository.findByIdentifier(ownerIdentifier);
+        if (!foundOwner) {
+          throw new ApiError(HTTP_STATUS.NOT_FOUND, 'Owner not found with the provided identifier');
+        }
+        // Verify owner is actually an owner (has role USER and no ownerId, or is a fleet owner)
+        if (foundOwner.ownerId) {
+          throw new ApiError(HTTP_STATUS.BAD_REQUEST, 'The provided identifier belongs to a driver, not an owner');
+        }
+        ownerId = foundOwner._id;
+      } else if (ownerType === 'non-registered') {
+        // Create new owner
+        const ownerMobile = owner.mobile;
+        const existingOwner = await userRepository.findByMobile(ownerMobile);
+        if (existingOwner) {
+          throw new ApiError(HTTP_STATUS.CONFLICT, 'Owner with this mobile number already exists');
+        }
+
+        const newOwner = await userRepository.create({
+          fullName: owner.fullName,
+          mobile: ownerMobile,
+          email: owner.email || null,
+          role: ROLES.USER,
+          walletSummary: { totalEarned: 0, availablePoints: 0, redeemedPoints: 0, expiredPoints: 0 },
+          status: 'active',
+          mobileVerified: true,
+          address: owner.address || null,
+          ownerId: null, // Owner has no owner
+        });
+        ownerId = newOwner._id;
+      }
+    }
+
+    // Create user (driver)
     const user = await userRepository.create({
-      ...userData,
+      fullName,
+      mobile,
+      email: email || null,
       role: ROLES.USER,
       walletSummary: { totalEarned: 0, availablePoints: 0, redeemedPoints: 0, expiredPoints: 0 },
       status: 'active',
       mobileVerified: true,
-      profilePhoto: userData.profilePhoto || null,
-      driverPhoto: userData.driverPhoto || null,
-      ownerPhoto: userData.ownerPhoto || null,
+      profilePhoto: profilePhoto || null,
+      driverPhoto: driverPhoto || null,
+      ownerPhoto: ownerPhoto || null,
+      ownerId: ownerId, // Link to owner if organization
     });
 
     // Create vehicle with loyaltyId
-    const vehicle = await vehicleService.createVehicle({
-      ...vehicleData,
+    const vehicleData = {
+      ...vehicle,
       userId: user._id,
-    });
+      rcPhoto: rcPhoto || null,
+    };
+    const vehicleCreated = await vehicleService.createVehicle(vehicleData);
 
     // TODO: Credit referral points to referrer if referralCode provided (via pointsService)
 
     return {
       userId: user._id,
-      vehicleId: vehicle._id,
-      loyaltyId: vehicle.loyaltyId,
+      vehicleId: vehicleCreated._id,
+      loyaltyId: vehicleCreated.loyaltyId,
       user: await userRepository.findById(user._id),
-      vehicle,
+      vehicle: vehicleCreated,
+      ownerId: ownerId, // Return ownerId if organization
     };
   },
 

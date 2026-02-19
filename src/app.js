@@ -12,7 +12,9 @@ import bannerRoutes from './routes/banner.routes.js';
 import rewardRoutes from './routes/reward.routes.js';
 import redemptionRoutes from './routes/redemption.routes.js';
 import notificationRoutes from './routes/notification.routes.js';
+import ownerRoutes from './routes/owner.routes.js';
 import { errorHandler } from './middlewares/errorHandler.js';
+import { formDataParser } from './middlewares/formDataParser.js';
 import { config } from './config/index.js';
 
 dotenv.config();
@@ -23,10 +25,7 @@ const app = express();
 app.use(
   cors({
     origin: (origin, callback) => {
-      const allowedOrigins = config.cors?.origins || process.env.CORS_ORIGIN?.split(',').map(o => o.trim()) || [
-        'http://localhost:3000',
-        'http://localhost:5173',
-      ];
+      const allowedOrigins = config.cors.origins;
       if (!origin || allowedOrigins.includes(origin)) {
         callback(null, true);
       } else {
@@ -38,6 +37,9 @@ app.use(
 );
 
 // Middleware
+// Form-data parser (for POST/PATCH requests with multipart/form-data)
+app.use(formDataParser);
+// JSON and URL-encoded body parsers (for application/json and application/x-www-form-urlencoded)
 app.use(express.json({ limit: '16kb' }));
 app.use(express.urlencoded({ extended: true, limit: '16kb' }));
 
@@ -53,6 +55,7 @@ app.use('/api/banners', bannerRoutes);
 app.use('/api/rewards', rewardRoutes);
 app.use('/api/redeem', redemptionRoutes);
 app.use('/api/notifications', notificationRoutes);
+app.use('/api/owner', ownerRoutes);
 
 // Health check (for liveness/readiness)
 app.get('/health', (req, res) => {

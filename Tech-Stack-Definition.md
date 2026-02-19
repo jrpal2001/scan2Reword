@@ -105,6 +105,7 @@ This document defines the **mandatory technology stack** and **technical rules**
 - **Resource ownership:** Users (role `user`) may only access their own profile, vehicles, wallet, transactions, redemptions.
 - **Banners:** Admin can create/edit/delete banners (global or per store); Manager can create/edit/delete banners for **their specific store (pump)** only. Return only active banners (startTime ≤ now and endTime > now) to users; past endTime = auto-removed from list.
 - **Fleet owner ID:** Fleet owner has their own User account with ID (and optional loyaltyId). When adding transactions, staff can scan/enter either vehicle/driver's loyaltyId (points to vehicle/driver) OR owner ID (points to owner's account for all vehicles).
+- **Registration:** Supports Individual and Organization (Fleet) account types. Organization registration supports registered owner (search by ID/phone) or non-registered owner (create owner + driver + vehicle). Owners can add vehicles to their fleet via authenticated endpoints.
 
 ### 3.4 Database Rules
 

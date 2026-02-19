@@ -1,14 +1,15 @@
 import ApiError from '../utils/ApiError.js';
 import { HTTP_STATUS } from '../constants/errorCodes.js';
+import { config } from '../config/index.js';
 
 /**
  * Email Service - Template-based email sending
- * Supports Nodemailer with SMTP, SendGrid, AWS SES
+ * Uses Nodemailer with SMTP (Gmail)
  */
 class EmailService {
   constructor() {
-    this.fromEmail = process.env.FROM_EMAIL || 'noreply@scen2reward.com';
-    this.fromName = process.env.FROM_NAME || 'Scen2Reward';
+    this.fromEmail = config.email.fromEmail;
+    this.fromName = config.email.fromName;
     this.maxRetries = 3;
   }
 
@@ -42,18 +43,22 @@ class EmailService {
   }
 
   /**
-   * Send email via Nodemailer (SMTP)
+   * Send email via Nodemailer (SMTP - Gmail)
    */
   async sendViaNodemailer(to, subject, html, text) {
     const nodemailer = await import('nodemailer');
 
+    if (!config.email.user || !config.email.appPassword) {
+      throw new Error('Email credentials not configured. Please set EMAIL_USER and EMAIL_APP_PASSWORD in .env');
+    }
+
     const transporter = nodemailer.createTransport({
-      host: process.env.SMTP_HOST,
-      port: parseInt(process.env.SMTP_PORT || '587'),
-      secure: process.env.SMTP_SECURE === 'true',
+      host: config.email.smtpHost,
+      port: config.email.smtpPort,
+      secure: config.email.smtpSecure,
       auth: {
-        user: process.env.SMTP_USER,
-        pass: process.env.SMTP_PASS,
+        user: config.email.user,
+        pass: config.email.appPassword,
       },
     });
 

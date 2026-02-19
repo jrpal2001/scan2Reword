@@ -71,10 +71,15 @@ export const authService = {
     await Otp.findByIdAndUpdate(record._id, { used: true });
     const user = await userRepository.findByMobile(trimmed);
     if (user) {
-      const token = this.issueJwt(user);
-      return { user: { _id: user._id, fullName: user.fullName, mobile: user.mobile, role: user.role }, token };
+      const accessToken = this.issueJwt(user);
+      const refreshToken = this.issueRefreshToken(user);
+      return { 
+        user: { _id: user._id, fullName: user.fullName, mobile: user.mobile, role: user.role }, 
+        token: accessToken,
+        refreshToken 
+      };
     }
-    return { user: null, token: null };
+    return { user: null, token: null, refreshToken: null };
   },
 
   async loginWithPassword(identifier, password) {
@@ -96,9 +101,10 @@ export const authService = {
     if (!STAFF_ROLES.includes(role)) {
       throw new ApiError(HTTP_STATUS.FORBIDDEN, 'Use OTP login for customer accounts', null, ERROR_CODES.FORBIDDEN);
     }
-    const token = this.issueJwt(user);
+    const accessToken = this.issueJwt(user);
+    const refreshToken = this.issueRefreshToken(user);
     const userSafe = await userRepository.findById(user._id);
-    return { user: userSafe, token };
+    return { user: userSafe, token: accessToken, refreshToken };
   },
 
   issueJwt(user) {
@@ -110,6 +116,60 @@ export const authService = {
     const secret = config.jwt.accessSecret;
     const expiresIn = config.jwt.accessExpiry;
     return jwt.sign(payload, secret, { expiresIn });
+  },
+
+  issueRefreshToken(user) {
+    const payload = {
+      _id: user._id,
+      type: 'refresh',
+    };
+    const secret = config.jwt.refreshSecret;
+    const expiresIn = config.jwt.refreshExpiry;
+    return jwt.sign(payload, secret, { expiresIn });
+  },
+
+  async refreshToken(refreshToken) {
+    if (!refreshToken) {
+      throw new ApiError(HTTP_STATUS.BAD_REQUEST, 'Refresh token is required', null, ERROR_CODES.BAD_REQUEST);
+    }
+
+    try {
+      const decoded = jwt.verify(refreshToken, config.jwt.refreshSecret);
+      
+      if (decoded.type !== 'refresh') {
+        throw new ApiError(HTTP_STATUS.UNAUTHORIZED, 'Invalid token type', null, ERROR_CODES.INVALID_CREDENTIALS);
+      }
+
+      const user = await userRepository.findById(decoded._id);
+      if (!user) {
+        throw new ApiError(HTTP_STATUS.UNAUTHORIZED, 'User not found', null, ERROR_CODES.INVALID_CREDENTIALS);
+      }
+
+      if (user.status !== 'active') {
+        throw new ApiError(HTTP_STATUS.FORBIDDEN, 'User account is not active', null, ERROR_CODES.FORBIDDEN);
+      }
+
+      // Issue new access token
+      const newAccessToken = this.issueJwt(user);
+      const newRefreshToken = this.issueRefreshToken(user);
+
+      return {
+        accessToken: newAccessToken,
+        refreshToken: newRefreshToken,
+        user: await userRepository.findById(user._id),
+      };
+    } catch (error) {
+      if (error instanceof ApiError) {
+        throw error;
+      }
+      if (error.name === 'TokenExpiredError') {
+        throw new ApiError(HTTP_STATUS.UNAUTHORIZED, 'Refresh token expired', null, ERROR_CODES.INVALID_CREDENTIALS);
+      }
+      if (error.name === 'JsonWebTokenError') {
+        throw new ApiError(HTTP_STATUS.UNAUTHORIZED, 'Invalid refresh token', null, ERROR_CODES.INVALID_CREDENTIALS);
+      }
+      throw new ApiError(HTTP_STATUS.INTERNAL_SERVER_ERROR, 'Token refresh failed', null, ERROR_CODES.INTERNAL_ERROR);
+    }
   },
 
   async hashPassword(plain) {

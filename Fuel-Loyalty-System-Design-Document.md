@@ -317,7 +317,12 @@ Design choice: **Option A** is sufficient for “one owner, many vehicle-users, 
 
 - **User (customer) login — OTP only:** No password. `POST /api/auth/send-otp` (mobile) → then `POST /api/auth/verify-otp` (mobile, otp) → returns JWT for existing user.
 - **Admin / Manager / Staff login — identifier + password:** `POST /api/auth/login` with `identifier` (email, username, phone number, or user ID) and `password` → JWT.
-- **Register:** `POST /api/auth/register` (optional `referralCode` in body).
+- **Register:** `POST /api/auth/register` 
+  - Body: `{ accountType: 'individual' | 'organization', mobile, fullName, email?, referralCode?, vehicle, ownerType?, ownerIdentifier?, owner? }`
+  - Supports Individual and Organization (Fleet) registration
+  - For organization: `ownerType: 'registered' | 'non-registered'`
+  - If registered: searches owner by `ownerIdentifier` (ID or phone)
+  - If non-registered: creates owner account + driver account + vehicle
 - **OTP:** `POST /api/auth/verify-otp` (registration or user login), `POST /api/auth/resend-otp`.
 - **Refresh:** `POST /api/auth/refresh` (refresh token in body or cookie).
 - **RBAC:** Middleware checks `req.user.role` and optionally `req.user.pumpId`/assignments; 403 if not allowed.
@@ -327,6 +332,7 @@ Design choice: **Option A** is sufficient for “one owner, many vehicle-users, 
 | Group | Examples | Who |
 |-------|----------|-----|
 | Auth | register, login, verify-otp, resend-otp | Public / User |
+| Owner | search owner, add vehicle to fleet, get fleet vehicles | Public (search) / Owner (authenticated) |
 | Users | GET/PUT /users/:id, vehicles, wallet | User (self), Admin |
 | Scan | POST /scan/qr, /scan/validate, /scan/redeem | Staff, Manager, Admin |
 | Transactions | POST/GET /transactions, calculate-points | Staff, Manager, Admin |
@@ -341,7 +347,12 @@ Design choice: **Option A** is sufficient for “one owner, many vehicle-users, 
 
 ### 4.4 Key Endpoints (Design Summary)
 
-- **Registration:** `POST /api/auth/register`, `POST /api/admin/users`, `POST /api/manager/users`, `POST /api/staff/users` — on success, if operator is manager/staff, credit registration points (config); if self-register with `referralCode`, credit referral points to that manager/staff.
+- **Registration:** `POST /api/auth/register` — supports Individual and Organization (Fleet) registration:
+  - Individual: Creates user + vehicle (no owner)
+  - Organization with registered owner: Searches owner by ID/phone, creates driver user linked to owner + vehicle
+  - Organization with non-registered owner: Creates owner + driver user + vehicle, links driver to owner
+  - Also: `POST /api/admin/users`, `POST /api/manager/users`, `POST /api/staff/users` — on success, if operator is manager/staff, credit registration points (config); if self-register with `referralCode`, credit referral points to that manager/staff.
+- **Owner Management:** `GET /api/owner/search` (search owner), `POST /api/owner/vehicles` (add vehicle to fleet), `GET /api/owner/vehicles` (view fleet)
 - **Transactions:** `POST /api/transactions` — body must include `liters` for category Fuel; `attachments` (bill photo) required for Fuel. **Identifier** can be:
   - Vehicle/driver's **loyaltyId** → points go to that vehicle/driver's userId.
   - **Owner ID** (fleet owner's userId) → points go to owner's userId (for all vehicles).
