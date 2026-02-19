@@ -31,4 +31,17 @@ export const userValidation = {
     email: Joi.string().email().trim().lowercase().allow('').optional(),
     vehicle: vehicleSchema.optional(),
   }),
+
+  /** Admin update user */
+  updateUser: Joi.object({
+    fullName: Joi.string().trim().min(2).max(100).optional(),
+    email: Joi.string().email().trim().lowercase().allow('').optional(),
+    role: Joi.string().valid(ROLES.USER, ROLES.MANAGER, ROLES.STAFF).optional(),
+  }),
+
+  /** Admin update user status */
+  updateUserStatus: Joi.object({
+    status: Joi.string().valid('active', 'inactive', 'blocked').required(),
+    reason: Joi.string().trim().allow('').optional(),
+  }),
 };

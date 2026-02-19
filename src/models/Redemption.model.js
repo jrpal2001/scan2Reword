@@ -6,7 +6,7 @@ const redemptionSchema = new mongoose.Schema(
     userId: { type: mongoose.Schema.Types.ObjectId, ref: 'UserLoyalty', required: true },
     rewardId: { type: mongoose.Schema.Types.ObjectId, ref: 'Reward', default: null }, // Optional for at-pump redemptions
     pointsUsed: { type: Number, required: true, min: 1 },
-    redemptionCode: { type: String, required: true, unique: true, trim: true, uppercase: true },
+    redemptionCode: { type: String, required: true, trim: true, uppercase: true },
     status: {
       type: String,
       enum: Object.values(REDEMPTION_STATUS),

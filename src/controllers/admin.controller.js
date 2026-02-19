@@ -1,8 +1,10 @@
 import { asyncHandler } from '../utils/asyncHandler.js';
 import { ApiResponse } from '../utils/ApiResponse.js';
 import { userService } from '../services/user.service.js';
+import { auditLogService } from '../services/auditLog.service.js';
 import { HTTP_STATUS } from '../constants/errorCodes.js';
 import { ROLES } from '../constants/roles.js';
+import { USER_STATUS } from '../constants/status.js';
 
 /**
  * POST /api/admin/users
@@ -18,6 +20,19 @@ export const createUser = asyncHandler(async (req, res) => {
     role: v.role,
   };
   const result = await userService.createUserByAdmin(userData, v.vehicle || null, req.user._id);
+
+  // Log audit
+  await auditLogService.log({
+    userId: req.user._id,
+    action: 'user.create',
+    entityType: 'User',
+    entityId: result.user._id,
+    before: null,
+    after: { fullName: result.user.fullName, mobile: result.user.mobile, role: result.user.role },
+    ipAddress: req.ip,
+    userAgent: req.get('user-agent'),
+  });
+
   return res.status(HTTP_STATUS.CREATED).json(
     ApiResponse.success(
       { user: result.user, vehicle: result.vehicle },
@@ -51,5 +66,106 @@ export const createUserByOperator = asyncHandler(async (req, res) => {
       { user: result.user, vehicle: result.vehicle },
       'User created successfully'
     )
+  );
+});
+
+/**
+ * GET /api/admin/users
+ * List users with filters and pagination
+ */
+export const listUsers = asyncHandler(async (req, res) => {
+  const { page = 1, limit = 20, role, status, search } = req.query;
+  const filter = {};
+  
+  if (role) filter.role = role;
+  if (status) filter.status = status;
+  if (search) {
+    filter.$or = [
+      { fullName: { $regex: search, $options: 'i' } },
+      { mobile: { $regex: search, $options: 'i' } },
+      { email: { $regex: search, $options: 'i' } },
+    ];
+  }
+
+  const result = await userService.listUsers(filter, {
+    page: parseInt(page),
+    limit: parseInt(limit),
+  });
+
+  return res.status(HTTP_STATUS.OK).json(
+    ApiResponse.success(result, 'Users retrieved successfully')
+  );
+});
+
+/**
+ * GET /api/admin/users/:userId
+ * Get user by ID
+ */
+export const getUserById = asyncHandler(async (req, res) => {
+  const { userId } = req.params;
+  const user = await userService.getUserById(userId);
+  return res.status(HTTP_STATUS.OK).json(
+    ApiResponse.success(user, 'User retrieved successfully')
+  );
+});
+
+/**
+ * PUT /api/admin/users/:userId
+ * Update user
+ */
+export const updateUser = asyncHandler(async (req, res) => {
+  const { userId } = req.params;
+  const updateData = req.validated;
+
+  // Get user before update for audit log
+  const userBefore = await userService.getUserById(userId);
+
+  const updated = await userService.updateUser(userId, updateData, req.user._id);
+
+  // Log audit
+  await auditLogService.log({
+    userId: req.user._id,
+    action: 'user.update',
+    entityType: 'User',
+    entityId: userId,
+    before: { fullName: userBefore.fullName, email: userBefore.email, role: userBefore.role, status: userBefore.status },
+    after: { fullName: updated.fullName, email: updated.email, role: updated.role, status: updated.status },
+    ipAddress: req.ip,
+    userAgent: req.get('user-agent'),
+  });
+
+  return res.status(HTTP_STATUS.OK).json(
+    ApiResponse.success(updated, 'User updated successfully')
+  );
+});
+
+/**
+ * PUT /api/admin/users/:userId/status
+ * Block/unblock user
+ */
+export const updateUserStatus = asyncHandler(async (req, res) => {
+  const { userId } = req.params;
+  const { status } = req.validated;
+
+  // Get user before update for audit log
+  const userBefore = await userService.getUserById(userId);
+
+  const updated = await userService.updateUserStatus(userId, status, req.user._id);
+
+  // Log audit
+  await auditLogService.log({
+    userId: req.user._id,
+    action: `user.${status === USER_STATUS.BLOCKED ? 'block' : 'unblock'}`,
+    entityType: 'User',
+    entityId: userId,
+    before: { status: userBefore.status },
+    after: { status: updated.status },
+    metadata: { reason: req.body.reason || null },
+    ipAddress: req.ip,
+    userAgent: req.get('user-agent'),
+  });
+
+  return res.status(HTTP_STATUS.OK).json(
+    ApiResponse.success(updated, `User ${status === USER_STATUS.BLOCKED ? 'blocked' : 'unblocked'} successfully`)
   );
 });

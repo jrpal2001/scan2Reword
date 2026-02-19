@@ -2,7 +2,7 @@ import mongoose from 'mongoose';
 
 const otpSchema = new mongoose.Schema(
   {
-    mobile: { type: String, required: true, index: true },
+    mobile: { type: String, required: true },
     otp: { type: String, required: true },
     purpose: { type: String, enum: ['login', 'register'], default: 'register' },
     expiresAt: { type: Date, required: true },

@@ -1,6 +1,7 @@
 {
   "name": "Scan2Reward-Backend",
   "version": "1.0.0",
+  "type": "module",
   "description": "",
   "main": "server.js",
   "scripts": {
@@ -13,6 +14,7 @@
   "license": "ISC",
   "dependencies": {
     "@aws-sdk/client-s3": "^3.993.0",
+    "axios": "^1.13.5",
     "bcrypt": "^6.0.0",
     "cloudinary": "^2.7.0",
     "cors": "^2.8.5",
@@ -22,9 +24,12 @@
     "firebase-admin": "^13.6.1",
     "joi": "^18.0.1",
     "jsonwebtoken": "^9.0.2",
+    "mongodb": "^7.1.0",
     "mongoose": "^8.19.0",
     "multer": "^2.0.2",
-    "node-cron": "^4.2.1"
+    "node-cron": "^4.2.1",
+    "nodemailer": "^6.10.1",
+    "sharp": "^0.34.5"
   },
   "devDependencies": {
     "nodemon": "^3.1.10"

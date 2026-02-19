@@ -1,6 +1,7 @@
 import { asyncHandler } from '../utils/asyncHandler.js';
 import { ApiResponse } from '../utils/ApiResponse.js';
 import { pointsService } from '../services/points.service.js';
+import { auditLogService } from '../services/auditLog.service.js';
 import { ROLES } from '../constants/roles.js';
 import ApiError from '../utils/ApiError.js';
 import { HTTP_STATUS } from '../constants/errorCodes.js';
@@ -42,6 +43,9 @@ export const adjustWallet = asyncHandler(async (req, res) => {
   // Validate user exists and manager can access (if needed)
   // TODO: Add pump scope check for manager if needed
 
+  // Get wallet before adjustment for audit log
+  const walletBefore = await pointsService.getWallet(userId, { page: 1, limit: 1 });
+
   let ledgerEntry;
   if (type === 'credit' || type === 'adjustment' || type === 'refund') {
     ledgerEntry = await pointsService.creditPoints({
@@ -62,6 +66,22 @@ export const adjustWallet = asyncHandler(async (req, res) => {
   } else {
     throw new ApiError(HTTP_STATUS.BAD_REQUEST, 'Invalid adjustment type');
   }
+
+  // Get wallet after adjustment for audit log
+  const walletAfter = await pointsService.getWallet(userId, { page: 1, limit: 1 });
+
+  // Log audit
+  await auditLogService.log({
+    userId: req.user._id,
+    action: 'wallet.adjust',
+    entityType: 'Wallet',
+    entityId: userId,
+    before: { availablePoints: walletBefore.walletSummary.availablePoints },
+    after: { availablePoints: walletAfter.walletSummary.availablePoints },
+    metadata: { points, type, reason },
+    ipAddress: req.ip,
+    userAgent: req.get('user-agent'),
+  });
 
   return res.status(HTTP_STATUS.OK).json(
     ApiResponse.success(ledgerEntry, 'Wallet adjusted successfully')

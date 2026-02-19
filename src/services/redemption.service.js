@@ -137,12 +137,23 @@ export const redemptionService = {
       userId: user._id,
       points: pointsToDeduct,
       type: 'debit',
-      reason: 'At-pump redemption',
+      reason: `At-pump redemption at pump ${pumpId}`,
       redemptionId: redemption._id,
       createdBy: operatorId,
     });
 
-    return redemption;
+    // Get updated wallet balance to show to staff/manager
+    const updatedWallet = await pointsService.getWallet(user._id, { page: 1, limit: 1 });
+
+    return {
+      redemption,
+      wallet: updatedWallet.walletSummary,
+      user: {
+        _id: user._id,
+        fullName: user.fullName,
+        mobile: user.mobile,
+      },
+    };
   },
 
   /**

@@ -1,6 +1,7 @@
 import { asyncHandler } from '../utils/asyncHandler.js';
 import { ApiResponse } from '../utils/ApiResponse.js';
 import { campaignService } from '../services/campaign.service.js';
+import { auditLogService } from '../services/auditLog.service.js';
 import { HTTP_STATUS } from '../constants/errorCodes.js';
 
 /**
@@ -16,6 +17,20 @@ export const createCampaign = asyncHandler(async (req, res) => {
     role,
     req.allowedPumpIds
   );
+
+  // Log audit
+  await auditLogService.log({
+    userId: req.user._id,
+    action: 'campaign.create',
+    entityType: 'Campaign',
+    entityId: campaign._id,
+    before: null,
+    after: { name: campaign.name, type: campaign.type, status: campaign.status },
+    metadata: { pumpIds: campaign.pumpIds },
+    ipAddress: req.ip,
+    userAgent: req.get('user-agent'),
+  });
+
   return res.status(HTTP_STATUS.CREATED).json(
     ApiResponse.success(campaign, 'Campaign created successfully')
   );

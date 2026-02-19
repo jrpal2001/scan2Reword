@@ -1,7 +1,10 @@
 /**
  * Central config (env-based). No secrets in code.
- * Load dotenv in server.js / app.js before using.
+ * Load dotenv here to ensure it runs before config object is created.
  */
+import dotenv from 'dotenv';
+dotenv.config();
+
 export const config = Object.freeze({
   nodeEnv: process.env.NODE_ENV || (process.env.production === 'prod' ? 'production' : 'development'),
   port: parseInt(process.env.PORT, 10) || 7000,

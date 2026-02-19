@@ -286,4 +286,40 @@ export const userService = {
     }
     return user;
   },
+
+  /**
+   * List users with filters (admin)
+   */
+  async listUsers(filter = {}, options = {}) {
+    return userRepository.list(filter, options);
+  },
+
+  /**
+   * Update user (admin)
+   */
+  async updateUser(userId, updateData, adminId) {
+    const user = await userRepository.findById(userId);
+    if (!user) {
+      throw new ApiError(HTTP_STATUS.NOT_FOUND, 'User not found');
+    }
+
+    // Don't allow updating passwordHash directly
+    const { passwordHash, ...safeUpdateData } = updateData;
+    
+    const updated = await userRepository.update(userId, safeUpdateData);
+    return updated;
+  },
+
+  /**
+   * Block/unblock user (admin)
+   */
+  async updateUserStatus(userId, status, adminId) {
+    const user = await userRepository.findById(userId);
+    if (!user) {
+      throw new ApiError(HTTP_STATUS.NOT_FOUND, 'User not found');
+    }
+
+    const updated = await userRepository.update(userId, { status });
+    return updated;
+  },
 };

@@ -1,10 +1,12 @@
 import dotenv from 'dotenv';
+
+// Load environment variables FIRST before importing any config
+dotenv.config();
+
 import connectDB from './src/config/db.js';
 import app from './src/app.js';
 import { config } from './src/config/index.js';
 import { startPointsExpiryJobs } from './src/jobs/pointsExpiry.job.js';
-
-dotenv.config();
 
 const startServer = async () => {
   try {

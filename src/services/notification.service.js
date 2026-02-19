@@ -1,6 +1,6 @@
 import { notificationRepository } from '../repositories/notification.repository.js';
 import { userRepository } from '../repositories/user.repository.js';
-import admin from '../firebase/firebase.js';
+import admin, { isFirebaseInitialized } from '../firebase/firebase.js';
 import ApiError from '../utils/ApiError.js';
 import { HTTP_STATUS } from '../constants/errorCodes.js';
 
@@ -54,6 +54,10 @@ export const notificationService = {
    * Subscribe FCM token to topic
    */
   async subscribeTokenToTopic(token, topic = 'all') {
+    if (!isFirebaseInitialized) {
+      console.warn('[Firebase] Not initialized. Skipping token subscription.');
+      return false;
+    }
     try {
       await admin.messaging().subscribeToTopic([token], topic);
       return true;
@@ -90,6 +94,22 @@ export const notificationService = {
    * Send notification to all users (via topic)
    */
   async sendToAll(title, body, link = null, img = null) {
+    if (!isFirebaseInitialized) {
+      console.warn('[Firebase] Not initialized. Skipping push notification. Creating in-app notification only.');
+      // Still create notification document for in-app list
+      const users = await userRepository.list({ status: 'active' }, { page: 1, limit: 10000 });
+      const userIds = users.list.map((u) => String(u._id));
+      const notification = await notificationRepository.create({
+        title,
+        body,
+        link,
+        img,
+        notificationTime: new Date(),
+        users: userIds,
+      });
+      return { notification, messageId: null };
+    }
+
     const message = createTopicMessage(title, body);
     
     try {
@@ -132,6 +152,24 @@ export const notificationService = {
         tokens.push(...user.FcmTokens);
         validUserIds.push(String(user._id));
       }
+    }
+
+    if (!isFirebaseInitialized) {
+      console.warn('[Firebase] Not initialized. Skipping push notification. Creating in-app notification only.');
+      // Still create notification documents for in-app list
+      const notifications = [];
+      for (const userId of validUserIds.length > 0 ? validUserIds : userIds) {
+        const notification = await notificationRepository.create({
+          title,
+          body,
+          link,
+          img,
+          notificationTime: new Date(),
+          users: [userId],
+        });
+        notifications.push(notification);
+      }
+      return { notifications, results: [], errors: [] };
     }
 
     if (tokens.length === 0) {

@@ -4,8 +4,8 @@ import { VEHICLE_STATUS } from '../constants/status.js';
 const vehicleSchema = new mongoose.Schema(
   {
     userId: { type: mongoose.Schema.Types.ObjectId, ref: 'UserLoyalty', required: true },
-    vehicleNumber: { type: String, required: true, unique: true, trim: true, uppercase: true },
-    loyaltyId: { type: String, required: true, unique: true, trim: true },
+    vehicleNumber: { type: String, required: true, trim: true, uppercase: true },
+    loyaltyId: { type: String, required: true, trim: true },
     vehicleType: {
       type: String,
       enum: ['Two-Wheeler', 'Three-Wheeler', 'Four-Wheeler', 'Commercial'],

@@ -213,19 +213,19 @@ Backend follows **Controller → Service → Repository → Model** plus cross-c
 
 ## Security & validation
 
-- [ ] **Input validation** — Joi or Zod for all request bodies; reject invalid with 400 and message
-- [ ] **No NoSQL injection** — Never pass user input into `$where` or dynamic operators; parameterized queries only
-- [ ] **Rate limiting** — Per IP and per user (in-memory or MongoDB); stricter on auth and OTP endpoints
-- [ ] **CORS** — Restrict origins in production; do not use `*` with credentials
-- [ ] **Audit log** — Log sensitive actions (user create, wallet adjust, redemption, campaign create) with userId, entity, before/after to AuditLogs collection
+- [x] **Input validation** — Joi validation middleware (`validateRequest`) used throughout all routes; rejects invalid requests with 400 status
+- [x] **No NoSQL injection** — All queries use parameterized Mongoose queries; no `$where` or dynamic operators; user input sanitized via Joi validation
+- [x] **Rate limiting** — In-memory rate limiter (`src/middlewares/rateLimiter.middleware.js`); global limit (100 req/15min per IP); strict limit for auth endpoints (5 req/15min); per-user rate limiting available
+- [x] **CORS** — Configured in `app.js` with `config.cors.origins` whitelist; credentials enabled; no `*` wildcard
+- [x] **Audit log** — `AuditLog` model and service (`src/services/auditLog.service.js`); logs user.create, wallet.adjust, redemption.create, campaign.create with userId, entity, before/after states, IP, userAgent
 
 ---
 
 ## Admin & manager APIs
 
-- [ ] **Admin dashboard** — `GET /api/admin/dashboard` (aggregate stats: users, transactions, points, redemptions)
-- [ ] **Admin users** — List, get, update, block users
-- [ ] **Manager dashboard** — `GET /api/manager/dashboard` or pump-scoped stats
+- [x] **Admin dashboard** — `GET /api/admin/dashboard` (`src/services/dashboard.service.js`); aggregate stats: users (total, new today/month, active), transactions (total, today, this month), revenue (today, this month, last month, growth %), points (total earned/redeemed/expired/available), redemptions (total, today, this month)
+- [x] **Admin users** — `GET /api/admin/users` (list with filters: role, status, search), `GET /api/admin/users/:userId` (get by ID), `PUT /api/admin/users/:userId` (update), `PUT /api/admin/users/:userId/status` (block/unblock); all with audit logging
+- [x] **Manager dashboard** — `GET /api/manager/dashboard` (`src/services/dashboard.service.js`); pump-scoped stats: transactions (today, this month), revenue (today, this month), points issued (today, this month), redemptions (today, this month)
 - [ ] **Manager transactions** — List transactions for manager’s pump(s); filters and pagination
 - [ ] **Organization (fleet)** — Owner: aggregate “all total fleet points” and per-vehicle points (users where ownerId = owner’s _id)
 
@@ -235,14 +235,14 @@ Backend follows **Controller → Service → Repository → Model** plus cross-c
 
 - [ ] **Unit tests** — Critical business logic (points calculation, validation helpers)
 - [ ] **Integration tests** — Auth, registration, transaction create, redemption, scan/validate
-- [ ] **Env-based config** — No secrets in code; all from env
+- [x] **Env-based config** — All configuration centralized in `src/config/index.js`; no secrets hardcoded; all from `.env` file
 
 ---
 
 ## Deployment & ops
 
-- [ ] **MongoDB indexes** — Create all recommended indexes (see Design Document 3.3)
-- [ ] **Health check** — Used by load balancer or orchestrator
+- [x] **MongoDB indexes** — Indexes defined in all models: User (mobile unique, referralCode unique, role, ownerId, status), Vehicle (userId, loyaltyId unique, vehicleNumber unique), Transaction (pumpId, vehicleId, userId, pumpId+billNumber unique, createdAt), PointsLedger (userId, createdAt, expiryDate, userId+createdAt composite, transactionId, redemptionId), Redemption (userId, status, redemptionCode unique, expiryDate), Campaign (status, startDate, endDate, pumpIds, createdBy, status+startDate+endDate composite), Banner (startTime, endTime, pumpIds, status, startTime+endTime composite), Notification (users, notificationTime), AuditLog (userId+createdAt, action+createdAt, entityType+entityId, createdAt)
+- [x] **Health check** — `GET /health` and `GET /api/health` endpoints implemented in `app.js`; returns status and timestamp
 - [ ] **Logging** — Structured (JSON); level from env; errors with stack and requestId
 - [ ] **Documentation** — API list (endpoints, auth, request/response examples) — optional OpenAPI/Swagger
 

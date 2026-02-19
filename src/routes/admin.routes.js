@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import { adminLogin } from '../controllers/adminAuth.controller.js';
 import * as adminController from '../controllers/admin.controller.js';
+import * as dashboardController from '../controllers/dashboard.controller.js';
 import * as pumpController from '../controllers/pump.controller.js';
 import * as walletController from '../controllers/wallet.controller.js';
 import * as campaignController from '../controllers/campaign.controller.js';
@@ -30,6 +31,14 @@ router.get('/me', verifyJWT, requireRoles([ROLES.ADMIN]), (req, res) => {
   res.status(200).json({ success: true, user: req.user, userType: req.userType });
 });
 
+// Dashboard
+router.get(
+  '/dashboard',
+  verifyJWT,
+  requireRoles([ROLES.ADMIN]),
+  dashboardController.getAdminDashboard
+);
+
 // Users
 router.post(
   '/users',
@@ -37,6 +46,36 @@ router.post(
   requireRoles([ROLES.ADMIN]),
   validateRequest(userValidation.createUser),
   adminController.createUser
+);
+
+router.get(
+  '/users',
+  verifyJWT,
+  requireRoles([ROLES.ADMIN]),
+  adminController.listUsers
+);
+
+router.get(
+  '/users/:userId',
+  verifyJWT,
+  requireRoles([ROLES.ADMIN]),
+  adminController.getUserById
+);
+
+router.put(
+  '/users/:userId',
+  verifyJWT,
+  requireRoles([ROLES.ADMIN]),
+  validateRequest(userValidation.updateUser),
+  adminController.updateUser
+);
+
+router.put(
+  '/users/:userId/status',
+  verifyJWT,
+  requireRoles([ROLES.ADMIN]),
+  validateRequest(userValidation.updateUserStatus),
+  adminController.updateUserStatus
 );
 
 // Pumps CRUD

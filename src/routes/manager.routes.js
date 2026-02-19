@@ -1,5 +1,6 @@
 import { Router } from 'express';
 import * as adminController from '../controllers/admin.controller.js';
+import * as dashboardController from '../controllers/dashboard.controller.js';
 import * as walletController from '../controllers/wallet.controller.js';
 import * as campaignController from '../controllers/campaign.controller.js';
 import * as bannerController from '../controllers/banner.controller.js';
@@ -12,9 +13,19 @@ import { walletValidation } from '../validation/wallet.validation.js';
 import { campaignValidation } from '../validation/campaign.validation.js';
 import { bannerValidation } from '../validation/banner.validation.js';
 import { redemptionValidation } from '../validation/redemption.validation.js';
+import { transactionValidation } from '../validation/transaction.validation.js';
 import { ROLES } from '../constants/roles.js';
 
 const router = Router();
+
+// Dashboard
+router.get(
+  '/dashboard',
+  verifyJWT,
+  requireRoles([ROLES.MANAGER]),
+  attachPumpScope,
+  dashboardController.getManagerDashboard
+);
 
 router.post(
   '/users',

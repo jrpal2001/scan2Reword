@@ -1,6 +1,7 @@
 import { asyncHandler } from '../utils/asyncHandler.js';
 import { ApiResponse } from '../utils/ApiResponse.js';
 import { redemptionService } from '../services/redemption.service.js';
+import { auditLogService } from '../services/auditLog.service.js';
 import { HTTP_STATUS } from '../constants/errorCodes.js';
 
 /**
@@ -14,6 +15,20 @@ export const createRedemption = asyncHandler(async (req, res) => {
     userId: req.user._id,
     rewardId,
   });
+
+  // Log audit
+  await auditLogService.log({
+    userId: req.user._id,
+    action: 'redemption.create',
+    entityType: 'Redemption',
+    entityId: redemption._id,
+    before: null,
+    after: { pointsUsed: redemption.pointsUsed, status: redemption.status },
+    metadata: { rewardId },
+    ipAddress: req.ip,
+    userAgent: req.get('user-agent'),
+  });
+
   return res.status(HTTP_STATUS.CREATED).json(
     ApiResponse.success(
       { redemption, redemptionCode: redemption.redemptionCode },
@@ -23,13 +38,14 @@ export const createRedemption = asyncHandler(async (req, res) => {
 });
 
 /**
- * POST /api/manager/redeem or POST /api/scan/redeem
+ * POST /api/redeem/at-pump or POST /api/manager/redeem or POST /api/staff/redeem
  * Body: { identifier, pointsToDeduct, pumpId }
  * At-pump redemption (manager/staff initiated).
+ * Simple flow: Scan QR → Enter points → Deduct → Show updated balance
  */
 export const createAtPumpRedemption = asyncHandler(async (req, res) => {
   const { identifier, pointsToDeduct, pumpId } = req.validated;
-  const redemption = await redemptionService.createAtPumpRedemption({
+  const result = await redemptionService.createAtPumpRedemption({
     identifier,
     pointsToDeduct,
     operatorId: req.user._id,
@@ -37,8 +53,13 @@ export const createAtPumpRedemption = asyncHandler(async (req, res) => {
   });
   return res.status(HTTP_STATUS.CREATED).json(
     ApiResponse.success(
-      { redemption, redemptionCode: redemption.redemptionCode },
-      'At-pump redemption created successfully. Points deducted.'
+      {
+        redemption: result.redemption,
+        redemptionCode: result.redemption.redemptionCode,
+        user: result.user,
+        wallet: result.wallet, // Updated wallet balance
+      },
+      `Points deducted successfully. Updated balance: ${result.wallet.availablePoints} points`
     )
   );
 });
