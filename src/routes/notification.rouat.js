@@ -1,4 +1,4 @@
-import { notificationController } from "./notification.controller.js";
+import { notificationController } from "../controllers/notification.controller.js";
 import { verifyJWT } from "../Middlewares/AdminauthMiddlewares.js";
 import express from "express";
 

@@ -47,7 +47,7 @@ This system enables fuel stations to operate a comprehensive digital loyalty pro
 - **User Web Portal:** Customer self-service portal
 - **Flutter Mobile App:** iOS and Android mobile application
 - **Backend API:** Node.js + Express + MongoDB RESTful API
-- **QR Code System:** Secure QR/Barcode generation and scanning
+- **QR Code:** Frontend generates QR from loyalty ID (returned by backend); backend verifies ID only; no QR storage or expiry
 
 ## 1.4 Key Value Propositions
 
@@ -108,7 +108,7 @@ This PRD includes comprehensive system design diagrams located in **Section 6.5*
 ## 2.2 Technical Objectives
 
 ### Core Technical Goals
-- **Secure QR-based Vehicle Identification:** Tamper-proof QR codes with encryption
+- **QR-based Vehicle Identification:** QR code generated on frontend from loyalty ID (returned by backend); backend verifies ID only; no QR storage or expiry on backend
 - **Configurable Points Engine:** Flexible rules engine for points calculation
 - **Fraud-Resistant Transactions:** Multi-layer fraud detection and prevention
 - **High Availability:** 99%+ uptime with minimal downtime
@@ -211,6 +211,15 @@ This PRD includes comprehensive system design diagrams located in **Section 6.5*
   - Access QR scanning interface
   - Manual transaction entry
   - Vehicle lookup
+- **User Registration:**
+  - Register users at pump; manager receives **registration points** (admin-configurable)
+  - Manager has a **referral code** for self-registrations (referral points)
+- **Redemption at pump:** Identify user by QR scan or loyalty ID/mobile; deduct points (coins) spent
+
+- **Campaign Management (store-specific):**
+  - Create and manage **special campaigns** for **their specific store (pump)** only
+  - Set campaign type, dates, multipliers, and conditions for that pump
+  - Campaigns created by Manager apply only to transactions at their pump
 
 ### Access Level
 - Pump-specific access only
@@ -224,8 +233,11 @@ This PRD includes comprehensive system design diagrams located in **Section 6.5*
   - Scan QR code
   - Enter loyalty ID manually
   - Enter mobile number for lookup
-  - Add transaction details
-  - Credit points automatically
+  - Add transaction details (including **bill photo** for fuel purchases)
+  - Credit points automatically (fuel points based on liters)
+- **User Registration:**
+  - Register users at pump; staff receives **registration points** (admin-configurable)
+  - Staff has a **referral code** for self-registrations (referral points)
 
 - **Vehicle Lookup:**
   - Search by loyalty ID
@@ -237,6 +249,7 @@ This PRD includes comprehensive system design diagrams located in **Section 6.5*
   - View transaction history (own entries)
   - View customer wallet balance
   - View active campaigns
+- **Redemption at pump:** Identify user by QR scan or loyalty ID/mobile; deduct points (coins) spent for redemption
 
 ### Access Level
 - Transaction entry only
@@ -283,6 +296,10 @@ This PRD includes comprehensive system design diagrams located in **Section 6.5*
   - View campaign eligibility
   - View campaign history
 
+- **Banners / Offers:**
+  - View **banner section** showing all active offers (by store or global)
+  - Banners with end time are **removed automatically** when the end time is reached
+
 ### Access Level
 - Own account only
 - Read-only access to system data
@@ -295,14 +312,16 @@ This PRD includes comprehensive system design diagrams located in **Section 6.5*
 | Create Pumps | ✅ | ❌ | ❌ | ❌ |
 | Create Managers | ✅ | ❌ | ❌ | ❌ |
 | Create Staff | ✅ | ✅ | ❌ | ❌ |
-| Create Users | ✅ | ✅ | ❌ | ✅ (Self) |
+| Create Users | ✅ | ✅ | ✅ | ✅ (Self) |
 | View All Transactions | ✅ | ✅ (Pump) | ❌ | ✅ (Own) |
 | Add Transaction | ✅ | ✅ | ✅ | ❌ |
 | Manual Points Credit | ✅ | ✅ (Approval) | ❌ | ❌ |
 | Approve Redemptions | ✅ | ✅ | ❌ | ❌ |
+| Process redemption at pump (scan QR/ID, deduct points) | ✅ | ✅ | ✅ | ❌ |
 | Configure Rules | ✅ | ❌ | ❌ | ❌ |
 | View Analytics | ✅ | ✅ (Pump) | ❌ | ❌ |
-| Manage Campaigns | ✅ | ❌ | ❌ | ❌ |
+| Manage Campaigns | ✅ (All) | ✅ (Store/Pump only) | ❌ | ❌ |
+| Manage Banners / Offers | ✅ (All) | ✅ (Store/Pump only) | ❌ | ❌ |
 
 ---
 
@@ -314,12 +333,34 @@ This PRD includes comprehensive system design diagrams located in **Section 6.5*
 
 ## 4.1 Registration Module
 
-### 4.1.1 User Registration
+### 4.1.1 Account Types
+
+User registration supports two types of accounts:
+
+#### 1. Individual Account
+- Single user (customer) with one or more vehicles
+- Each vehicle has its own QR code, loyalty ID, and wallet linkage
+- User sees their own points and transaction history per vehicle
+
+#### 2. Organization Account (Fleet / Commercial)
+- **One owner** (organization/fleet owner)
+- Owner has **multiple vehicles** (e.g. 10 trucks)
+- **Different user per vehicle/driver:** For each vehicle there is a **separate user (account)** — tied to that **specific driver** and that **specific vehicle**. So 10 trucks = **10 different users** (10 different accounts).
+- **Different QR per vehicle:** Each of these users has its **own unique QR code** and **own loyalty ID**. So 10 trucks → **10 different QR codes** and **10 different user accounts** (one per driver+vehicle).
+- **Each per-vehicle user has:**
+  - **Vehicle details:** Vehicle number, type, fuel type, etc.
+  - **Driver details:** Driver name, contact (for that vehicle)
+  - **Owner details:** Linked to the same organization/owner
+- **Points visibility:**
+  - **Driver (that vehicle’s user):** Sees that vehicle’s points (and that vehicle’s total) **and the all total fleet points** (sum across all vehicles in the organization).
+  - **Owner:** Sees **all total fleet points** (sum across all vehicles) and **per-vehicle (per-truck) points** for every vehicle in the fleet.
+
+### 4.1.2 User Registration
 
 #### Registration Methods
-1. **Self-Registration:** User registers via web portal or mobile app
+1. **Self-Registration:** User registers via web portal or mobile app (optional **referral code** for Manager/Staff referral points — see 4.1.4)
 2. **Admin Registration:** Admin creates user account
-3. **Manager Registration:** Manager creates user account at pump
+3. **Manager/Staff Registration:** Manager or Staff creates user account at pump (registration points to operator — see 4.1.3)
 
 #### Required Fields
 - **Full Name:** String, 2-100 characters, required
@@ -358,12 +399,12 @@ This PRD includes comprehensive system design diagrams located in **Section 6.5*
 Upon successful registration:
 - **userId:** Unique user identifier
 - **vehicleId:** Unique vehicle identifier
-- **loyaltyId:** Unique loyalty ID (format: "LOY" + 8-digit number)
-- **QR Code:** Generated QR code image (PNG/SVG)
-- **Barcode:** Generated barcode (Code128 format)
+- **loyaltyId:** Unique loyalty ID (format: "LOY" + 8-digit number) — **this ID is used for QR verification and is always the same for this vehicle**
 - **Wallet:** Initialized with zero balance
 - **Welcome SMS:** Sent to registered mobile number
 - **Welcome Email:** Sent if email provided
+
+**QR code:** The backend **does not generate or store** QR code images. After registration, the backend returns the **loyaltyId** (and vehicleId/userId as needed). The **frontend** generates the QR code from this ID. For scan/verification, the QR content is this **same ID**; the backend only needs the ID to validate and look up the user/vehicle. No QR images or QR metadata are saved in the backend.
 
 #### Registration Flow
 1. User enters personal details
@@ -373,104 +414,88 @@ Upon successful registration:
 5. System verifies OTP
 6. User enters vehicle details
 7. System validates vehicle number uniqueness
-8. System generates loyalty ID
-9. System generates QR code and barcode
-10. Wallet initialized
+8. System generates loyalty ID (and vehicleId)
+9. Wallet initialized
+10. Backend returns userId, vehicleId, loyaltyId to frontend; **frontend generates QR code from this ID** (backend does not store QR)
 11. Registration confirmation sent
 12. User redirected to dashboard
 
 #### API Endpoints
-- `POST /api/auth/register` - Self-registration
+- `POST /api/auth/register` - Self-registration (optional referral code in body)
 - `POST /api/admin/users` - Admin creates user
 - `POST /api/manager/users` - Manager creates user
-- `POST /api/auth/verify-otp` - OTP verification
+- `POST /api/staff/users` - Staff creates user
+- **User login (OTP):** `POST /api/auth/send-otp` - Send OTP to mobile (for login); then `POST /api/auth/verify-otp` - Submit mobile + OTP to get JWT (no password).
+- **Admin/Manager/Staff login:** `POST /api/auth/login` - Submit identifier (email/username/phone/id) + password to get JWT.
+- `POST /api/auth/verify-otp` - OTP verification (registration or user login; returns JWT for existing user)
 - `POST /api/auth/resend-otp` - Resend OTP
+
+### 4.1.3 Manager/Staff Registration Points
+
+When a **Manager or Staff** registers a user (at pump or via panel), the **operator who performed the registration receives points**.
+
+- **Configurable by Admin:** The number of points awarded per registration is set by the Super Admin (e.g. 50 points per user registered).
+- **Credited to:** The Manager or Staff user who created the registration.
+- **Separate from fuel points:** This is a **registration incentive** only; the fuel point system is different and based on liters (see 4.3).
+- **Audit:** System records which operator registered which user for points attribution.
+
+### 4.1.4 Referral Point System (Manager/Staff Only)
+
+When a **user self-registers** (web or app), they may enter a **referral code**. The **Manager or Staff** who owns that referral code receives points.
+
+- **Referral code:** Each Manager/Staff has a unique referral code (e.g. generated or assigned by admin). User enters this at self-registration.
+- **Points to Manager/Staff:** On successful self-registration with a valid referral code, the linked Manager/Staff is credited with referral points.
+- **Configurable by Admin:** Referral points per sign-up are configurable (e.g. 25 points per referred user).
+- **Only for Manager/Staff:** This referral point system applies only to Manager and Staff roles; it does not apply to end-user-to-user referral.
+- **Separate from fuel points:** Referral points are independent of the fuel point system (which is based on liters).
+
+### 4.1.5 Login / Authentication Methods
+
+Login behavior differs by role:
+
+#### User (Customer) — OTP Login
+- **Users (end customers)** log in using **OTP only** (no password).
+- Flow:
+  1. User enters **mobile number**.
+  2. System sends OTP to that mobile (SMS).
+  3. User submits **mobile + OTP** (e.g. `POST /api/auth/verify-otp` or login-with-OTP endpoint).
+  4. System verifies OTP and returns JWT (and refresh token if used).
+- Optional: "Send OTP" step can be a dedicated endpoint (e.g. `POST /api/auth/send-otp`) before verify.
+
+#### Admin, Manager, Staff — Identifier + Password Login
+- **Admin, Manager, and Staff** log in using an **identifier** and **password**.
+- **Identifier** can be any one of: **user ID**, **email**, **username**, or **phone number** (system looks up the user by the provided value).
+- **Password** is required (set during account creation or reset by admin).
+- Flow:
+  1. User enters identifier (email / username / phone number / id) and password.
+  2. System validates credentials and returns JWT (and refresh token if used).
 
 ---
 
-## 4.2 QR / Barcode Generation
+## 4.2 QR Code Handling & Verification
 
-### 4.2.1 QR Code Specifications
+### 4.2.1 QR Code: Frontend Generation, Backend Verification Only
 
-Each vehicle will have:
-- **Unique QR Code:** High-resolution QR code image
-- **Unique Loyalty ID:** Human-readable ID (e.g., "LOY12345678")
-- **Printable Barcode:** Code128 format barcode
+- **QR code is handled by the frontend.** The backend **does not generate or store** QR code images.
+- **After registration,** the backend returns the **loyaltyId** (and vehicleId / userId as needed). The **frontend** uses this ID to generate the QR code (e.g. with a free client-side library). The **ID in the QR is always the same** for that vehicle (the loyaltyId or the same identifier agreed for verification).
+- **Backend does not save** QR images, QR payload, or barcode images. Backend only needs to store the **loyaltyId** (and vehicle/user identifiers) for **verification**: when a QR is scanned, the scanner gets the ID from the QR and sends it to the backend; the backend validates the ID and returns the associated user/vehicle.
+- **No QR code expiry system:** There is no expiry or refresh for QR codes. The same ID is used for the lifetime of the vehicle; no "QR expired" or "refresh QR" flow.
 
-### 4.2.2 QR Code Payload Structure
+### 4.2.2 QR Content for Verification
 
-#### Encrypted/Signed Payload Format
-```json
-{
-  "vehicleId": "encrypted_vehicle_id",
-  "loyaltyId": "LOY12345678",
-  "userId": "encrypted_user_id",
-  "signedToken": "JWT_token_with_expiry",
-  "checksum": "SHA256_hash",
-  "timestamp": "2026-02-17T10:30:00Z",
-  "version": "1.0"
-}
-```
+- The QR code **content** is the **verification ID** (e.g. **loyaltyId** or vehicleId, as agreed). This ID is **always the same** for that vehicle — it does not change over time.
+- When staff scan the QR at the pump (or for redemption), the app reads this ID and sends it to the backend (e.g. `POST /api/scan/validate` or `POST /api/scan/qr`) with the ID. The backend looks up the vehicle/user by this ID and proceeds with transaction or redemption.
 
-#### QR Code Data Format
-- **Format:** JSON string, base64 encoded
-- **Size:** 500x500 pixels minimum
-- **Error Correction:** Level M (15% error correction)
-- **Format Standards:** ISO/IEC 18004:2015 compliant
+### 4.2.3 Backend Responsibility
 
-### 4.2.3 Security Requirements
+- Store and expose **loyaltyId** (and vehicleId, userId) per vehicle so the frontend can generate the QR after registration or when viewing the vehicle.
+- **Verification endpoint:** Accept the ID from the scanner (from QR or manual entry) and validate it; return user/vehicle info for the flow (transaction, redemption). No QR image storage or QR expiry logic.
 
-#### Encryption & Signing
-- No raw database IDs exposed in QR code
-- JWT token with 1-year expiry (renewable)
-- AES-256 encryption for sensitive data
-- HMAC-SHA256 signature for tamper detection
-- Token refresh mechanism for expired QR codes
+### 4.2.4 API Endpoints (QR-Related)
 
-#### Tamper Detection
-- Checksum validation on scan
-- Token expiry validation
-- Signature verification
-- Invalid QR code logging and alerting
-
-#### QR Code Generation Process
-1. Generate unique loyalty ID
-2. Create encrypted payload
-3. Sign payload with secret key
-4. Generate checksum
-5. Encode to base64
-6. Generate QR code image
-7. Store QR metadata in database
-8. Return QR code and barcode images
-
-### 4.2.4 Barcode Specifications
-
-- **Format:** Code128
-- **Height:** 50mm minimum
-- **Width:** Variable based on data length
-- **Human-readable:** Loyalty ID printed below barcode
-- **Print Quality:** 300 DPI minimum
-
-### 4.2.5 QR Code Download Options
-
-Users can download:
-- **PNG Image:** High-resolution PNG (500x500px)
-- **PDF:** Print-ready PDF with logo and instructions
-- **SVG:** Scalable vector format
-- **Printable Sticker:** Pre-formatted sticker template
-
-### 4.2.6 QR Code Refresh
-
-- QR codes expire after 1 year
-- Users can refresh QR code from dashboard
-- Old QR codes remain valid until expiry
-- Notification sent 30 days before expiry
-
-### 4.2.7 API Endpoints
-- `GET /api/users/:userId/vehicles/:vehicleId/qr` - Get QR code
-- `GET /api/users/:userId/vehicles/:vehicleId/barcode` - Get barcode
-- `POST /api/users/:userId/vehicles/:vehicleId/qr/refresh` - Refresh QR code
-- `POST /api/scan/qr` - Scan and validate QR code
+- **For frontend to get ID for QR:** Return loyaltyId (and vehicleId/userId) in registration response and in `GET /api/users/:userId/vehicles` or `GET /api/users/:userId/vehicles/:vehicleId` so the frontend can generate the QR from this ID.
+- **Verification:** `POST /api/scan/validate` or `POST /api/scan/qr` — request body contains the **ID** (e.g. loyaltyId or vehicleId) read from the QR or entered manually; backend validates and returns user/vehicle for the operation.
+- **Removed:** No endpoints for "get QR image", "get barcode", or "refresh QR" — frontend generates QR from ID; no QR expiry.
 
 ---
 
@@ -486,7 +511,7 @@ Users can download:
   - Loyalty ID (manual entry)
   - Mobile Number (lookup)
 - **Fuel Amount:** Number, required, minimum ₹100
-- **Fuel Liters:** Number, optional, for record keeping
+- **Fuel Liters:** Number, **required for fuel transactions** — used as the basis for fuel point calculation (see 4.3.2)
 - **Item Category:** Enum, required
   - Fuel
   - Lubricant
@@ -503,7 +528,9 @@ Users can download:
 #### Optional Fields
 - **Discount Amount:** Number, if any discount applied
 - **Notes:** String, additional transaction notes
-- **Attachments:** Array of file URLs (receipt images)
+
+#### Required for Fuel Purchase
+- **Bill Photo:** Required when Manager, Staff, or User adds a fuel purchase. One or more images of the bill/receipt must be uploaded. Stored as **Attachments** (array of file URLs). Ensures proof of purchase for fuel transactions.
 
 #### Validation Rules
 - Bill number must be unique per pump
@@ -515,20 +542,47 @@ Users can download:
 
 ### 4.3.2 Points Calculation Logic
 
+**Important:** The **fuel point system** is **based on liters** (fuel volume). Registration points and referral points (Manager/Staff) are separate and configurable by admin (see 4.1.3, 4.1.4).
+
+#### Fuel Points (Liter-Based)
+
+For **Fuel** category transactions, points are calculated from **liters** (not amount):
+
+- **Admin-configurable:** e.g. X points per liter (e.g. 1 point per liter, or 1 point per 2 liters).
+- **Formula (fuel):** `fuelPoints = liters × pointsPerLiter × campaignMultiplier` (with floor/cap as configured).
+- **Liters** is required for fuel transactions; bill photo is also required for fuel purchase entry.
+
+#### Other Categories (Amount-Based)
+
+For **Lubricant**, **Store**, **Service**, points may remain **amount-based** (e.g. per ₹100):
+
+- 2 points per ₹100 spent on lubricants
+- 3 points per ₹100 spent on store items
+- 1.5 points per ₹100 for service (examples; admin-configurable)
+
 #### Admin-Configurable Rules
 
-**Base Rule Example:**
-- 1 point per ₹100 spent on fuel
+**Fuel (liter-based) rule example:**
+- 1 point per liter of fuel (or per N liters)
+- Minimum liters per transaction (if any)
+- Maximum points per fuel transaction (cap)
+
+**Amount-based rule examples (non-fuel):**
 - 2 points per ₹100 spent on lubricants
 - 3 points per ₹100 spent on store items
 
 #### Points Calculation Formula
 
 ```javascript
-// Base points calculation
-basePoints = Math.floor(amount / baseAmount)
+// For FUEL category: liter-based
+if (category === 'Fuel') {
+  basePoints = liters * pointsPerLiter  // liters required; configurable rate
+} else {
+  // Lubricant, Store, Service: amount-based
+  basePoints = Math.floor(amount / baseAmount)
+}
 
-// Category multiplier
+// Category multiplier (if used)
 categoryMultiplier = getCategoryMultiplier(category)
 
 // Campaign multiplier (if applicable)
@@ -537,17 +591,18 @@ campaignMultiplier = getCampaignMultiplier(vehicleId, pumpId, date)
 // Final points
 finalPoints = Math.floor(basePoints × categoryMultiplier × campaignMultiplier)
 
-// Rounding rules
-if (finalPoints < 1) {
-  finalPoints = 0
-}
+// Rounding and cap
+finalPoints = Math.min(finalPoints, maximumPointsPerTransaction)
+if (finalPoints < 1) finalPoints = 0
 ```
 
 #### Points Rules Configuration
 
-**Rule Structure:**
+**Rule Structure (include liter-based for fuel):**
 ```json
 {
+  "fuelPointsPerLiter": 1,
+  "fuelMaxPointsPerTransaction": 500,
   "baseAmount": 100,
   "categoryMultipliers": {
     "fuel": 1.0,
@@ -563,21 +618,16 @@ if (finalPoints < 1) {
 
 #### Points Calculation Examples
 
-**Example 1: Regular Fuel Purchase**
-- Amount: ₹500
+**Example 1: Fuel purchase (liter-based)**
+- Liters: 30 L
 - Category: Fuel
-- Base Points: floor(500/100) = 5
-- Category Multiplier: 1.0
-- Campaign Multiplier: 1.0
-- Final Points: 5 × 1.0 × 1.0 = **5 points**
+- Points per liter: 1
+- Final Points: 30 × 1.0 = **30 points**
 
-**Example 2: Store Purchase with Campaign**
-- Amount: ₹2000
-- Category: Store
-- Base Points: floor(2000/100) = 20
-- Category Multiplier: 3.0
-- Campaign Multiplier: 2.0 (double points campaign)
-- Final Points: 20 × 3.0 × 2.0 = **120 points**
+**Example 2: Store purchase (amount-based)**
+- Amount: ₹2000, Category: Store
+- Base Points: floor(2000/100) = 20, Multipliers: 3.0 × 1.0
+- Final Points: **60 points**
 
 ### 4.3.3 Campaign Engine
 
@@ -644,6 +694,10 @@ When multiple campaigns apply:
 
 #### Campaign Management
 
+**Who can manage campaigns:**
+- **Super Admin:** Create and manage campaigns for any or all pumps (global/store-specific).
+- **Manager:** Create and manage **special campaigns for their specific store (pump)** only. Manager-set campaigns apply only to transactions at that pump.
+
 **Campaign States:**
 - Draft
 - Active
@@ -652,7 +706,7 @@ When multiple campaigns apply:
 - Cancelled
 
 **Campaign Validation:**
-- No overlapping conflicting campaigns
+- No overlapping conflicting campaigns (within same pump)
 - Date validation
 - Budget limits (if applicable)
 
@@ -900,7 +954,25 @@ Available Points = Total Earned Points - Redeemed Points - Expired Points - Pend
 
 ### 4.5.3 Redemption Flow
 
-#### User-Initiated Redemption
+#### At-Pump / Counter Redemption (Staff, Manager, or Admin)
+
+1. **User presents points**
+   - User shows their current point balance (app or web).
+
+2. **Staff/Manager/Admin identifies the user**
+   - **Scan QR:** Scan the user’s loyalty QR code to get user/vehicle ID, or
+   - **Enter ID manually:** Type loyalty ID or mobile number to fetch the user.
+
+3. **Deduct points (coins) spent**
+   - Operator enters how many points the user is spending for this redemption.
+   - System validates: sufficient balance, minimum threshold, non-expired points.
+   - System deducts points from the user’s wallet and creates a ledger entry.
+   - Redemption record is created; optional redemption code/coupon if applicable.
+
+4. **Confirmation**
+   - User and operator get confirmation (e.g. on-screen, receipt, or notification).
+
+#### User-Initiated Redemption (App/Web)
 
 1. **Request Creation**
    - User selects reward type
@@ -923,13 +995,13 @@ Available Points = Total Earned Points - Redeemed Points - Expired Points - Pend
 
 4. **Redemption Record Creation**
    - Create redemption record
-   - Generate redemption code/coupon
+   - Generate redemption code/coupon (if needed for in-store use)
    - Set expiry date
    - Send confirmation notification
 
 5. **Manager Verification (if required)**
    - Manager receives notification
-   - Manager verifies at pump
+   - Manager verifies at pump (e.g. by scanning user QR or entering ID, then confirming deduction)
    - Manager marks as used
    - Points permanently deducted
 
@@ -972,12 +1044,52 @@ Available Points = Total Earned Points - Redeemed Points - Expired Points - Pend
 ### 4.5.6 Redemption API Endpoints
 
 - `GET /api/rewards` - List available rewards
-- `POST /api/redeem` - Request redemption
+- `POST /api/redeem` - Request redemption (user-initiated)
 - `GET /api/redeem/:redemptionId` - Get redemption details
 - `GET /api/users/:userId/redemptions` - Get user redemptions
+- **Staff/Manager/Admin at pump:** `POST /api/scan/redeem` or `POST /api/manager/redeem` — identify user by QR scan (vehicle/loyalty ID) or by loyalty ID/mobile entered manually; body includes points to deduct; system deducts from that user’s wallet and creates redemption record
 - `POST /api/manager/redemptions/:id/approve` - Approve redemption
 - `POST /api/manager/redemptions/:id/reject` - Reject redemption
 - `POST /api/redeem/:code/verify` - Verify redemption code
+
+---
+
+## 4.5.7 Banners & Offers Section
+
+### Purpose
+A **banner section** on the **User** web portal and mobile app that shows **all active offers** (promotions, announcements). Users see banners relevant to them (global offers + offers for stores they use or all stores).
+
+### Who Creates Banners
+- **Admin:** Creates banners that can be shown **globally** (all users) or for **specific stores (pumps)**. Admin can create, edit, and delete any banner.
+- **Manager:** Creates banners for **their specific store (pump)** only. These banners are shown only to users when viewing that store’s context or in a combined “all offers” list (filtered by active and by end time).
+
+### Banner Fields (Typical)
+- **Title / heading**
+- **Description or offer text**
+- **Image / media URL** (optional)
+- **Start date/time** and **End date/time** (required for auto-removal)
+- **Link/CTA** (optional — e.g. deep link or URL)
+- **Pump IDs** (optional — empty or “all” = global; otherwise show only for those stores)
+- **Created by** (admin or manager); manager-created banners are tied to their pump
+
+### Auto-Removal
+- When the **end date/time** of a banner is reached, the banner is **removed automatically** from the active list (no longer shown to users).
+- System may run a scheduled job (e.g. cron) to mark banners as expired, or filter at query time by `endTime > now`.
+
+### User Visibility
+- User sees a **banner section** (e.g. on dashboard or dedicated offers screen) listing all **active** offers (startTime ≤ now & endTime > now).
+- List can be global + store-specific; store-specific banners are those for pumps the user has transacted at or are shown as “all current offers”.
+
+### API Endpoints (Suggested)
+- `GET /api/banners` - List active banners (for user app/portal); optional `pumpId` to filter by store.
+- `GET /api/admin/banners` - List all banners (admin); filters by status, pump, date.
+- `POST /api/admin/banners` - Create banner (admin); can set pumpIds or global.
+- `PUT /api/admin/banners/:id` - Update banner (admin).
+- `DELETE /api/admin/banners/:id` - Delete banner (admin).
+- `GET /api/manager/banners` - List banners for manager’s pump(s).
+- `POST /api/manager/banners` - Create banner for **manager’s store (pump)** only.
+- `PUT /api/manager/banners/:id` - Update banner (manager only if owner of that banner and same pump).
+- `DELETE /api/manager/banners/:id` - Delete banner (manager only if owner and same pump).
 
 ---
 
@@ -991,10 +1103,14 @@ Dashboard:
 - Pump performance
 
 Configuration:
-- Points rules
+- Points rules (including **fuel: points per liter**; other categories: amount-based)
+- **Registration points:** Points awarded to Manager/Staff when they register a user (admin-configurable)
+- **Referral points:** Points awarded to Manager/Staff when a user self-registers with their referral code (admin-configurable)
 - Expiry duration (e.g., 12 months)
 - Campaign management
 - Tier configuration (future)
+- **Organization (fleet) setup:** Owner account creation, link vehicles/drivers, view aggregate and per-vehicle points
+- **Banner / Offers management:** Create, edit, delete banners (global or per store); set start and end time for auto-removal
 
 Monitoring:
 - Duplicate transaction detection
@@ -1010,6 +1126,8 @@ Monitoring:
 - Staff management
 - Manual adjustments (with reason & audit)
 - QR scanning interface
+- **Create and manage special campaigns for this store (pump)** — Manager can set store-specific campaigns (e.g. double points, festival bonus) that apply only to their pump
+- **Create and manage banners/offers for this store (pump)** — Manager can create banners for their specific store only; each banner has start and end time and is removed automatically when the end time is reached
 
 ---
 
@@ -1021,6 +1139,7 @@ Monitoring:
 - View wallet
 - View transaction history
 - View campaigns
+- **Banner section:** View all active offers; banners are removed automatically when their end time is reached
 - Redeem points
 
 ---
@@ -1182,17 +1301,14 @@ sequenceDiagram
     DB-->>API: Vehicle Available
     
     API->>DB: Generate Loyalty ID
-    API->>QR: Generate QR Code & Barcode
-    QR->>CDN: Upload QR Image
-    CDN-->>QR: QR URL
-    QR-->>API: QR Data & URL
-    
     API->>DB: Create User Record
     API->>DB: Create Vehicle Record
     API->>DB: Initialize Wallet
     
     API->>SMS: Send Welcome SMS
-    API-->>U: Registration Success + QR Code
+    API-->>U: Registration Success + userId, vehicleId, loyaltyId
+    
+    Note over U: Frontend generates QR from loyaltyId (no QR storage on backend)
 ```
 
 ### 6.5.3 Transaction Processing Flow
@@ -1990,8 +2106,7 @@ Collections:
 - _id
 - userId
 - vehicleNumber (unique)
-- loyaltyId (unique)
-- qrHash
+- loyaltyId (unique) — ID for frontend QR generation and backend verification; no QR storage
 - status
 
 ## Pumps
@@ -2093,19 +2208,12 @@ erDiagram
         ObjectId VehicleID PK
         ObjectId UserID FK
         string VehicleNumber UK
-        string LoyaltyID UK "format: LOY12345678"
+        string LoyaltyID UK "format: LOY12345678 - ID for QR verification; frontend generates QR from this"
         string VehicleType "enum: Two-Wheeler,Three-Wheeler,Four-Wheeler,Commercial"
         string FuelType "enum: Petrol,Diesel,CNG,Electric"
         string Brand "optional"
         string Model "optional"
         number YearOfManufacture "optional"
-        object QRCode
-        string QRData "encrypted"
-        string QRImageURL
-        date QRExpiresAt
-        object Barcode
-        string BarcodeData
-        string BarcodeImageURL
         string Status "enum: active,inactive,suspended"
         date CreatedAt
         date UpdatedAt
@@ -2426,7 +2534,7 @@ flowchart TB
 **2. Validation & Sanitization:**
 - All inputs validated for format, type, and business rules
 - Input sanitization to prevent injection attacks
-- QR code signature and expiry validation
+- QR/ID validation (ID from QR or manual entry; no QR expiry)
 
 **3. Business Logic Processing:**
 - Services process business logic
@@ -2604,17 +2712,13 @@ sequenceDiagram
         UserSvc->>DB: INSERT INTO Users
         DB-->>UserSvc: UserID
         
-        UserSvc->>DB: INSERT INTO Vehicles
+        UserSvc->>DB: INSERT INTO Vehicles (with loyaltyId)
         DB-->>UserSvc: VehicleID
-        
-        UserSvc->>QRGen: Generate QR Code
-        QRGen->>DB: UPDATE Vehicles SET QRCode
-        QRGen-->>UserSvc: QR Image URL
         
         UserSvc->>DB: UPDATE Users SET WalletSummary
         DB-->>UserSvc: Success
         
-        UserSvc-->>API: User + Vehicle + QR Data
+        UserSvc-->>API: User + Vehicle + loyaltyId (no QR image; frontend generates QR from this ID)
         API-->>Client: 201 Created + Response
     end
 ```
@@ -2901,8 +3005,18 @@ Phase 3:
 }
 ```
 
+### POST /api/auth/send-otp
+**Description:** Send OTP to mobile number. Used for **User (customer)** login flow and for registration OTP.
+
+**Request Body:**
+```json
+{
+  "mobile": "9876543210"
+}
+```
+
 ### POST /api/auth/verify-otp
-**Description:** Verify OTP sent to mobile
+**Description:** Verify OTP sent to mobile. Used for (1) registration OTP verification, (2) **User (customer) login** — when mobile is already registered, successful verification returns JWT (no password).
 
 **Request Body:**
 ```json
@@ -2911,17 +3025,20 @@ Phase 3:
   "otp": "123456"
 }
 ```
+**Response (login):** 200 OK with `token`, `refreshToken`, `user` (when mobile belongs to an existing user).
 
 ### POST /api/auth/login
-**Description:** User login
 
-**Request Body:**
+**Description:** Login for **Admin, Manager, Staff** (identifier + password). For **User (customer)** login, use OTP flow: send OTP then `POST /api/auth/verify-otp` (mobile + otp) to get token.
+
+**Request Body (Admin/Manager/Staff — identifier + password):**
 ```json
 {
-  "mobile": "9876543210",
+  "identifier": "admin@example.com",
   "password": "securePassword"
 }
 ```
+- **identifier:** Can be **email**, **username**, **phone number**, or **user ID** (string). System resolves to the user and then validates password.
 
 **Response:** 200 OK
 ```json
@@ -3603,6 +3720,7 @@ Firebase Admin SDK is integrated for FCM push notifications:
 ## 15.4 User Web Portal
 
 ### Dashboard
+- **Banner section:** Shows all active offers (global + store-specific); each banner has start and end time; **when end time is reached the banner is removed automatically** and no longer shown
 - Wallet balance prominently displayed
 - Recent transactions
 - Active campaigns
@@ -3884,7 +4002,7 @@ EMAIL_SERVICE_API_KEY=...
 - **Ledger:** Immutable record of all points transactions
 - **Redemption:** Exchange of points for rewards
 - **Campaign:** Promotional offer affecting points calculation
-- **QR Code:** Quick Response code for vehicle identification
+- **QR Code:** Quick Response code for vehicle identification; content is the loyalty ID; generated on frontend from ID returned by backend; no QR storage or expiry on backend
 - **Pump:** Fuel station location
 - **Manager:** Pump-level administrator
 - **Staff:** Pump operator who processes transactions

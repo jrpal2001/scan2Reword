@@ -1,7 +1,7 @@
 import moment from "moment-timezone";
 import { asyncHandler } from "../utils/asyncHandler.js";
-import Notification from "./notification.model.js";
-import admin from "./firebase.js";
+import Notification from "../models/notification.model.js";
+import admin from "../firebase/firebase.js";
 import { User } from "../models/users/User.model.js";
 
 // Constants
