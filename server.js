@@ -2,6 +2,7 @@ import dotenv from 'dotenv';
 import connectDB from './src/config/db.js';
 import app from './src/app.js';
 import { config } from './src/config/index.js';
+import { startPointsExpiryJobs } from './src/jobs/pointsExpiry.job.js';
 
 dotenv.config();
 
@@ -13,6 +14,13 @@ const startServer = async () => {
       console.log(`🚀 Server running on http://0.0.0.0:${port} at ${new Date().toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' })}`);
       console.log(`📊 Environment: ${config.nodeEnv}`);
       console.log(`💾 Database: ${config.dbName}`);
+      
+      // Start cron jobs for points expiry
+      try {
+        startPointsExpiryJobs();
+      } catch (error) {
+        console.error('⚠️ Failed to start points expiry jobs:', error.message);
+      }
     });
   } catch (err) {
     console.error('Server startup failed:', err);

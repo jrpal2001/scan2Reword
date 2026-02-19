@@ -3,6 +3,7 @@ import * as transactionController from '../controllers/transaction.controller.js
 import { verifyJWT } from '../middlewares/auth.middleware.js';
 import { requireRoles, attachPumpScope } from '../middlewares/rbac.middleware.js';
 import { validateRequest } from '../middlewares/validateRequest.js';
+import { idempotencyMiddleware } from '../middlewares/idempotency.middleware.js';
 import { uploadToS3 } from '../middlewares/uploadToS3.js';
 import { transactionValidation } from '../validation/transaction.validation.js';
 import { upload } from '../utils/multerConfig.js';
@@ -16,6 +17,7 @@ router.post(
   verifyJWT,
   requireRoles([ROLES.ADMIN, ROLES.MANAGER, ROLES.STAFF]),
   attachPumpScope,
+  idempotencyMiddleware(), // Optional idempotency support
   upload.array('attachments', 5), // Max 5 files
   uploadToS3('transactions'),
   validateRequest(transactionValidation.create),

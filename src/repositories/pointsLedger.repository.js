@@ -34,6 +34,10 @@ export const pointsLedgerRepository = {
       .lean();
   },
 
+  async update(id, data) {
+    return PointsLedger.findByIdAndUpdate(id, data, { new: true }).lean();
+  },
+
   async list(filter = {}, options = {}) {
     const { page = 1, limit = 20, sort = { createdAt: -1 } } = options;
     const skip = (page - 1) * limit;

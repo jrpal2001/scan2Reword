@@ -1,5 +1,6 @@
 import { pointsLedgerRepository } from '../repositories/pointsLedger.repository.js';
 import { userRepository } from '../repositories/user.repository.js';
+import { systemConfigService } from './systemConfig.service.js';
 import ApiError from '../utils/ApiError.js';
 import { HTTP_STATUS } from '../constants/errorCodes.js';
 
@@ -22,8 +23,18 @@ const POINTS_CONFIG = {
   },
 };
 
-// Points expiry duration (12 months default)
-const POINTS_EXPIRY_MONTHS = 12;
+// Points expiry duration - will be fetched from SystemConfig
+let POINTS_EXPIRY_MONTHS = 12;
+
+// Initialize expiry months from SystemConfig
+(async () => {
+  try {
+    const config = await systemConfigService.getConfig();
+    POINTS_EXPIRY_MONTHS = config.pointsExpiry?.durationMonths || 12;
+  } catch (error) {
+    console.warn('Could not load points expiry from SystemConfig, using default:', error.message);
+  }
+})();
 
 export const pointsService = {
   /**
@@ -81,8 +92,17 @@ export const pointsService = {
     const currentBalance = user.walletSummary?.availablePoints || 0;
     const balanceAfter = currentBalance + points;
 
-    // Calculate expiry date (12 months from now for credits)
-    const expiryDate = type === 'credit' ? new Date(Date.now() + POINTS_EXPIRY_MONTHS * 30 * 24 * 60 * 60 * 1000) : null;
+    // Get expiry duration from SystemConfig
+    let expiryMonths = POINTS_EXPIRY_MONTHS;
+    try {
+      const config = await systemConfigService.getConfig();
+      expiryMonths = config.pointsExpiry?.durationMonths || 12;
+    } catch (error) {
+      // Use default if config fetch fails
+    }
+
+    // Calculate expiry date (from SystemConfig, default 12 months)
+    const expiryDate = type === 'credit' ? new Date(Date.now() + expiryMonths * 30 * 24 * 60 * 60 * 1000) : null;
 
     // Create ledger entry
     const ledgerEntry = await pointsLedgerRepository.create({
@@ -97,14 +117,21 @@ export const pointsService = {
     });
 
     // Update wallet summary
-    await userRepository.update(userId, {
+    const updateData = {
       walletSummary: {
         totalEarned: (user.walletSummary?.totalEarned || 0) + (type === 'credit' ? points : 0),
         availablePoints: balanceAfter,
         redeemedPoints: user.walletSummary?.redeemedPoints || 0,
         expiredPoints: user.walletSummary?.expiredPoints || 0,
       },
-    });
+    };
+
+    // If this is an expiry, increment expiredPoints
+    if (type === 'expiry') {
+      updateData.walletSummary.expiredPoints = (user.walletSummary?.expiredPoints || 0) + points;
+    }
+
+    await userRepository.update(userId, updateData);
 
     return ledgerEntry;
   },

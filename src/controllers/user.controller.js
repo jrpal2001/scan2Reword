@@ -1,50 +1,30 @@
-import { asyncHandler } from "../utils/asyncHandler.js";
-import ApiResponse from "../utils/ApiResponse.js";
-import { ApiError } from "../utils/ApiError.js";
-import userService from "../services/user.service.js";
-import userValidator from "../validation/user.validator.js";
-import User from '../models/user.js';
-import { uploadSingleToCloudinary, uploadMultipleToCloudinary } from '../utils/uploadCloudinary.js';
+import { asyncHandler } from '../utils/asyncHandler.js';
+import { ApiResponse } from '../utils/ApiResponse.js';
+import { userService } from '../services/user.service.js';
+import { ROLES } from '../constants/roles.js';
+import ApiError from '../utils/ApiError.js';
+import { HTTP_STATUS } from '../constants/errorCodes.js';
 
+/**
+ * GET /api/user/referral-code
+ * Get or generate referral code for manager/staff
+ */
+export const getReferralCode = asyncHandler(async (req, res) => {
+  const userId = req.user._id;
+  const user = await userService.getUserById(userId);
+  
+  if (![ROLES.MANAGER, ROLES.STAFF].includes(user.role?.toLowerCase())) {
+    throw new ApiError(HTTP_STATUS.FORBIDDEN, 'Referral codes are only available for managers and staff');
+  }
 
+  let referralCode = user.referralCode;
+  
+  // Generate if doesn't exist
+  if (!referralCode) {
+    referralCode = await userService.generateReferralCode(userId);
+  }
 
-
-
-// ✅ Get user by ID
-const getUserById = asyncHandler(async (req, res) => {
-  const { userId } = req.params;
-  const data = await userService.getUserById(userId);
-  res.status(200).json(ApiResponse.success(data, "User details fetched successfully"));
+  return res.status(HTTP_STATUS.OK).json(
+    ApiResponse.success({ referralCode }, 'Referral code retrieved')
+  );
 });
-
-// ✅ Update user profile by ID
-const updateProfileByUserId = asyncHandler(async (req, res) => {
-  const { userId } = req.params;
-  const { error, value } = userValidator.updateProfile.validate(req.body, { abortEarly: false });
-  if (error) throw new ApiError(400, "Validation failed", error.details.map(e => e.message));
-
-  await userService.updateProfileByUserId(userId, value);
-  res.status(200).json(ApiResponse.success(null, "Profile updated successfully"));
-});
-
-// ✅ Get all plans (Ag, SIP, One-Time) bought by user ID
-const getAllPlansBoughtByUserId = asyncHandler(async (req, res) => {
-  const { userId } = req.params;
-
-  if (!userId) throw new ApiError(400, "User ID is required");
-
-  const data = await userService.getAllPlansBoughtByUserId(userId);
-
-  res
-    .status(200)
-    .json(ApiResponse.success(data, "All plans fetched successfully"));
-});
-
-
-
-    export default {
-
-  getUserById,
-    updateProfileByUserId,
-  getAllPlansBoughtByUserId,
-};

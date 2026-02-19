@@ -66,15 +66,15 @@ Backend follows **Controller → Service → Repository → Model** plus cross-c
 
 *Layers: Model (User) → userRepository → userService / authService → authController, userController, adminController + validation.*
 
-- [ ] **User model** — `src/models/User.model.js`: _id, fullName, mobile (unique), email, passwordHash, role, walletSummary, referralCode (manager/staff), FcmTokens, ownerId (fleet), status, createdAt, updatedAt, createdBy
+- [x] **User model** — `src/models/User.model.js`: _id, fullName, mobile (unique), email, passwordHash, role, walletSummary, referralCode (manager/staff), FcmTokens, ownerId (fleet), status, createdAt, updatedAt, createdBy
 - [x] **userRepository** — `src/repositories/user.repository.js`: create, findById, findByMobile, findByReferralCode, findByIdentifier, update, list
 - [x] **userService** — `src/services/user.service.js`: register (with referral handling), createUserByAdmin, createUserByManagerOrStaff; TODO: credit registration/referral points via pointsService
 - [x] **Self-registration** — `POST /api/auth/register`; controller → userService; creates user + vehicle; returns userId, vehicleId, loyaltyId (frontend generates QR); optional referralCode (TODO: credit referral points)
 - [x] **Admin create user** — `POST /api/admin/users`; Joi userValidation.createUser; adminController → userService.createUserByAdmin (admin only)
 - [x] **Manager create user** — `POST /api/manager/users`; Joi userValidation.createUserByOperator; attachPumpScope; credit registration points to manager (TODO: config)
 - [x] **Staff create user** — `POST /api/staff/users`; Joi userValidation.createUserByOperator; attachPumpScope; credit registration points to staff (TODO: config)
-- [ ] **Referral code** — Generate/assign in userService for manager/staff; validate on self-register; credit referral points from SystemConfig
-- [ ] **Registration points** — SystemConfig for points per registration; credit in userService via pointsService/ledger
+- [x] **Referral code** — Auto-generate referral code when admin creates manager/staff; `generateReferralCode()` in userService; `GET /api/user/referral-code` endpoint; validate on self-register; credit referral points from SystemConfig when user registers with referral code
+- [x] **Registration points** — SystemConfig for points per registration (`points.registration`); credit in `createUserByManagerOrStaff()` via pointsService/ledger when manager/staff creates user
 - [x] **Account types** — Support Individual and Organization (fleet) registration; **fleet owner** has their own User account with ID; fleet driver users have `ownerId` pointing to owner; registration supports registered owner (search by ID/phone) and non-registered owner (create owner + driver + vehicle); owner endpoints: search owner, add vehicle to fleet, get fleet vehicles
 
 ---
@@ -124,7 +124,7 @@ Backend follows **Controller → Service → Repository → Model** plus cross-c
 - [x] **POST /api/transactions** — Controller → transactionService; body includes identifier (loyaltyId for vehicle/driver OR **owner ID** for fleet owner); Joi validation; liters/attachments validated in service for Fuel
 - [x] **File upload** — Middleware `uploadFilesToCloudinary` (multer + Cloudinary); uploads files, attaches URLs to `req.uploadedFiles`; transactionService saves in transaction.attachments
 - [x] **GET transactions** — `GET /api/transactions`; Controller → transactionService → transactionRepository; pump-scoped for manager/staff via `req.allowedPumpIds`
-- [ ] **Idempotency** — Optional `Idempotency-Key` in middleware or transactionService (TODO)
+- [x] **Idempotency** — Optional `Idempotency-Key` header middleware (`src/middlewares/idempotency.middleware.js`); `IdempotencyKey` model stores keys with 24h expiry; integrated into `POST /api/transactions` route; returns cached response if key already processed
 - [x] **Indexes** — pumpId, vehicleId, userId, (pumpId, billNumber) unique, createdAt
 
 ---
@@ -135,7 +135,7 @@ Backend follows **Controller → Service → Repository → Model** plus cross-c
 - [x] **Wallet summary** — On user: totalEarned, availablePoints, redeemedPoints, expiredPoints; updated automatically on ledger changes via pointsService
 - [x] **GET wallet** — `GET /api/users/:userId/wallet`; returns wallet summary and ledger (with pagination); user can access own, admin/manager/staff can access any
 - [x] **Manual adjustment** — `POST /api/admin/wallet/adjust`, `POST /api/manager/wallet/adjust` (manager pump-scoped); Joi validation; creates ledger entry; updates wallet summary
-- [ ] **Points expiry** — Configurable duration (12 months default); FIFO logic in pointsLedgerRepository.findExpiringPoints; TODO: daily job to expire and create expiry ledger entries; optional notifications (30/7/1 days before)
+- [x] **Points expiry** — Configurable duration from SystemConfig (`pointsExpiry.durationMonths`); FIFO logic in `pointsLedgerRepository.findExpiringPoints()`; daily cron job (`src/jobs/pointsExpiry.job.js`) runs at 12:00 AM to expire points and create expiry ledger entries; notification job runs at 9:00 AM to send notifications (30/7/1 days before expiry) based on `pointsExpiry.notificationDays` from SystemConfig
 - [x] **Indexes** — userId, createdAt, expiryDate, (userId, createdAt), transactionId, redemptionId on PointsLedger
 
 ---
@@ -171,7 +171,7 @@ Backend follows **Controller → Service → Repository → Model** plus cross-c
 - [x] **Approve/reject** — `POST /api/redeem/:id/approve`, `POST /api/redeem/:id/reject` (manager pump-scoped); reject refunds points and decrements reward quantity
 - [x] **Verify redemption code** — `POST /api/redeem/:code/verify` (authenticated); validates code, expiry, status; returns redemption details
 - [x] **Use redemption code** — `POST /api/redeem/:code/use` (admin/manager/staff); marks redemption as USED
-- [ ] **Idempotency** — Optional for POST /redeem (TODO)
+- [x] **Idempotency** — Optional `Idempotency-Key` header middleware integrated into `POST /api/redeem` route; prevents duplicate redemption requests
 - [x] **Indexes** — userId, status, redemptionCode (unique), expiryDate, (userId, status) composite on Redemptions; status, validFrom, validUntil, applicablePumps, pointsRequired on Rewards
 
 ---

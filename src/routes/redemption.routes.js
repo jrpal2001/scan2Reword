@@ -3,6 +3,7 @@ import * as redemptionController from '../controllers/redemption.controller.js';
 import { verifyJWT } from '../middlewares/auth.middleware.js';
 import { requireRoles, attachPumpScope } from '../middlewares/rbac.middleware.js';
 import { validateRequest } from '../middlewares/validateRequest.js';
+import { idempotencyMiddleware } from '../middlewares/idempotency.middleware.js';
 import { redemptionValidation } from '../validation/redemption.validation.js';
 import { ROLES } from '../constants/roles.js';
 
@@ -13,6 +14,7 @@ router.post(
   '/',
   verifyJWT,
   requireRoles([ROLES.USER]),
+  idempotencyMiddleware(), // Optional idempotency support
   validateRequest(redemptionValidation.create),
   redemptionController.createRedemption
 );
