@@ -5,6 +5,7 @@ import * as pumpController from '../controllers/pump.controller.js';
 import * as walletController from '../controllers/wallet.controller.js';
 import * as campaignController from '../controllers/campaign.controller.js';
 import * as bannerController from '../controllers/banner.controller.js';
+import * as rewardController from '../controllers/reward.controller.js';
 import { verifyJWT } from '../middlewares/auth.middleware.js';
 import { requireRoles } from '../middlewares/rbac.middleware.js';
 import { validateRequest } from '../middlewares/validateRequest.js';
@@ -14,6 +15,7 @@ import { pumpValidation } from '../validation/pump.validation.js';
 import { walletValidation } from '../validation/wallet.validation.js';
 import { campaignValidation } from '../validation/campaign.validation.js';
 import { bannerValidation } from '../validation/banner.validation.js';
+import { rewardValidation } from '../validation/reward.validation.js';
 import { ROLES } from '../constants/roles.js';
 
 const router = Router();
@@ -156,6 +158,44 @@ router.delete(
   verifyJWT,
   requireRoles([ROLES.ADMIN]),
   bannerController.deleteBanner
+);
+
+// Rewards CRUD
+router.post(
+  '/rewards',
+  verifyJWT,
+  requireRoles([ROLES.ADMIN]),
+  validateRequest(rewardValidation.create),
+  rewardController.createReward
+);
+
+router.get(
+  '/rewards',
+  verifyJWT,
+  requireRoles([ROLES.ADMIN]),
+  rewardController.listRewards
+);
+
+router.get(
+  '/rewards/:rewardId',
+  verifyJWT,
+  requireRoles([ROLES.ADMIN]),
+  rewardController.getRewardById
+);
+
+router.put(
+  '/rewards/:rewardId',
+  verifyJWT,
+  requireRoles([ROLES.ADMIN]),
+  validateRequest(rewardValidation.update),
+  rewardController.updateReward
+);
+
+router.delete(
+  '/rewards/:rewardId',
+  verifyJWT,
+  requireRoles([ROLES.ADMIN]),
+  rewardController.deleteReward
 );
 
 export default router;

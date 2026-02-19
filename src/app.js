@@ -9,6 +9,8 @@ import authRoutes from './routes/auth.routes.js';
 import scanRoutes from './routes/scan.routes.js';
 import transactionRoutes from './routes/transaction.routes.js';
 import bannerRoutes from './routes/banner.routes.js';
+import rewardRoutes from './routes/reward.routes.js';
+import redemptionRoutes from './routes/redemption.routes.js';
 import { errorHandler } from './middlewares/errorHandler.js';
 import { config } from './config/index.js';
 
@@ -47,6 +49,10 @@ app.use('/api/manager', managerRoutes);
 app.use('/api/staff', staffRoutes);
 app.use('/api/transactions', transactionRoutes);
 app.use('/api/banners', bannerRoutes);
+app.use('/api/rewards', rewardRoutes);
+app.use('/api/redeem', redemptionRoutes);
+app.use('/api/rewards', rewardRoutes);
+app.use('/api/redeem', redemptionRoutes);
 
 // Health check (for liveness/readiness)
 app.get('/health', (req, res) => {

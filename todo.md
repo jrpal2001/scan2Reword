@@ -163,15 +163,16 @@ Backend follows **Controller → Service → Repository → Model** plus cross-c
 
 ## Rewards & redemptions
 
-- [ ] **Rewards model** — Catalog: name, type, pointsRequired, value, discountType, availability, validFrom, validUntil, applicablePumps, status
-- [ ] **GET rewards** — `GET /api/rewards` (list available rewards)
-- [ ] **Redemption model** — userId, rewardId, pointsUsed, redemptionCode, status, approvedBy, usedAtPump, expiryDate, createdAt, updatedAt
-- [ ] **User redemption** — `POST /api/redeem` (user-initiated); validate balance, min threshold, expiry; deduct points; create redemption record
-- [ ] **At-pump redemption** — `POST /api/scan/redeem` or `POST /api/manager/redeem`; body: identifier (loyaltyId/mobile/vehicleId), pointsToDeduct; resolve user → deduct → create redemption
-- [ ] **Approve/reject** — `POST /api/manager/redemptions/:id/approve`, `POST /api/manager/redemptions/:id/reject` (manager)
-- [ ] **Verify redemption code** — `POST /api/redeem/:code/verify` (e.g. at pump)
-- [ ] **Idempotency** — Optional for POST /redeem
-- [ ] **Indexes** — userId, status, redemptionCode (unique) on Redemptions
+- [x] **Rewards model** — `src/models/Reward.model.js`: Catalog: name, type (discount/freeItem/cashback/voucher), pointsRequired, value, discountType (percentage/fixed/free), availability (unlimited/limited), totalQuantity, redeemedQuantity, validFrom, validUntil, applicablePumps (empty = all), status, description, imageUrl
+- [x] **GET rewards** — `GET /api/rewards` (public); optional `?pumpId`; returns available rewards (active, within validity, available quantity)
+- [x] **Redemption model** — `src/models/Redemption.model.js`: userId, rewardId (optional for at-pump), pointsUsed, redemptionCode (unique), status, approvedBy, usedAtPump, expiryDate (30 days), usedAt, rejectedReason, createdAt, updatedAt
+- [x] **User redemption** — `POST /api/redeem` (user-initiated); Joi validation; validates balance, reward availability, expiry; deducts points via pointsService; creates redemption record (status: PENDING); updates reward redeemedQuantity
+- [x] **At-pump redemption** — `POST /api/redeem/at-pump` or `POST /api/manager/redeem` or `POST /api/staff/redeem`; body: identifier (loyaltyId/owner ID/mobile), pointsToDeduct, pumpId; resolves user via scanService → deducts points → creates redemption (status: APPROVED, auto-approved)
+- [x] **Approve/reject** — `POST /api/redeem/:id/approve`, `POST /api/redeem/:id/reject` (manager pump-scoped); reject refunds points and decrements reward quantity
+- [x] **Verify redemption code** — `POST /api/redeem/:code/verify` (authenticated); validates code, expiry, status; returns redemption details
+- [x] **Use redemption code** — `POST /api/redeem/:code/use` (admin/manager/staff); marks redemption as USED
+- [ ] **Idempotency** — Optional for POST /redeem (TODO)
+- [x] **Indexes** — userId, status, redemptionCode (unique), expiryDate, (userId, status) composite on Redemptions; status, validFrom, validUntil, applicablePumps, pointsRequired on Rewards
 
 ---
 
