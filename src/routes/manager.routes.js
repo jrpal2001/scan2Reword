@@ -5,6 +5,7 @@ import * as walletController from '../controllers/wallet.controller.js';
 import * as campaignController from '../controllers/campaign.controller.js';
 import * as bannerController from '../controllers/banner.controller.js';
 import * as redemptionController from '../controllers/redemption.controller.js';
+import * as transactionController from '../controllers/transaction.controller.js';
 import { verifyJWT } from '../middlewares/auth.middleware.js';
 import { requireRoles, attachPumpScope } from '../middlewares/rbac.middleware.js';
 import { validateRequest } from '../middlewares/validateRequest.js';
@@ -157,6 +158,25 @@ router.post(
   attachPumpScope,
   validateRequest(redemptionValidation.reject),
   redemptionController.rejectRedemption
+);
+
+// Transactions (list for manager's pump(s))
+router.get(
+  '/transactions',
+  verifyJWT,
+  requireRoles([ROLES.MANAGER]),
+  attachPumpScope,
+  validateRequest(transactionValidation.list, 'query'),
+  transactionController.listTransactions
+);
+
+// Get transaction by ID
+router.get(
+  '/transactions/:transactionId',
+  verifyJWT,
+  requireRoles([ROLES.MANAGER]),
+  attachPumpScope,
+  transactionController.getTransactionById
 );
 
 export default router;

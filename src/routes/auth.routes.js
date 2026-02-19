@@ -8,8 +8,9 @@ import { uploadToS3 } from '../middlewares/uploadToS3.js';
 
 const router = Router();
 
-router.post('/send-otp', strictRateLimiter, validateRequest(authValidation.sendOtp), authController.sendOtp);
-router.post('/verify-otp', strictRateLimiter, validateRequest(authValidation.verifyOtp), authController.verifyOtp);
+// Rate limiting commented out for debugging
+router.post('/send-otp', /* strictRateLimiter, */ validateRequest(authValidation.sendOtp), authController.sendOtp);
+router.post('/verify-otp', /* strictRateLimiter, */ validateRequest(authValidation.verifyOtp), authController.verifyOtp);
 
 // Registration with optional file uploads
 router.post(
@@ -25,7 +26,8 @@ router.post(
   authController.register
 );
 
-router.post('/login', strictRateLimiter, validateRequest(authValidation.login), authController.login);
+// Rate limiting commented out for debugging
+router.post('/login', /* strictRateLimiter, */ validateRequest(authValidation.login), authController.login);
 router.post('/refresh', validateRequest(authValidation.refresh), authController.refresh);
 
 export default router;

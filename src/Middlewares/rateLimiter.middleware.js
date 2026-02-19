@@ -44,6 +44,8 @@ export const rateLimiter = (options = {}) => {
     const key = keyGenerator(req);
     const now = Date.now();
 
+    console.log(`[Rate Limiter] Checking rate limit for:`, { key, path: req.path, method: req.method });
+
     // Get or create request window
     let window = requestWindows.get(key);
     if (!window || now > window.expiresAt) {
@@ -54,11 +56,14 @@ export const rateLimiter = (options = {}) => {
       };
       requestWindows.set(key, window);
       requestCounts.set(key, 0);
+      console.log(`[Rate Limiter] New window created for key:`, key);
     }
 
     // Increment count
     const count = (requestCounts.get(key) || 0) + 1;
     requestCounts.set(key, count);
+
+    console.log(`[Rate Limiter] Request count:`, { key, count, maxRequests, limitExceeded: count > maxRequests });
 
     // Set rate limit headers
     res.setHeader('X-RateLimit-Limit', maxRequests);
@@ -67,6 +72,7 @@ export const rateLimiter = (options = {}) => {
 
     // Check if limit exceeded
     if (count > maxRequests) {
+      console.log(`[Rate Limiter] Rate limit exceeded for key:`, key);
       return next(
         new ApiError(
           HTTP_STATUS.TOO_MANY_REQUESTS,

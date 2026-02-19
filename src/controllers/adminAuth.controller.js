@@ -6,17 +6,23 @@ import Admin from '../models/Admin.js';
 // ✅ Admin Login Controller (Email + Password)
 
 export const adminLogin = asyncHandler(async (req, res) => {
+  console.log('[Admin Login] Request received:', { email: req.body?.email, hasValidated: !!req.validated });
   const { email, password } = req.validated || req.body;
+  console.log('[Admin Login] Extracted:', { email, hasPassword: !!password });
 
   // 🔍 Find Admin
   const admin = await Admin.findOne({ email });
+  console.log('[Admin Login] Admin lookup:', { found: !!admin, email });
   if (!admin) {
+    console.log('[Admin Login] ERROR: Admin not found for email:', email);
     throw new ApiError(404, 'Admin not found');
   }
 
   // 🔐 Compare Password
   const isMatch = await admin.comparePassword(password);
+  console.log('[Admin Login] Password comparison:', { isMatch });
   if (!isMatch) {
+    console.log('[Admin Login] ERROR: Invalid password for email:', email);
     throw new ApiError(401, 'Invalid email or password');
   }
 

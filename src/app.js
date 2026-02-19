@@ -24,14 +24,41 @@ import { config } from './config/index.js';
 
 const app = express();
 
-// CORS
+// Request logging middleware (for debugging)
+app.use((req, res, next) => {
+  console.log(`[Request] ${req.method} ${req.path}`, {
+    origin: req.headers.origin,
+    'content-type': req.headers['content-type'],
+    'user-agent': req.headers['user-agent']?.substring(0, 50),
+  });
+  next();
+});
+
+// CORS - Allow all origins in development, restrict in production
 app.use(
   cors({
     origin: (origin, callback) => {
+      console.log('[CORS] Checking origin:', { origin, nodeEnv: config.nodeEnv });
+      // Allow requests with no origin (like Postman, mobile apps, curl)
+      if (!origin) {
+        console.log('[CORS] No origin, allowing request');
+        return callback(null, true);
+      }
+      
       const allowedOrigins = config.cors.origins;
-      if (!origin || allowedOrigins.includes(origin)) {
+      
+      // In development, allow all origins for easier testing
+      if (config.nodeEnv === 'development') {
+        console.log('[CORS] Development mode, allowing all origins');
+        return callback(null, true);
+      }
+      
+      // In production, check against allowed origins
+      if (allowedOrigins.includes(origin)) {
+        console.log('[CORS] Origin allowed');
         callback(null, true);
       } else {
+        console.warn(`[CORS] Origin "${origin}" not allowed. Allowed origins:`, allowedOrigins);
         callback(new Error('Not allowed by CORS'));
       }
     },
@@ -46,11 +73,8 @@ app.use(formDataParser);
 app.use(express.json({ limit: '16kb' }));
 app.use(express.urlencoded({ extended: true, limit: '16kb' }));
 
-// Rate limiting (global - applies to all routes)
-app.use(rateLimiter({ windowMs: 15 * 60 * 1000, maxRequests: 100 })); // 100 requests per 15 minutes per IP
-
-// Rate limiting (global - applies to all routes)
-app.use(rateLimiter({ windowMs: 15 * 60 * 1000, maxRequests: 100 })); // 100 requests per 15 minutes per IP
+// Rate limiting (global - applies to all routes) - COMMENTED OUT FOR DEBUGGING
+// app.use(rateLimiter({ windowMs: 15 * 60 * 1000, maxRequests: 100 })); // 100 requests per 15 minutes per IP
 
 // API base path
 app.use('/api/auth', authRoutes);

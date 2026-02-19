@@ -1,0 +1,2384 @@
+{
+	"info": {
+		"_postman_id": "scen2reword-api-collection",
+		"name": "Scan2Reward API Collection",
+		"description": "Complete API collection for Fuel Station Loyalty & QR Vehicle Reward System",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+		"_exporter_id": "scen2reword"
+	},
+	"item": [
+		{
+			"name": "Authentication",
+			"item": [
+				{
+					"name": "Send OTP",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"mobile\": \"9876543210\"\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/auth/send-otp",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "auth", "send-otp"]
+						}
+					}
+				},
+				{
+					"name": "Verify OTP",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"mobile\": \"9876543210\",\n  \"otp\": \"123456\"\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/auth/verify-otp",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "auth", "verify-otp"]
+						}
+					}
+				},
+				{
+					"name": "Register",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "formdata",
+							"formdata": [
+								{
+									"key": "fullName",
+									"value": "John Doe",
+									"type": "text"
+								},
+								{
+									"key": "mobile",
+									"value": "9876543210",
+									"type": "text"
+								},
+								{
+									"key": "email",
+									"value": "john@example.com",
+									"type": "text"
+								},
+								{
+									"key": "accountType",
+									"value": "individual",
+									"type": "text"
+								},
+								{
+									"key": "vehicleNumber",
+									"value": "MH12AB1234",
+									"type": "text"
+								},
+								{
+									"key": "vehicleType",
+									"value": "Four-Wheeler",
+									"type": "text"
+								},
+								{
+									"key": "fuelType",
+									"value": "Petrol",
+									"type": "text"
+								},
+								{
+									"key": "referralCode",
+									"value": "",
+									"type": "text",
+									"disabled": true
+								},
+								{
+									"key": "profilePhoto",
+									"type": "file",
+									"src": []
+								},
+								{
+									"key": "rcPhoto",
+									"type": "file",
+									"src": []
+								}
+							]
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/auth/register",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "auth", "register"]
+						}
+					}
+				},
+				{
+					"name": "Login (Admin/Manager/Staff)",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"identifier\": \"admin@gmail.com\",\n  \"password\": \"admin123\"\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/auth/login",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "auth", "login"]
+						}
+					}
+				},
+				{
+					"name": "Refresh Token",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"refreshToken\": \"{{refreshToken}}\"\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/auth/refresh",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "auth", "refresh"]
+						}
+					}
+				},
+				{
+					"name": "Admin Login (Legacy)",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"email\": \"admin@gmail.com\",\n  \"password\": \"admin123\"\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/admin/login",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "admin", "login"]
+						}
+					}
+				}
+			]
+		},
+		{
+			"name": "Admin APIs",
+			"item": [
+				{
+					"name": "Dashboard",
+					"item": [
+						{
+							"name": "Get Admin Dashboard",
+							"request": {
+								"method": "GET",
+								"header": [
+									{
+										"key": "Authorization",
+										"value": "Bearer {{accessToken}}",
+										"type": "text"
+									}
+								],
+								"url": {
+									"raw": "{{baseUrl}}/api/admin/dashboard",
+									"host": ["{{baseUrl}}"],
+									"path": ["api", "admin", "dashboard"]
+								}
+							}
+						},
+						{
+							"name": "Get Admin Profile",
+							"request": {
+								"method": "GET",
+								"header": [
+									{
+										"key": "Authorization",
+										"value": "Bearer {{accessToken}}",
+										"type": "text"
+									}
+								],
+								"url": {
+									"raw": "{{baseUrl}}/api/admin/me",
+									"host": ["{{baseUrl}}"],
+									"path": ["api", "admin", "me"]
+								}
+							}
+						}
+					]
+				},
+				{
+					"name": "Users",
+					"item": [
+						{
+							"name": "Create User",
+							"request": {
+								"method": "POST",
+								"header": [
+									{
+										"key": "Authorization",
+										"value": "Bearer {{accessToken}}",
+										"type": "text"
+									}
+								],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n  \"fullName\": \"John Doe\",\n  \"mobile\": \"9876543210\",\n  \"email\": \"john@example.com\",\n  \"role\": \"user\",\n  \"password\": \"password123\"\n}",
+									"options": {
+										"raw": {
+											"language": "json"
+										}
+									}
+								},
+								"url": {
+									"raw": "{{baseUrl}}/api/admin/users",
+									"host": ["{{baseUrl}}"],
+									"path": ["api", "admin", "users"]
+								}
+							}
+						},
+						{
+							"name": "List Users",
+							"request": {
+								"method": "GET",
+								"header": [
+									{
+										"key": "Authorization",
+										"value": "Bearer {{accessToken}}",
+										"type": "text"
+									}
+								],
+								"url": {
+									"raw": "{{baseUrl}}/api/admin/users?page=1&limit=20&role=user&status=active",
+									"host": ["{{baseUrl}}"],
+									"path": ["api", "admin", "users"],
+									"query": [
+										{
+											"key": "page",
+											"value": "1"
+										},
+										{
+											"key": "limit",
+											"value": "20"
+										},
+										{
+											"key": "role",
+											"value": "user"
+										},
+										{
+											"key": "status",
+											"value": "active"
+										}
+									]
+								}
+							}
+						},
+						{
+							"name": "Get User by ID",
+							"request": {
+								"method": "GET",
+								"header": [
+									{
+										"key": "Authorization",
+										"value": "Bearer {{accessToken}}",
+										"type": "text"
+									}
+								],
+								"url": {
+									"raw": "{{baseUrl}}/api/admin/users/:userId",
+									"host": ["{{baseUrl}}"],
+									"path": ["api", "admin", "users", ":userId"],
+									"variable": [
+										{
+											"key": "userId",
+											"value": ""
+										}
+									]
+								}
+							}
+						},
+						{
+							"name": "Update User",
+							"request": {
+								"method": "PUT",
+								"header": [
+									{
+										"key": "Authorization",
+										"value": "Bearer {{accessToken}}",
+										"type": "text"
+									}
+								],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n  \"fullName\": \"John Updated\",\n  \"email\": \"johnupdated@example.com\"\n}",
+									"options": {
+										"raw": {
+											"language": "json"
+										}
+									}
+								},
+								"url": {
+									"raw": "{{baseUrl}}/api/admin/users/:userId",
+									"host": ["{{baseUrl}}"],
+									"path": ["api", "admin", "users", ":userId"],
+									"variable": [
+										{
+											"key": "userId",
+											"value": ""
+										}
+									]
+								}
+							}
+						},
+						{
+							"name": "Update User Status",
+							"request": {
+								"method": "PUT",
+								"header": [
+									{
+										"key": "Authorization",
+										"value": "Bearer {{accessToken}}",
+										"type": "text"
+									}
+								],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n  \"status\": \"blocked\"\n}",
+									"options": {
+										"raw": {
+											"language": "json"
+										}
+									}
+								},
+								"url": {
+									"raw": "{{baseUrl}}/api/admin/users/:userId/status",
+									"host": ["{{baseUrl}}"],
+									"path": ["api", "admin", "users", ":userId", "status"],
+									"variable": [
+										{
+											"key": "userId",
+											"value": ""
+										}
+									]
+								}
+							}
+						}
+					]
+				},
+				{
+					"name": "Pumps",
+					"item": [
+						{
+							"name": "Create Pump",
+							"request": {
+								"method": "POST",
+								"header": [
+									{
+										"key": "Authorization",
+										"value": "Bearer {{accessToken}}",
+										"type": "text"
+									}
+								],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n  \"name\": \"Pump 1\",\n  \"code\": \"PMP001\",\n  \"location\": {\n    \"address\": \"123 Main St\",\n    \"city\": \"Mumbai\",\n    \"state\": \"Maharashtra\",\n    \"pincode\": \"400001\"\n  },\n  \"managerId\": \"\"\n}",
+									"options": {
+										"raw": {
+											"language": "json"
+										}
+									}
+								},
+								"url": {
+									"raw": "{{baseUrl}}/api/admin/pumps",
+									"host": ["{{baseUrl}}"],
+									"path": ["api", "admin", "pumps"]
+								}
+							}
+						},
+						{
+							"name": "List Pumps",
+							"request": {
+								"method": "GET",
+								"header": [
+									{
+										"key": "Authorization",
+										"value": "Bearer {{accessToken}}",
+										"type": "text"
+									}
+								],
+								"url": {
+									"raw": "{{baseUrl}}/api/admin/pumps",
+									"host": ["{{baseUrl}}"],
+									"path": ["api", "admin", "pumps"]
+								}
+							}
+						},
+						{
+							"name": "Get Pump by ID",
+							"request": {
+								"method": "GET",
+								"header": [
+									{
+										"key": "Authorization",
+										"value": "Bearer {{accessToken}}",
+										"type": "text"
+									}
+								],
+								"url": {
+									"raw": "{{baseUrl}}/api/admin/pumps/:pumpId",
+									"host": ["{{baseUrl}}"],
+									"path": ["api", "admin", "pumps", ":pumpId"],
+									"variable": [
+										{
+											"key": "pumpId",
+											"value": ""
+										}
+									]
+								}
+							}
+						},
+						{
+							"name": "Update Pump",
+							"request": {
+								"method": "PUT",
+								"header": [
+									{
+										"key": "Authorization",
+										"value": "Bearer {{accessToken}}",
+										"type": "text"
+									}
+								],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n  \"name\": \"Pump 1 Updated\",\n  \"managerId\": \"\"\n}",
+									"options": {
+										"raw": {
+											"language": "json"
+										}
+									}
+								},
+								"url": {
+									"raw": "{{baseUrl}}/api/admin/pumps/:pumpId",
+									"host": ["{{baseUrl}}"],
+									"path": ["api", "admin", "pumps", ":pumpId"],
+									"variable": [
+										{
+											"key": "pumpId",
+											"value": ""
+										}
+									]
+								}
+							}
+						},
+						{
+							"name": "Delete Pump",
+							"request": {
+								"method": "DELETE",
+								"header": [
+									{
+										"key": "Authorization",
+										"value": "Bearer {{accessToken}}",
+										"type": "text"
+									}
+								],
+								"url": {
+									"raw": "{{baseUrl}}/api/admin/pumps/:pumpId",
+									"host": ["{{baseUrl}}"],
+									"path": ["api", "admin", "pumps", ":pumpId"],
+									"variable": [
+										{
+											"key": "pumpId",
+											"value": ""
+										}
+									]
+								}
+							}
+						}
+					]
+				},
+				{
+					"name": "Campaigns",
+					"item": [
+						{
+							"name": "Create Campaign",
+							"request": {
+								"method": "POST",
+								"header": [
+									{
+										"key": "Authorization",
+										"value": "Bearer {{accessToken}}",
+										"type": "text"
+									}
+								],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n  \"name\": \"Double Points Weekend\",\n  \"type\": \"multiplier\",\n  \"multiplier\": 2,\n  \"startDate\": \"2026-02-20T00:00:00Z\",\n  \"endDate\": \"2026-02-23T23:59:59Z\",\n  \"pumpIds\": []\n}",
+									"options": {
+										"raw": {
+											"language": "json"
+										}
+									}
+								},
+								"url": {
+									"raw": "{{baseUrl}}/api/admin/campaigns",
+									"host": ["{{baseUrl}}"],
+									"path": ["api", "admin", "campaigns"]
+								}
+							}
+						},
+						{
+							"name": "List Campaigns",
+							"request": {
+								"method": "GET",
+								"header": [
+									{
+										"key": "Authorization",
+										"value": "Bearer {{accessToken}}",
+										"type": "text"
+									}
+								],
+								"url": {
+									"raw": "{{baseUrl}}/api/admin/campaigns",
+									"host": ["{{baseUrl}}"],
+									"path": ["api", "admin", "campaigns"]
+								}
+							}
+						},
+						{
+							"name": "Get Campaign by ID",
+							"request": {
+								"method": "GET",
+								"header": [
+									{
+										"key": "Authorization",
+										"value": "Bearer {{accessToken}}",
+										"type": "text"
+									}
+								],
+								"url": {
+									"raw": "{{baseUrl}}/api/admin/campaigns/:campaignId",
+									"host": ["{{baseUrl}}"],
+									"path": ["api", "admin", "campaigns", ":campaignId"],
+									"variable": [
+										{
+											"key": "campaignId",
+											"value": ""
+										}
+									]
+								}
+							}
+						},
+						{
+							"name": "Update Campaign",
+							"request": {
+								"method": "PUT",
+								"header": [
+									{
+										"key": "Authorization",
+										"value": "Bearer {{accessToken}}",
+										"type": "text"
+									}
+								],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n  \"name\": \"Triple Points Weekend\",\n  \"multiplier\": 3\n}",
+									"options": {
+										"raw": {
+											"language": "json"
+										}
+									}
+								},
+								"url": {
+									"raw": "{{baseUrl}}/api/admin/campaigns/:campaignId",
+									"host": ["{{baseUrl}}"],
+									"path": ["api", "admin", "campaigns", ":campaignId"],
+									"variable": [
+										{
+											"key": "campaignId",
+											"value": ""
+										}
+									]
+								}
+							}
+						},
+						{
+							"name": "Delete Campaign",
+							"request": {
+								"method": "DELETE",
+								"header": [
+									{
+										"key": "Authorization",
+										"value": "Bearer {{accessToken}}",
+										"type": "text"
+									}
+								],
+								"url": {
+									"raw": "{{baseUrl}}/api/admin/campaigns/:campaignId",
+									"host": ["{{baseUrl}}"],
+									"path": ["api", "admin", "campaigns", ":campaignId"],
+									"variable": [
+										{
+											"key": "campaignId",
+											"value": ""
+										}
+									]
+								}
+							}
+						}
+					]
+				},
+				{
+					"name": "Banners",
+					"item": [
+						{
+							"name": "Create Banner",
+							"request": {
+								"method": "POST",
+								"header": [
+									{
+										"key": "Authorization",
+										"value": "Bearer {{accessToken}}",
+										"type": "text"
+									}
+								],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n  \"title\": \"Special Offer\",\n  \"description\": \"Get 50% off\",\n  \"imageUrl\": \"https://example.com/banner.jpg\",\n  \"linkUrl\": \"https://example.com/offer\",\n  \"startTime\": \"2026-02-20T00:00:00Z\",\n  \"endTime\": \"2026-02-27T23:59:59Z\",\n  \"pumpIds\": []\n}",
+									"options": {
+										"raw": {
+											"language": "json"
+										}
+									}
+								},
+								"url": {
+									"raw": "{{baseUrl}}/api/admin/banners",
+									"host": ["{{baseUrl}}"],
+									"path": ["api", "admin", "banners"]
+								}
+							}
+						},
+						{
+							"name": "List Banners",
+							"request": {
+								"method": "GET",
+								"header": [
+									{
+										"key": "Authorization",
+										"value": "Bearer {{accessToken}}",
+										"type": "text"
+									}
+								],
+								"url": {
+									"raw": "{{baseUrl}}/api/admin/banners",
+									"host": ["{{baseUrl}}"],
+									"path": ["api", "admin", "banners"]
+								}
+							}
+						},
+						{
+							"name": "Get Banner by ID",
+							"request": {
+								"method": "GET",
+								"header": [
+									{
+										"key": "Authorization",
+										"value": "Bearer {{accessToken}}",
+										"type": "text"
+									}
+								],
+								"url": {
+									"raw": "{{baseUrl}}/api/admin/banners/:bannerId",
+									"host": ["{{baseUrl}}"],
+									"path": ["api", "admin", "banners", ":bannerId"],
+									"variable": [
+										{
+											"key": "bannerId",
+											"value": ""
+										}
+									]
+								}
+							}
+						},
+						{
+							"name": "Update Banner",
+							"request": {
+								"method": "PUT",
+								"header": [
+									{
+										"key": "Authorization",
+										"value": "Bearer {{accessToken}}",
+										"type": "text"
+									}
+								],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n  \"title\": \"Updated Offer\"\n}",
+									"options": {
+										"raw": {
+											"language": "json"
+										}
+									}
+								},
+								"url": {
+									"raw": "{{baseUrl}}/api/admin/banners/:bannerId",
+									"host": ["{{baseUrl}}"],
+									"path": ["api", "admin", "banners", ":bannerId"],
+									"variable": [
+										{
+											"key": "bannerId",
+											"value": ""
+										}
+									]
+								}
+							}
+						},
+						{
+							"name": "Delete Banner",
+							"request": {
+								"method": "DELETE",
+								"header": [
+									{
+										"key": "Authorization",
+										"value": "Bearer {{accessToken}}",
+										"type": "text"
+									}
+								],
+								"url": {
+									"raw": "{{baseUrl}}/api/admin/banners/:bannerId",
+									"host": ["{{baseUrl}}"],
+									"path": ["api", "admin", "banners", ":bannerId"],
+									"variable": [
+										{
+											"key": "bannerId",
+											"value": ""
+										}
+									]
+								}
+							}
+						}
+					]
+				},
+				{
+					"name": "Rewards",
+					"item": [
+						{
+							"name": "Create Reward",
+							"request": {
+								"method": "POST",
+								"header": [
+									{
+										"key": "Authorization",
+										"value": "Bearer {{accessToken}}",
+										"type": "text"
+									}
+								],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n  \"name\": \"Free Coffee\",\n  \"type\": \"freeItem\",\n  \"pointsRequired\": 100,\n  \"value\": 50,\n  \"discountType\": \"free\",\n  \"availability\": \"unlimited\",\n  \"validFrom\": \"2026-02-20T00:00:00Z\",\n  \"validUntil\": \"2026-12-31T23:59:59Z\",\n  \"applicablePumps\": [],\n  \"description\": \"Get a free coffee\"\n}",
+									"options": {
+										"raw": {
+											"language": "json"
+										}
+									}
+								},
+								"url": {
+									"raw": "{{baseUrl}}/api/admin/rewards",
+									"host": ["{{baseUrl}}"],
+									"path": ["api", "admin", "rewards"]
+								}
+							}
+						},
+						{
+							"name": "List Rewards",
+							"request": {
+								"method": "GET",
+								"header": [
+									{
+										"key": "Authorization",
+										"value": "Bearer {{accessToken}}",
+										"type": "text"
+									}
+								],
+								"url": {
+									"raw": "{{baseUrl}}/api/admin/rewards",
+									"host": ["{{baseUrl}}"],
+									"path": ["api", "admin", "rewards"]
+								}
+							}
+						},
+						{
+							"name": "Get Reward by ID",
+							"request": {
+								"method": "GET",
+								"header": [
+									{
+										"key": "Authorization",
+										"value": "Bearer {{accessToken}}",
+										"type": "text"
+									}
+								],
+								"url": {
+									"raw": "{{baseUrl}}/api/admin/rewards/:rewardId",
+									"host": ["{{baseUrl}}"],
+									"path": ["api", "admin", "rewards", ":rewardId"],
+									"variable": [
+										{
+											"key": "rewardId",
+											"value": ""
+										}
+									]
+								}
+							}
+						},
+						{
+							"name": "Update Reward",
+							"request": {
+								"method": "PUT",
+								"header": [
+									{
+										"key": "Authorization",
+										"value": "Bearer {{accessToken}}",
+										"type": "text"
+									}
+								],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n  \"pointsRequired\": 150\n}",
+									"options": {
+										"raw": {
+											"language": "json"
+										}
+									}
+								},
+								"url": {
+									"raw": "{{baseUrl}}/api/admin/rewards/:rewardId",
+									"host": ["{{baseUrl}}"],
+									"path": ["api", "admin", "rewards", ":rewardId"],
+									"variable": [
+										{
+											"key": "rewardId",
+											"value": ""
+										}
+									]
+								}
+							}
+						},
+						{
+							"name": "Delete Reward",
+							"request": {
+								"method": "DELETE",
+								"header": [
+									{
+										"key": "Authorization",
+										"value": "Bearer {{accessToken}}",
+										"type": "text"
+									}
+								],
+								"url": {
+									"raw": "{{baseUrl}}/api/admin/rewards/:rewardId",
+									"host": ["{{baseUrl}}"],
+									"path": ["api", "admin", "rewards", ":rewardId"],
+									"variable": [
+										{
+											"key": "rewardId",
+											"value": ""
+										}
+									]
+								}
+							}
+						}
+					]
+				},
+				{
+					"name": "Wallet",
+					"item": [
+						{
+							"name": "Adjust Wallet",
+							"request": {
+								"method": "POST",
+								"header": [
+									{
+										"key": "Authorization",
+										"value": "Bearer {{accessToken}}",
+										"type": "text"
+									}
+								],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n  \"userId\": \"\",\n  \"points\": 100,\n  \"type\": \"adjustment\",\n  \"reason\": \"Manual adjustment\"\n}",
+									"options": {
+										"raw": {
+											"language": "json"
+										}
+									}
+								},
+								"url": {
+									"raw": "{{baseUrl}}/api/admin/wallet/adjust",
+									"host": ["{{baseUrl}}"],
+									"path": ["api", "admin", "wallet", "adjust"]
+								}
+							}
+						}
+					]
+				},
+				{
+					"name": "System Config",
+					"item": [
+						{
+							"name": "Get Config",
+							"request": {
+								"method": "GET",
+								"header": [
+									{
+										"key": "Authorization",
+										"value": "Bearer {{accessToken}}",
+										"type": "text"
+									}
+								],
+								"url": {
+									"raw": "{{baseUrl}}/api/admin/config",
+									"host": ["{{baseUrl}}"],
+									"path": ["api", "admin", "config"]
+								}
+							}
+						},
+						{
+							"name": "Update Config",
+							"request": {
+								"method": "PUT",
+								"header": [
+									{
+										"key": "Authorization",
+										"value": "Bearer {{accessToken}}",
+										"type": "text"
+									}
+								],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n  \"points\": {\n    \"fuel\": 1,\n    \"other\": 5,\n    \"registration\": 50,\n    \"referral\": 100\n  },\n  \"pointsExpiry\": {\n    \"durationMonths\": 12,\n    \"notificationDays\": [30, 7, 1]\n  }\n}",
+									"options": {
+										"raw": {
+											"language": "json"
+										}
+									}
+								},
+								"url": {
+									"raw": "{{baseUrl}}/api/admin/config",
+									"host": ["{{baseUrl}}"],
+									"path": ["api", "admin", "config"]
+								}
+							}
+						}
+					]
+				}
+			]
+		},
+		{
+			"name": "Manager APIs",
+			"item": [
+				{
+					"name": "Dashboard",
+					"item": [
+						{
+							"name": "Get Manager Dashboard",
+							"request": {
+								"method": "GET",
+								"header": [
+									{
+										"key": "Authorization",
+										"value": "Bearer {{accessToken}}",
+										"type": "text"
+									}
+								],
+								"url": {
+									"raw": "{{baseUrl}}/api/manager/dashboard",
+									"host": ["{{baseUrl}}"],
+									"path": ["api", "manager", "dashboard"]
+								}
+							}
+						}
+					]
+				},
+				{
+					"name": "Users",
+					"item": [
+						{
+							"name": "Create User",
+							"request": {
+								"method": "POST",
+								"header": [
+									{
+										"key": "Authorization",
+										"value": "Bearer {{accessToken}}",
+										"type": "text"
+									}
+								],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n  \"fullName\": \"John Doe\",\n  \"mobile\": \"9876543210\",\n  \"email\": \"john@example.com\",\n  \"vehicleNumber\": \"MH12AB1234\",\n  \"vehicleType\": \"Four-Wheeler\",\n  \"fuelType\": \"Petrol\"\n}",
+									"options": {
+										"raw": {
+											"language": "json"
+										}
+									}
+								},
+								"url": {
+									"raw": "{{baseUrl}}/api/manager/users",
+									"host": ["{{baseUrl}}"],
+									"path": ["api", "manager", "users"]
+								}
+							}
+						}
+					]
+				},
+				{
+					"name": "Transactions",
+					"item": [
+						{
+							"name": "List Transactions",
+							"request": {
+								"method": "GET",
+								"header": [
+									{
+										"key": "Authorization",
+										"value": "Bearer {{accessToken}}",
+										"type": "text"
+									}
+								],
+								"url": {
+									"raw": "{{baseUrl}}/api/manager/transactions?page=1&limit=20",
+									"host": ["{{baseUrl}}"],
+									"path": ["api", "manager", "transactions"],
+									"query": [
+										{
+											"key": "page",
+											"value": "1"
+										},
+										{
+											"key": "limit",
+											"value": "20"
+										}
+									]
+								}
+							}
+						},
+						{
+							"name": "Get Transaction by ID",
+							"request": {
+								"method": "GET",
+								"header": [
+									{
+										"key": "Authorization",
+										"value": "Bearer {{accessToken}}",
+										"type": "text"
+									}
+								],
+								"url": {
+									"raw": "{{baseUrl}}/api/manager/transactions/:transactionId",
+									"host": ["{{baseUrl}}"],
+									"path": ["api", "manager", "transactions", ":transactionId"],
+									"variable": [
+										{
+											"key": "transactionId",
+											"value": ""
+										}
+									]
+								}
+							}
+						}
+					]
+				},
+				{
+					"name": "Campaigns",
+					"item": [
+						{
+							"name": "Create Campaign",
+							"request": {
+								"method": "POST",
+								"header": [
+									{
+										"key": "Authorization",
+										"value": "Bearer {{accessToken}}",
+										"type": "text"
+									}
+								],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n  \"name\": \"Weekend Special\",\n  \"type\": \"multiplier\",\n  \"multiplier\": 1.5,\n  \"startDate\": \"2026-02-20T00:00:00Z\",\n  \"endDate\": \"2026-02-23T23:59:59Z\",\n  \"pumpIds\": [\"\"]\n}",
+									"options": {
+										"raw": {
+											"language": "json"
+										}
+									}
+								},
+								"url": {
+									"raw": "{{baseUrl}}/api/manager/campaigns",
+									"host": ["{{baseUrl}}"],
+									"path": ["api", "manager", "campaigns"]
+								}
+							}
+						},
+						{
+							"name": "List Campaigns",
+							"request": {
+								"method": "GET",
+								"header": [
+									{
+										"key": "Authorization",
+										"value": "Bearer {{accessToken}}",
+										"type": "text"
+									}
+								],
+								"url": {
+									"raw": "{{baseUrl}}/api/manager/campaigns",
+									"host": ["{{baseUrl}}"],
+									"path": ["api", "manager", "campaigns"]
+								}
+							}
+						},
+						{
+							"name": "Get Campaign by ID",
+							"request": {
+								"method": "GET",
+								"header": [
+									{
+										"key": "Authorization",
+										"value": "Bearer {{accessToken}}",
+										"type": "text"
+									}
+								],
+								"url": {
+									"raw": "{{baseUrl}}/api/manager/campaigns/:campaignId",
+									"host": ["{{baseUrl}}"],
+									"path": ["api", "manager", "campaigns", ":campaignId"],
+									"variable": [
+										{
+											"key": "campaignId",
+											"value": ""
+										}
+									]
+								}
+							}
+						},
+						{
+							"name": "Update Campaign",
+							"request": {
+								"method": "PUT",
+								"header": [
+									{
+										"key": "Authorization",
+										"value": "Bearer {{accessToken}}",
+										"type": "text"
+									}
+								],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n  \"name\": \"Updated Campaign\"\n}",
+									"options": {
+										"raw": {
+											"language": "json"
+										}
+									}
+								},
+								"url": {
+									"raw": "{{baseUrl}}/api/manager/campaigns/:campaignId",
+									"host": ["{{baseUrl}}"],
+									"path": ["api", "manager", "campaigns", ":campaignId"],
+									"variable": [
+										{
+											"key": "campaignId",
+											"value": ""
+										}
+									]
+								}
+							}
+						},
+						{
+							"name": "Delete Campaign",
+							"request": {
+								"method": "DELETE",
+								"header": [
+									{
+										"key": "Authorization",
+										"value": "Bearer {{accessToken}}",
+										"type": "text"
+									}
+								],
+								"url": {
+									"raw": "{{baseUrl}}/api/manager/campaigns/:campaignId",
+									"host": ["{{baseUrl}}"],
+									"path": ["api", "manager", "campaigns", ":campaignId"],
+									"variable": [
+										{
+											"key": "campaignId",
+											"value": ""
+										}
+									]
+								}
+							}
+						}
+					]
+				},
+				{
+					"name": "Banners",
+					"item": [
+						{
+							"name": "Create Banner",
+							"request": {
+								"method": "POST",
+								"header": [
+									{
+										"key": "Authorization",
+										"value": "Bearer {{accessToken}}",
+										"type": "text"
+									}
+								],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n  \"title\": \"Manager Banner\",\n  \"description\": \"Special offer\",\n  \"imageUrl\": \"https://example.com/banner.jpg\",\n  \"startTime\": \"2026-02-20T00:00:00Z\",\n  \"endTime\": \"2026-02-27T23:59:59Z\",\n  \"pumpIds\": [\"\"]\n}",
+									"options": {
+										"raw": {
+											"language": "json"
+										}
+									}
+								},
+								"url": {
+									"raw": "{{baseUrl}}/api/manager/banners",
+									"host": ["{{baseUrl}}"],
+									"path": ["api", "manager", "banners"]
+								}
+							}
+						},
+						{
+							"name": "List Banners",
+							"request": {
+								"method": "GET",
+								"header": [
+									{
+										"key": "Authorization",
+										"value": "Bearer {{accessToken}}",
+										"type": "text"
+									}
+								],
+								"url": {
+									"raw": "{{baseUrl}}/api/manager/banners",
+									"host": ["{{baseUrl}}"],
+									"path": ["api", "manager", "banners"]
+								}
+							}
+						},
+						{
+							"name": "Get Banner by ID",
+							"request": {
+								"method": "GET",
+								"header": [
+									{
+										"key": "Authorization",
+										"value": "Bearer {{accessToken}}",
+										"type": "text"
+									}
+								],
+								"url": {
+									"raw": "{{baseUrl}}/api/manager/banners/:bannerId",
+									"host": ["{{baseUrl}}"],
+									"path": ["api", "manager", "banners", ":bannerId"],
+									"variable": [
+										{
+											"key": "bannerId",
+											"value": ""
+										}
+									]
+								}
+							}
+						},
+						{
+							"name": "Update Banner",
+							"request": {
+								"method": "PUT",
+								"header": [
+									{
+										"key": "Authorization",
+										"value": "Bearer {{accessToken}}",
+										"type": "text"
+									}
+								],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n  \"title\": \"Updated Banner\"\n}",
+									"options": {
+										"raw": {
+											"language": "json"
+										}
+									}
+								},
+								"url": {
+									"raw": "{{baseUrl}}/api/manager/banners/:bannerId",
+									"host": ["{{baseUrl}}"],
+									"path": ["api", "manager", "banners", ":bannerId"],
+									"variable": [
+										{
+											"key": "bannerId",
+											"value": ""
+										}
+									]
+								}
+							}
+						},
+						{
+							"name": "Delete Banner",
+							"request": {
+								"method": "DELETE",
+								"header": [
+									{
+										"key": "Authorization",
+										"value": "Bearer {{accessToken}}",
+										"type": "text"
+									}
+								],
+								"url": {
+									"raw": "{{baseUrl}}/api/manager/banners/:bannerId",
+									"host": ["{{baseUrl}}"],
+									"path": ["api", "manager", "banners", ":bannerId"],
+									"variable": [
+										{
+											"key": "bannerId",
+											"value": ""
+										}
+									]
+								}
+							}
+						}
+					]
+				},
+				{
+					"name": "Redemptions",
+					"item": [
+						{
+							"name": "At-Pump Redemption",
+							"request": {
+								"method": "POST",
+								"header": [
+									{
+										"key": "Authorization",
+										"value": "Bearer {{accessToken}}",
+										"type": "text"
+									}
+								],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n  \"identifier\": \"LOY12345678\",\n  \"pointsToDeduct\": 100,\n  \"pumpId\": \"\"\n}",
+									"options": {
+										"raw": {
+											"language": "json"
+										}
+									}
+								},
+								"url": {
+									"raw": "{{baseUrl}}/api/manager/redeem",
+									"host": ["{{baseUrl}}"],
+									"path": ["api", "manager", "redeem"]
+								}
+							}
+						},
+						{
+							"name": "Approve Redemption",
+							"request": {
+								"method": "POST",
+								"header": [
+									{
+										"key": "Authorization",
+										"value": "Bearer {{accessToken}}",
+										"type": "text"
+									}
+								],
+								"url": {
+									"raw": "{{baseUrl}}/api/manager/redemptions/:id/approve",
+									"host": ["{{baseUrl}}"],
+									"path": ["api", "manager", "redemptions", ":id", "approve"],
+									"variable": [
+										{
+											"key": "id",
+											"value": ""
+										}
+									]
+								}
+							}
+						},
+						{
+							"name": "Reject Redemption",
+							"request": {
+								"method": "POST",
+								"header": [
+									{
+										"key": "Authorization",
+										"value": "Bearer {{accessToken}}",
+										"type": "text"
+									}
+								],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n  \"reason\": \"Invalid redemption code\"\n}",
+									"options": {
+										"raw": {
+											"language": "json"
+										}
+									}
+								},
+								"url": {
+									"raw": "{{baseUrl}}/api/manager/redemptions/:id/reject",
+									"host": ["{{baseUrl}}"],
+									"path": ["api", "manager", "redemptions", ":id", "reject"],
+									"variable": [
+										{
+											"key": "id",
+											"value": ""
+										}
+									]
+								}
+							}
+						}
+					]
+				},
+				{
+					"name": "Wallet",
+					"item": [
+						{
+							"name": "Adjust Wallet",
+							"request": {
+								"method": "POST",
+								"header": [
+									{
+										"key": "Authorization",
+										"value": "Bearer {{accessToken}}",
+										"type": "text"
+									}
+								],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n  \"userId\": \"\",\n  \"points\": 50,\n  \"type\": \"adjustment\",\n  \"reason\": \"Manual adjustment\"\n}",
+									"options": {
+										"raw": {
+											"language": "json"
+										}
+									}
+								},
+								"url": {
+									"raw": "{{baseUrl}}/api/manager/wallet/adjust",
+									"host": ["{{baseUrl}}"],
+									"path": ["api", "manager", "wallet", "adjust"]
+								}
+							}
+						}
+					]
+				}
+			]
+		},
+		{
+			"name": "Staff APIs",
+			"item": [
+				{
+					"name": "Create User",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{accessToken}}",
+								"type": "text"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"fullName\": \"John Doe\",\n  \"mobile\": \"9876543210\",\n  \"email\": \"john@example.com\",\n  \"vehicleNumber\": \"MH12AB1234\",\n  \"vehicleType\": \"Four-Wheeler\",\n  \"fuelType\": \"Petrol\"\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/staff/users",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "staff", "users"]
+						}
+					}
+				},
+				{
+					"name": "At-Pump Redemption",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{accessToken}}",
+								"type": "text"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"identifier\": \"LOY12345678\",\n  \"pointsToDeduct\": 100,\n  \"pumpId\": \"\"\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/staff/redeem",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "staff", "redeem"]
+						}
+					}
+				}
+			]
+		},
+		{
+			"name": "User APIs",
+			"item": [
+				{
+					"name": "Get Referral Code",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{accessToken}}",
+								"type": "text"
+							}
+						],
+						"url": {
+							"raw": "{{baseUrl}}/api/user/referral-code",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "user", "referral-code"]
+						}
+					}
+				},
+				{
+					"name": "Vehicles",
+					"item": [
+						{
+							"name": "Get Vehicles",
+							"request": {
+								"method": "GET",
+								"header": [
+									{
+										"key": "Authorization",
+										"value": "Bearer {{accessToken}}",
+										"type": "text"
+									}
+								],
+								"url": {
+									"raw": "{{baseUrl}}/api/user/vehicles?userId=",
+									"host": ["{{baseUrl}}"],
+									"path": ["api", "user", "vehicles"],
+									"query": [
+										{
+											"key": "userId",
+											"value": ""
+										}
+									]
+								}
+							}
+						},
+						{
+							"name": "Add Vehicle",
+							"request": {
+								"method": "POST",
+								"header": [
+									{
+										"key": "Authorization",
+										"value": "Bearer {{accessToken}}",
+										"type": "text"
+									}
+								],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n  \"vehicleNumber\": \"MH12AB1234\",\n  \"vehicleType\": \"Four-Wheeler\",\n  \"fuelType\": \"Petrol\",\n  \"brand\": \"Toyota\",\n  \"model\": \"Camry\",\n  \"yearOfManufacture\": 2020\n}",
+									"options": {
+										"raw": {
+											"language": "json"
+										}
+									}
+								},
+								"url": {
+									"raw": "{{baseUrl}}/api/user/vehicles",
+									"host": ["{{baseUrl}}"],
+									"path": ["api", "user", "vehicles"]
+								}
+							}
+						},
+						{
+							"name": "Update Vehicle",
+							"request": {
+								"method": "PUT",
+								"header": [
+									{
+										"key": "Authorization",
+										"value": "Bearer {{accessToken}}",
+										"type": "text"
+									}
+								],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n  \"brand\": \"Honda\",\n  \"model\": \"Civic\"\n}",
+									"options": {
+										"raw": {
+											"language": "json"
+										}
+									}
+								},
+								"url": {
+									"raw": "{{baseUrl}}/api/user/vehicles/:vehicleId",
+									"host": ["{{baseUrl}}"],
+									"path": ["api", "user", "vehicles", ":vehicleId"],
+									"variable": [
+										{
+											"key": "vehicleId",
+											"value": ""
+										}
+									]
+								}
+							}
+						}
+					]
+				},
+				{
+					"name": "Wallet",
+					"item": [
+						{
+							"name": "Get Wallet",
+							"request": {
+								"method": "GET",
+								"header": [
+									{
+										"key": "Authorization",
+										"value": "Bearer {{accessToken}}",
+										"type": "text"
+									}
+								],
+								"url": {
+									"raw": "{{baseUrl}}/api/user/:userId/wallet?page=1&limit=20",
+									"host": ["{{baseUrl}}"],
+									"path": ["api", "user", ":userId", "wallet"],
+									"query": [
+										{
+											"key": "page",
+											"value": "1"
+										},
+										{
+											"key": "limit",
+											"value": "20"
+										}
+									],
+									"variable": [
+										{
+											"key": "userId",
+											"value": ""
+										}
+									]
+								}
+							}
+						}
+					]
+				}
+			]
+		},
+		{
+			"name": "Owner APIs",
+			"item": [
+				{
+					"name": "Fleet Aggregation",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{accessToken}}",
+								"type": "text"
+							}
+						],
+						"url": {
+							"raw": "{{baseUrl}}/api/owner/fleet-aggregation",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "owner", "fleet-aggregation"]
+						}
+					}
+				},
+				{
+					"name": "Search Owner",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/api/owner/search?identifier=",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "owner", "search"],
+							"query": [
+								{
+									"key": "identifier",
+									"value": ""
+								}
+							]
+						}
+					}
+				},
+				{
+					"name": "Add Vehicle to Fleet",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{accessToken}}",
+								"type": "text"
+							}
+						],
+						"body": {
+							"mode": "formdata",
+							"formdata": [
+								{
+									"key": "fullName",
+									"value": "Driver Name",
+									"type": "text"
+								},
+								{
+									"key": "mobile",
+									"value": "9876543210",
+									"type": "text"
+								},
+								{
+									"key": "vehicleNumber",
+									"value": "MH12AB1234",
+									"type": "text"
+								},
+								{
+									"key": "vehicleType",
+									"value": "Four-Wheeler",
+									"type": "text"
+								},
+								{
+									"key": "fuelType",
+									"value": "Petrol",
+									"type": "text"
+								},
+								{
+									"key": "profilePhoto",
+									"type": "file",
+									"src": []
+								},
+								{
+									"key": "rcPhoto",
+									"type": "file",
+									"src": []
+								}
+							]
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/owner/vehicles",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "owner", "vehicles"]
+						}
+					}
+				},
+				{
+					"name": "Get Fleet Vehicles",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{accessToken}}",
+								"type": "text"
+							}
+						],
+						"url": {
+							"raw": "{{baseUrl}}/api/owner/vehicles",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "owner", "vehicles"]
+						}
+					}
+				}
+			]
+		},
+		{
+			"name": "Transactions",
+			"item": [
+				{
+					"name": "Create Transaction",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{accessToken}}",
+								"type": "text"
+							},
+							{
+								"key": "Idempotency-Key",
+								"value": "unique-key-123",
+								"type": "text",
+								"disabled": true
+							}
+						],
+						"body": {
+							"mode": "formdata",
+							"formdata": [
+								{
+									"key": "identifier",
+									"value": "LOY12345678",
+									"type": "text"
+								},
+								{
+									"key": "pumpId",
+									"value": "",
+									"type": "text"
+								},
+								{
+									"key": "amount",
+									"value": "1000",
+									"type": "text"
+								},
+								{
+									"key": "liters",
+									"value": "50",
+									"type": "text"
+								},
+								{
+									"key": "category",
+									"value": "Fuel",
+									"type": "text"
+								},
+								{
+									"key": "billNumber",
+									"value": "BILL001",
+									"type": "text"
+								},
+								{
+									"key": "paymentMode",
+									"value": "cash",
+									"type": "text"
+								},
+								{
+									"key": "attachments",
+									"type": "file",
+									"src": []
+								}
+							]
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/transactions",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "transactions"]
+						}
+					}
+				},
+				{
+					"name": "List Transactions",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{accessToken}}",
+								"type": "text"
+							}
+						],
+						"url": {
+							"raw": "{{baseUrl}}/api/transactions?page=1&limit=20&pumpId=&category=Fuel",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "transactions"],
+							"query": [
+								{
+									"key": "page",
+									"value": "1"
+								},
+								{
+									"key": "limit",
+									"value": "20"
+								},
+								{
+									"key": "pumpId",
+									"value": ""
+								},
+								{
+									"key": "category",
+									"value": "Fuel"
+								}
+							]
+						}
+					}
+				},
+				{
+					"name": "Get Transaction by ID",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{accessToken}}",
+								"type": "text"
+							}
+						],
+						"url": {
+							"raw": "{{baseUrl}}/api/transactions/:transactionId",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "transactions", ":transactionId"],
+							"variable": [
+								{
+									"key": "transactionId",
+									"value": ""
+								}
+							]
+						}
+					}
+				}
+			]
+		},
+		{
+			"name": "Redemptions",
+			"item": [
+				{
+					"name": "Create Redemption",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{accessToken}}",
+								"type": "text"
+							},
+							{
+								"key": "Idempotency-Key",
+								"value": "unique-key-456",
+								"type": "text",
+								"disabled": true
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"rewardId\": \"\",\n  \"pointsUsed\": 100\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/redeem",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "redeem"]
+						}
+					}
+				},
+				{
+					"name": "At-Pump Redemption",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{accessToken}}",
+								"type": "text"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"identifier\": \"LOY12345678\",\n  \"pointsToDeduct\": 100,\n  \"pumpId\": \"\"\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/redeem/at-pump",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "redeem", "at-pump"]
+						}
+					}
+				},
+				{
+					"name": "List Redemptions",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{accessToken}}",
+								"type": "text"
+							}
+						],
+						"url": {
+							"raw": "{{baseUrl}}/api/redeem?page=1&limit=20",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "redeem"],
+							"query": [
+								{
+									"key": "page",
+									"value": "1"
+								},
+								{
+									"key": "limit",
+									"value": "20"
+								}
+							]
+						}
+					}
+				},
+				{
+					"name": "Get Redemption by ID",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{accessToken}}",
+								"type": "text"
+							}
+						],
+						"url": {
+							"raw": "{{baseUrl}}/api/redeem/:redemptionId",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "redeem", ":redemptionId"],
+							"variable": [
+								{
+									"key": "redemptionId",
+									"value": ""
+								}
+							]
+						}
+					}
+				},
+				{
+					"name": "Verify Redemption Code",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{accessToken}}",
+								"type": "text"
+							}
+						],
+						"url": {
+							"raw": "{{baseUrl}}/api/redeem/:code/verify",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "redeem", ":code", "verify"],
+							"variable": [
+								{
+									"key": "code",
+									"value": ""
+								}
+							]
+						}
+					}
+				},
+				{
+					"name": "Use Redemption Code",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{accessToken}}",
+								"type": "text"
+							}
+						],
+						"url": {
+							"raw": "{{baseUrl}}/api/redeem/:code/use",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "redeem", ":code", "use"],
+							"variable": [
+								{
+									"key": "code",
+									"value": ""
+								}
+							]
+						}
+					}
+				}
+			]
+		},
+		{
+			"name": "Scan & Validation",
+			"item": [
+				{
+					"name": "Validate Identifier",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"identifier\": \"LOY12345678\"\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/scan/validate",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "scan", "validate"]
+						}
+					}
+				}
+			]
+		},
+		{
+			"name": "Rewards (Public)",
+			"item": [
+				{
+					"name": "Get Rewards",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/api/rewards?pumpId=",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "rewards"],
+							"query": [
+								{
+									"key": "pumpId",
+									"value": ""
+								}
+							]
+						}
+					}
+				}
+			]
+		},
+		{
+			"name": "Banners (Public)",
+			"item": [
+				{
+					"name": "Get Active Banners",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/api/banners?pumpId=",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "banners"],
+							"query": [
+								{
+									"key": "pumpId",
+									"value": ""
+								}
+							]
+						}
+					}
+				}
+			]
+		},
+		{
+			"name": "Notifications",
+			"item": [
+				{
+					"name": "Subscribe FCM Token",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{accessToken}}",
+								"type": "text"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"token\": \"fcm-token-here\"\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/notifications/subscribeToken",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "notifications", "subscribeToken"]
+						}
+					}
+				},
+				{
+					"name": "Get My Notifications",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{accessToken}}",
+								"type": "text"
+							}
+						],
+						"url": {
+							"raw": "{{baseUrl}}/api/notifications/my?page=1&limit=20",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "notifications", "my"],
+							"query": [
+								{
+									"key": "page",
+									"value": "1"
+								},
+								{
+									"key": "limit",
+									"value": "20"
+								}
+							]
+						}
+					}
+				},
+				{
+					"name": "Delete My Notification",
+					"request": {
+						"method": "DELETE",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{accessToken}}",
+								"type": "text"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"notificationIds\": [\"\"]\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/notifications/my",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "notifications", "my"]
+						}
+					}
+				},
+				{
+					"name": "Send to All (Admin)",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{accessToken}}",
+								"type": "text"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"title\": \"Notification Title\",\n  \"body\": \"Notification Body\",\n  \"link\": \"https://example.com\",\n  \"img\": \"https://example.com/image.jpg\"\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/notifications/all",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "notifications", "all"]
+						}
+					}
+				},
+				{
+					"name": "Send to Users (Admin)",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{accessToken}}",
+								"type": "text"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"userIds\": [\"\"],\n  \"title\": \"Notification Title\",\n  \"body\": \"Notification Body\",\n  \"link\": \"https://example.com\",\n  \"img\": \"https://example.com/image.jpg\"\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/notifications/",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "notifications", ""]
+						}
+					}
+				}
+			]
+		},
+		{
+			"name": "Health Check",
+			"item": [
+				{
+					"name": "Health Check",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/health",
+							"host": ["{{baseUrl}}"],
+							"path": ["health"]
+						}
+					}
+				},
+				{
+					"name": "API Health Check",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/api/health",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "health"]
+						}
+					}
+				}
+			]
+		}
+	],
+	"variable": [
+		{
+			"key": "baseUrl",
+			"value": "http://localhost:7000",
+			"type": "string"
+		},
+		{
+			"key": "accessToken",
+			"value": "",
+			"type": "string"
+		},
+		{
+			"key": "refreshToken",
+			"value": "",
+			"type": "string"
+		}
+	]
+}

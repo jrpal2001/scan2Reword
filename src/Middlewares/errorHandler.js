@@ -6,12 +6,41 @@ import { config } from '../config/index.js';
  * Map known errors to HTTP status and consistent JSON shape.
  */
 export const errorHandler = (err, req, res, next) => {
+  console.log('[Error Handler] Error caught:', {
+    name: err.name,
+    message: err.message,
+    statusCode: err.statusCode || err.status,
+    isApiError: err instanceof ApiError,
+    path: req.path,
+    method: req.method,
+    errorCode: err.errorCode,
+    stack: config.nodeEnv !== 'production' ? err.stack?.split('\n')[0] : undefined,
+  });
+
   if (res.headersSent) {
+    console.log('[Error Handler] Headers already sent, skipping response');
     return next(err);
   }
 
+  // CORS errors
+  if (err.message === 'Not allowed by CORS') {
+    console.log('[Error Handler] CORS error:', { origin: req.headers.origin });
+    return res.status(403).json({
+      success: false,
+      message: 'CORS: Origin not allowed',
+      data: null,
+      meta: config.nodeEnv !== 'production' ? { origin: req.headers.origin } : null,
+    });
+  }
+
   if (err instanceof ApiError) {
-    return res.status(err.statusCode).json(err.toJSON());
+    const errorResponse = err.toJSON();
+    console.log('[Error Handler] ApiError response:', {
+      statusCode: err.statusCode,
+      errorCode: errorResponse.errorCode,
+      message: errorResponse.message,
+    });
+    return res.status(err.statusCode).json(errorResponse);
   }
 
   // Mongoose validation error

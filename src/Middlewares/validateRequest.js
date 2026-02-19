@@ -12,12 +12,23 @@ import { HTTP_STATUS } from '../constants/errorCodes.js';
  */
 export const validateRequest = (schema, source = 'body') =>
   asyncHandler((req, res, next) => {
+    console.log(`[Validate Request] Validating ${source}:`, {
+      path: req.path,
+      method: req.method,
+      hasValue: !!req[source],
+      valueKeys: req[source] ? Object.keys(req[source]) : [],
+    });
     const value = req[source];
     const { error, value: validated } = schema.validate(value, { abortEarly: false });
     if (error) {
       const message = error.details.map((d) => d.message).join('; ');
+      console.log('[Validate Request] Validation failed:', {
+        path: req.path,
+        errors: error.details.map((d) => ({ path: d.path.join('.'), message: d.message })),
+      });
       throw new ApiError(HTTP_STATUS.BAD_REQUEST, message);
     }
+    console.log('[Validate Request] Validation passed:', { path: req.path });
     req.validated = validated;
     next();
   });
