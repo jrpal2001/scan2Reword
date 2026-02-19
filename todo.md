@@ -142,11 +142,11 @@ Backend follows **Controller → Service → Repository → Model** plus cross-c
 
 ## Campaigns
 
-- [ ] **Campaign model** — name, type, multiplier/bonusPoints/bonusPercentage, startDate, endDate, conditions, pumpIds (empty = all), createdBy, createdByRole (admin|manager), status
-- [ ] **Admin campaigns** — CRUD `POST/GET/PUT/DELETE /api/admin/campaigns`; can set any pumpIds or global
-- [ ] **Manager campaigns** — CRUD `POST/GET/PUT/DELETE /api/manager/campaigns`; pumpIds restricted to manager’s assigned pump(s) only
-- [ ] **Apply campaign** — In transaction points calculation: check active campaigns (date, pump, category, min amount); apply multiplier/bonus
-- [ ] **Indexes** — status, startDate, endDate, pumpIds
+- [x] **Campaign model** — `src/models/Campaign.model.js`: name, type (multiplier/bonusPoints/bonusPercentage), multiplier/bonusPoints/bonusPercentage, startDate, endDate, conditions (minAmount, categories, userSegment, frequencyLimit), pumpIds (empty = all), createdBy, createdByRole (admin|manager), status
+- [x] **Admin campaigns** — CRUD `POST/GET/PUT/DELETE /api/admin/campaigns`; Joi validation; can set any pumpIds or global (empty array)
+- [x] **Manager campaigns** — CRUD `POST/GET/PUT/DELETE /api/manager/campaigns`; Joi validation; pumpIds restricted to manager's assigned pump(s) only; manager must assign to at least one pump
+- [x] **Apply campaign** — In transaction points calculation: `campaignService.findActiveCampaignsForTransaction()` checks active campaigns (date, pump, category, min amount); applies multiplier/bonusPoints/bonusPercentage; first matching campaign applied; campaignId saved in transaction
+- [x] **Indexes** — status, startDate, endDate, pumpIds, createdBy, (status, startDate, endDate) composite
 
 ---
 

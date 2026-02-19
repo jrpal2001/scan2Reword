@@ -1,6 +1,7 @@
 import { transactionRepository } from '../repositories/transaction.repository.js';
 import { scanService } from './scan.service.js';
 import { pointsService } from './points.service.js';
+import { campaignService } from './campaign.service.js';
 import { pumpRepository } from '../repositories/pump.repository.js';
 import ApiError from '../utils/ApiError.js';
 import { HTTP_STATUS } from '../constants/errorCodes.js';
@@ -55,8 +56,34 @@ export const transactionService = {
       }
     }
 
-    // Calculate points (campaign multiplier = 1 for now, TODO: lookup active campaigns)
-    const pointsEarned = pointsService.calculatePoints(category, amount, liters, 1);
+    // Find active campaigns for this transaction
+    const activeCampaigns = await campaignService.findActiveCampaignsForTransaction(
+      pumpId,
+      category,
+      amount
+    );
+
+    // Calculate base points
+    let basePoints = pointsService.calculatePoints(category, amount, liters, 1);
+    let finalPoints = basePoints;
+    let appliedCampaignId = null;
+
+    // Apply campaign (use first matching campaign)
+    if (activeCampaigns.length > 0) {
+      const campaign = activeCampaigns[0];
+      appliedCampaignId = campaign._id;
+
+      if (campaign.type === 'multiplier') {
+        finalPoints = Math.floor(basePoints * campaign.multiplier);
+      } else if (campaign.type === 'bonusPoints') {
+        finalPoints = basePoints + campaign.bonusPoints;
+      } else if (campaign.type === 'bonusPercentage') {
+        const bonus = Math.floor((basePoints * campaign.bonusPercentage) / 100);
+        finalPoints = basePoints + bonus;
+      }
+    }
+
+    const pointsEarned = finalPoints;
 
     // Create transaction
     const transaction = await transactionRepository.create({
@@ -70,7 +97,7 @@ export const transactionService = {
       billNumber: billNumber.trim(),
       paymentMode,
       pointsEarned,
-      campaignId: campaignId || null,
+      campaignId: campaignId || appliedCampaignId || null,
       status: TRANSACTION_STATUS.COMPLETED,
       attachments: attachments || [],
     });
