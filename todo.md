@@ -178,13 +178,13 @@ Backend follows **Controller → Service → Repository → Model** plus cross-c
 
 ## Notifications (Firebase FCM)
 
-- [ ] **FCM setup** — Firebase Admin SDK; service account from env
-- [ ] **Subscribe token** — `POST /api/notifications/subscribeToken`; store FCM token on user (FcmTokens array); subscribe to topic if used
-- [ ] **GET my notifications** — `GET /api/notifications/my` (auth); list notifications where user in user array; pagination
-- [ ] **DELETE my notifications** — `DELETE /api/notifications/my` (body: notificationId(s)); remove user from notification’s user array
-- [ ] **Send to all** — `POST /api/notifications/all` (admin); send to topic “all”; save notification doc per user with FcmTokens for in-app list
-- [ ] **Send to users** — `POST /api/notifications/` (admin); body userIds, title, body; send via FCM and save per-user notification docs
-- [ ] **Notification model** — title, body, link, img, NotificationTime, groupName, user (array of userIds)
+- [x] **FCM setup** — Firebase Admin SDK in `src/firebase/firebase.js`; service account from file (TODO: move to env)
+- [x] **Subscribe token** — `POST /api/notifications/subscribeToken`; Joi validation; stores FCM token on user (FcmTokens array); subscribes to topic "all"
+- [x] **GET my notifications** — `GET /api/notifications/my` (authenticated); returns notifications where user in users array; pagination support
+- [x] **DELETE my notifications** — `DELETE /api/notifications/my` (body: notificationId(s)); remove user from notification’s user array
+- [x] **Send to all** — `POST /api/notifications/all` (admin); send to topic “all”; save notification doc per user with FcmTokens for in-app list
+- [x] **Send to users** — `POST /api/notifications/` (admin only); body: userIds, title, body, link?, img?; sends via FCM to user tokens; creates per-user notification docs
+- [x] **Notification model** — `src/models/notification.model.js`: title, body, link, img, notificationTime, groupName, users (array of userIds), createdAt, updatedAt
 
 ---
 

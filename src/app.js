@@ -11,6 +11,7 @@ import transactionRoutes from './routes/transaction.routes.js';
 import bannerRoutes from './routes/banner.routes.js';
 import rewardRoutes from './routes/reward.routes.js';
 import redemptionRoutes from './routes/redemption.routes.js';
+import notificationRoutes from './routes/notification.routes.js';
 import { errorHandler } from './middlewares/errorHandler.js';
 import { config } from './config/index.js';
 
@@ -51,8 +52,7 @@ app.use('/api/transactions', transactionRoutes);
 app.use('/api/banners', bannerRoutes);
 app.use('/api/rewards', rewardRoutes);
 app.use('/api/redeem', redemptionRoutes);
-app.use('/api/rewards', rewardRoutes);
-app.use('/api/redeem', redemptionRoutes);
+app.use('/api/notifications', notificationRoutes);
 
 // Health check (for liveness/readiness)
 app.get('/health', (req, res) => {
