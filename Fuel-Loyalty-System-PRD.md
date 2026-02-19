@@ -344,13 +344,18 @@ User registration supports two types of accounts:
 
 #### 2. Organization Account (Fleet / Commercial)
 - **One owner** (organization/fleet owner)
+- **Owner has their own separate ID:** The fleet owner gets a **separate user account** with their **own ID** (and loyaltyId if needed). This ID represents all vehicles they own.
 - Owner has **multiple vehicles** (e.g. 10 trucks)
 - **Different user per vehicle/driver:** For each vehicle there is a **separate user (account)** — tied to that **specific driver** and that **specific vehicle**. So 10 trucks = **10 different users** (10 different accounts).
 - **Different QR per vehicle:** Each of these users has its **own unique QR code** and **own loyalty ID**. So 10 trucks → **10 different QR codes** and **10 different user accounts** (one per driver+vehicle).
+- **Owner QR:** The fleet owner also has their **own QR code** (generated from their owner ID) that can be used for transactions.
 - **Each per-vehicle user has:**
   - **Vehicle details:** Vehicle number, type, fuel type, etc.
   - **Driver details:** Driver name, contact (for that vehicle)
-  - **Owner details:** Linked to the same organization/owner
+  - **Owner details:** Linked to the same organization/owner (via `ownerId` field)
+- **Transaction entry:** When adding a purchase/transaction, staff can scan/enter:
+  - **Vehicle/driver QR** (their loyaltyId) → points credited to that vehicle/driver's account
+  - **OR owner QR** (owner's ID) → points credited to the owner's account (for all vehicles)
 - **Points visibility:**
   - **Driver (that vehicle’s user):** Sees that vehicle’s points (and that vehicle’s total) **and the all total fleet points** (sum across all vehicles in the organization).
   - **Owner:** Sees **all total fleet points** (sum across all vehicles) and **per-vehicle (per-truck) points** for every vehicle in the fleet.
@@ -483,8 +488,12 @@ Login behavior differs by role:
 
 ### 4.2.2 QR Content for Verification
 
-- The QR code **content** is the **verification ID** (e.g. **loyaltyId** or vehicleId, as agreed). This ID is **always the same** for that vehicle — it does not change over time.
-- When staff scan the QR at the pump (or for redemption), the app reads this ID and sends it to the backend (e.g. `POST /api/scan/validate` or `POST /api/scan/qr`) with the ID. The backend looks up the vehicle/user by this ID and proceeds with transaction or redemption.
+- The QR code **content** is the **verification ID**:
+  - For **vehicle/driver:** **loyaltyId** (or vehicleId) — always the same for that vehicle.
+  - For **fleet owner:** **owner ID** (owner's userId or loyaltyId) — always the same for that owner.
+- When staff scan the QR at the pump (or for redemption), the app reads this ID and sends it to the backend (e.g. `POST /api/scan/validate` or `POST /api/scan/qr`) with the ID. The backend:
+  - Looks up by **loyaltyId** → finds vehicle/driver user → transaction points go to that vehicle/driver.
+  - Looks up by **owner ID** → finds fleet owner user → transaction points go to the owner's account (for all vehicles).
 
 ### 4.2.3 Backend Responsibility
 
@@ -494,7 +503,9 @@ Login behavior differs by role:
 ### 4.2.4 API Endpoints (QR-Related)
 
 - **For frontend to get ID for QR:** Return loyaltyId (and vehicleId/userId) in registration response and in `GET /api/users/:userId/vehicles` or `GET /api/users/:userId/vehicles/:vehicleId` so the frontend can generate the QR from this ID.
-- **Verification:** `POST /api/scan/validate` or `POST /api/scan/qr` — request body contains the **ID** (e.g. loyaltyId or vehicleId) read from the QR or entered manually; backend validates and returns user/vehicle for the operation.
+- **Verification:** `POST /api/scan/validate` or `POST /api/scan/qr` — request body contains the **ID** (e.g. loyaltyId, vehicleId, or **owner ID**) read from the QR or entered manually; backend validates and returns user/vehicle info:
+  - If ID is a **loyaltyId** → returns vehicle/driver user and vehicle info (points go to that vehicle/driver).
+  - If ID is an **owner ID** → returns owner user info (points go to owner's account for all vehicles).
 - **Removed:** No endpoints for "get QR image", "get barcode", or "refresh QR" — frontend generates QR from ID; no QR expiry.
 
 ---
@@ -508,7 +519,8 @@ Login behavior differs by role:
 - **Operator ID:** ObjectId (staff/admin), required
 - **Vehicle Identifier:** One of:
   - Vehicle ID (from QR scan)
-  - Loyalty ID (manual entry)
+  - Loyalty ID (manual entry) — vehicle/driver's loyaltyId
+  - **Owner ID** (from QR scan or manual entry) — fleet owner's ID (for fleet transactions)
   - Mobile Number (lookup)
 - **Fuel Amount:** Number, required, minimum ₹100
 - **Fuel Liters:** Number, **required for fuel transactions** — used as the basis for fuel point calculation (see 4.3.2)

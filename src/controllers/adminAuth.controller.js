@@ -6,12 +6,7 @@ import Admin from '../models/Admin.js';
 // ✅ Admin Login Controller (Email + Password)
 
 export const adminLogin = asyncHandler(async (req, res) => {
-  const { email, password } = req.body;
-
-  // ⚠ Validation
-  if (!email || !password) {
-    throw new ApiError(400, 'Email and Password are required');
-  }
+  const { email, password } = req.validated || req.body;
 
   // 🔍 Find Admin
   const admin = await Admin.findOne({ email });

@@ -1,6 +1,6 @@
 import mongoose from 'mongoose';
 import dotenv from 'dotenv';
-import { seedAdmin } from '../utils/seedAdmin.js'; // ✅ Add this
+import { seedAdmin } from '../seeders/seedAdmin.js'; // ✅ Add this
 
 dotenv.config();
 

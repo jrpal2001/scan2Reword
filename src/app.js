@@ -3,7 +3,12 @@ import cors from 'cors';
 import dotenv from 'dotenv';
 import userRoutes from './routes/user.routes.js';
 import adminRoutes from './routes/admin.routes.js';
-import ApiError from './utils/ApiError.js';
+import managerRoutes from './routes/manager.routes.js';
+import staffRoutes from './routes/staff.routes.js';
+import authRoutes from './routes/auth.routes.js';
+import scanRoutes from './routes/scan.routes.js';
+import { errorHandler } from './middlewares/errorHandler.js';
+import { config } from './config/index.js';
 
 dotenv.config();
 
@@ -13,7 +18,7 @@ const app = express();
 app.use(
   cors({
     origin: (origin, callback) => {
-      const allowedOrigins = process.env.CORS_ORIGIN?.split(',').map(o => o.trim()) || [
+      const allowedOrigins = config.cors?.origins || process.env.CORS_ORIGIN?.split(',').map(o => o.trim()) || [
         'http://localhost:3000',
         'http://localhost:5173',
       ];
@@ -31,9 +36,22 @@ app.use(
 app.use(express.json({ limit: '16kb' }));
 app.use(express.urlencoded({ extended: true, limit: '16kb' }));
 
-// Routes
-   app.use('/user', userRoutes);
-   app.use('/admin', adminRoutes);
+// API base path
+app.use('/api/auth', authRoutes);
+app.use('/api/scan', scanRoutes);
+app.use('/api/user', userRoutes);
+app.use('/api/admin', adminRoutes);
+app.use('/api/manager', managerRoutes);
+app.use('/api/staff', staffRoutes);
+
+// Health check (for liveness/readiness)
+app.get('/health', (req, res) => {
+  res.status(200).json({ success: true, message: 'OK', timestamp: new Date().toISOString() });
+});
+app.get('/api/health', (req, res) => {
+  res.status(200).json({ success: true, message: 'OK', timestamp: new Date().toISOString() });
+});
+
 // Test Route
 app.get('/test', (req, res) => {
   res.json({
@@ -43,21 +61,7 @@ app.get('/test', (req, res) => {
   });
 });
 
-// Basic Error Handler
-app.use((err, req, res, next) => {
- 
-
-  // If it's an instance of ApiError → use its structure
-  if (err instanceof ApiError) {
-    return res.status(err.statusCode).json(err.toJSON());
-  }
-
-  // Otherwise, fallback to generic
-  res.status(500).json({
-    success: false,
-    message: err.message || 'Internal Server Error',
-    data: null,
-  });
-});
+// Global Error Handler (Controller → Service → Repository pattern)
+app.use(errorHandler);
 
 export default app;

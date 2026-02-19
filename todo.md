@@ -11,26 +11,26 @@
 
 Backend follows **Controller → Service → Repository → Model** plus cross-cutting layers. Per feature: implement **Model** → **Repository** → **Service** → **Controller** (and **validation**), then wire in **routes** and **middlewares**.
 
-- [ ] **Folder structure** — Create: `src/config`, `src/constants`, `src/controllers`, `src/middlewares`, `src/models`, `src/repositories`, `src/services`, `src/utils`, `src/validation`, `src/seeders`, `src/routes`
-- [ ] **Config** — `src/config/db.js` (MongoDB connection), `src/config/index.js` or env loader (no secrets in code)
-- [ ] **Constants** — `src/constants/roles.js`, `src/constants/status.js`, `src/constants/errorCodes.js` (enums, status values, magic strings)
-- [ ] **Utils** — `asyncHandler`, `ApiResponse`, `ApiError`, logger (structured, requestId), any shared helpers
-- [ ] **Middleware** — Error handler (central), auth (JWT), RBAC, rate limit, upload; place in `src/middlewares`
-- [ ] **Validation** — Request validation (e.g. Joi/Zod) in `src/validation`; run in middleware or at controller entry
-- [ ] **Seeder** — Seed scripts in `src/seeders` (e.g. admin user, system config, sample data); run via npm script or CLI
-- [ ] **Rules** — Controllers call Services only; Services call Repositories (and external APIs); Repositories use Models only; no DB access from Controllers
+- [x] **Folder structure** — `src/config`, `src/constants`, `src/controllers`, `src/middlewares`, `src/models`, `src/repositories`, `src/services`, `src/utils`, `src/validation`, `src/seeders`, `src/routes`
+- [x] **Config** — `src/config/db.js` (existing), `src/config/index.js` (env-based config)
+- [x] **Constants** — `src/constants/roles.js`, `src/constants/status.js`, `src/constants/errorCodes.js`, `src/constants/index.js`
+- [x] **Utils** — `asyncHandler`, `ApiResponse`, `ApiError` (existing)
+- [x] **Middleware** — `src/middlewares/errorHandler.js`, `src/middlewares/auth.middleware.js` (verifyJWT)
+- [x] **Validation** — Joi throughout: `auth.validation.js` (sendOtp, verifyOtp, login, register), `scan.validation.js`, `userValidation.js`, `vehicle.validation.js`, `admin.validation.js`; reusable `validateRequest(schema, source)` middleware in routes
+- [x] **Seeder** — `src/seeders/` + README; existing `src/utils/seedAdmin.js` for Admin
+- [x] **Rules** — Controllers → Services → Repositories → Models; no DB in Controllers
 
 ---
 
 ## Project setup & foundation
 
-- [ ] **Node.js + Express** — LTS Node, Express app, ESM (`import`/`export`)
-- [ ] **MongoDB** — Connection in `src/config/db.js`; replica set for production
-- [ ] **Env** — `.env` for `NODE_ENV`, `PORT`, `MONGODB_URI`, `JWT_SECRET`, `JWT_EXPIRY`, file storage, SMS, Email, Firebase
-- [ ] **Response envelope** — In `utils`: consistent `{ success, message?, data?, meta? }` and error shape (ApiResponse / ApiError)
-- [ ] **Global error handler** — In `middlewares`; map to HTTP status and message
+- [x] **Node.js + Express** — LTS Node, Express app, ESM (`import`/`export`)
+- [x] **MongoDB** — Connection in `src/config/db.js`; replica set for production
+- [x] **Env** — `.env` for `NODE_ENV`, `PORT`, `MONGODB_URI`, `JWT_SECRET` / `ACCESS_TOKEN_SECRET`, `JWT_EXPIRY`, etc.
+- [x] **Response envelope** — In `utils`: ApiResponse, ApiError (existing)
+- [x] **Global error handler** — `src/middlewares/errorHandler.js`; used in `app.js`
 - [ ] **Structured logging** — In `utils`; JSON logs, log level from env, requestId; no secrets in logs
-- [ ] **Health check** — `GET /health` or `/api/health` for liveness/readiness
+- [x] **Health check** — `GET /health` and `GET /api/health` in `app.js`
 
 ---
 
@@ -38,27 +38,27 @@ Backend follows **Controller → Service → Repository → Model** plus cross-c
 
 *Layers: Model (User) → Repository (userRepository) → Service (authService) → Controller (authController) + validation + middleware.*
 
-- [ ] **User model** — (See Users & registration; shared with auth)
-- [ ] **userRepository** — findByMobile, findByEmail, findByIdentifier, create, update; no business logic
-- [ ] **authService** — sendOtp, verifyOtp (login/register), loginWithPassword (resolve identifier → user, verify password), issueJwt
-- [ ] **authController** — sendOtp, verifyOtp, login, refresh; call authService only
-- [ ] **Validation** — Schemas for sendOtp, verifyOtp, login (identifier, password)
-- [ ] **JWT** — Issue and verify access token (userId, role, pumpId for manager/staff); optional refresh token
-- [ ] **User login (OTP)** — `POST /api/auth/send-otp` (mobile); `POST /api/auth/verify-otp` (mobile, otp) → return JWT for existing user
-- [ ] **Admin/Manager/Staff login** — `POST /api/auth/login` with `identifier` (email/username/phone/id) + `password` → JWT; resolve identifier to user
-- [ ] **Password hashing** — Bcrypt or Argon2 in service or utils; never store plain text
-- [ ] **Auth middleware** — Verify JWT, attach `req.user` and role; 401 on invalid; in `middlewares`
-- [ ] **OTP flow** — Generate, store (in-memory or DB), send via SMS in service; verify and invalidate; resend endpoint
+- [x] **User model** — `src/models/User.model.js` (UserLoyalty) with fullName, mobile, email, passwordHash, role, walletSummary, referralCode, FcmTokens, ownerId, status
+- [x] **userRepository** — `src/repositories/user.repository.js`: findByMobile, findByEmail, findByIdentifier, create, update, list
+- [x] **authService** — `src/services/auth.service.js`: sendOtp, verifyOtp (login/register), loginWithPassword, issueJwt, hashPassword
+- [x] **authController** — `src/controllers/auth.controller.js`: sendOtp, verifyOtp, login (call authService only)
+- [x] **Validation** — `src/validation/auth.validation.js`: sendOtp, verifyOtp, login (Joi)
+- [x] **JWT** — issueJwt in authService; verify in `src/middlewares/auth.middleware.js` (verifyJWT)
+- [x] **User login (OTP)** — `POST /api/auth/send-otp`, `POST /api/auth/verify-otp` → returns JWT for existing user
+- [x] **Admin/Manager/Staff login** — `POST /api/auth/login` with `identifier` + `password` → JWT
+- [x] **Password hashing** — Bcrypt in authService (hashPassword, compare in loginWithPassword)
+- [x] **Auth middleware** — `src/middlewares/auth.middleware.js` (verifyJWT); attach req.user, req.userType
+- [x] **OTP flow** — Generate, store in `Otp.model.js`, send via SMS stub; verify in verifyOtp; resend = sendOtp again
 - [ ] **Refresh token** — `POST /api/auth/refresh` (optional)
 
 ---
 
 ## Authorization (RBAC)
 
-- [ ] **RBAC middleware** — Check `req.user.role` (admin, manager, staff, user) per route
-- [ ] **Pump scope** — For manager/staff, restrict to assigned pump(s); filter queries by `pumpId`
-- [ ] **Resource ownership** — User role can access only own profile, vehicles, wallet, transactions, redemptions
-- [ ] **Route guards** — Apply role/pump checks to admin, manager, staff, and user routes
+- [x] **RBAC middleware** — Check `req.user.role` (admin, manager, staff, user) per route (`requireRoles`, `requireOwnResource`)
+- [x] **Pump scope** — For manager/staff, restrict to assigned pump(s); `attachPumpScope` sets `req.allowedPumpIds`; `requirePumpAccess` checks `pumpId` in params/body
+- [x] **Resource ownership** — `requireOwnResource(paramName)` for user role (customer) to access only own resource by `userId`
+- [x] **Route guards** — Apply role/pump checks: `verifyJWT` → `requireRoles([...])` → `attachPumpScope` (manager/staff) → `requirePumpAccess` when needed; example: `GET /api/admin/me`
 
 ---
 
@@ -67,15 +67,15 @@ Backend follows **Controller → Service → Repository → Model** plus cross-c
 *Layers: Model (User) → userRepository → userService / authService → authController, userController, adminController + validation.*
 
 - [ ] **User model** — `src/models/User.model.js`: _id, fullName, mobile (unique), email, passwordHash, role, walletSummary, referralCode (manager/staff), FcmTokens, ownerId (fleet), status, createdAt, updatedAt, createdBy
-- [ ] **userRepository** — create, findById, findByMobile, findByReferralCode, findByIdentifier, update, list (with filters/pagination)
-- [ ] **userService** — register (with referral handling), createUserByAdmin, createUserByManager, createUserByStaff; credit registration/referral points via pointsService
-- [ ] **Self-registration** — `POST /api/auth/register`; controller → authService/userService; OTP verify; create user + vehicle; return userId, vehicleId, loyaltyId; optional referralCode → credit referral points
-- [ ] **Admin create user** — `POST /api/admin/users`; adminController → userService (admin only)
-- [ ] **Manager create user** — `POST /api/manager/users`; credit registration points to manager (config)
-- [ ] **Staff create user** — `POST /api/staff/users`; credit registration points to staff (config)
+- [x] **userRepository** — `src/repositories/user.repository.js`: create, findById, findByMobile, findByReferralCode, findByIdentifier, update, list
+- [x] **userService** — `src/services/user.service.js`: register (with referral handling), createUserByAdmin, createUserByManagerOrStaff; TODO: credit registration/referral points via pointsService
+- [x] **Self-registration** — `POST /api/auth/register`; controller → userService; creates user + vehicle; returns userId, vehicleId, loyaltyId (frontend generates QR); optional referralCode (TODO: credit referral points)
+- [x] **Admin create user** — `POST /api/admin/users`; Joi userValidation.createUser; adminController → userService.createUserByAdmin (admin only)
+- [x] **Manager create user** — `POST /api/manager/users`; Joi userValidation.createUserByOperator; attachPumpScope; credit registration points to manager (TODO: config)
+- [x] **Staff create user** — `POST /api/staff/users`; Joi userValidation.createUserByOperator; attachPumpScope; credit registration points to staff (TODO: config)
 - [ ] **Referral code** — Generate/assign in userService for manager/staff; validate on self-register; credit referral points from SystemConfig
 - [ ] **Registration points** — SystemConfig for points per registration; credit in userService via pointsService/ledger
-- [ ] **Account types** — Support Individual and Organization (fleet); fleet driver users have `ownerId`; owner aggregate in userService
+- [ ] **Account types** — Support Individual and Organization (fleet); **fleet owner** has their own User account with ID; fleet driver users have `ownerId` pointing to owner; owner aggregate in userService
 
 ---
 
@@ -83,28 +83,33 @@ Backend follows **Controller → Service → Repository → Model** plus cross-c
 
 *Layers: Model → vehicleRepository → vehicleService → userController / vehicleController.*
 
-- [ ] **Vehicle model** — `src/models/Vehicle.model.js`: _id, userId, vehicleNumber (unique), loyaltyId (unique), vehicleType, fuelType, brand, model, yearOfManufacture, status; **no** qrData, qrImageURL, qrExpiresAt
-- [ ] **vehicleRepository** — create, findById, findByUserId, findByLoyaltyId, findByVehicleNumber, update, list
-- [ ] **vehicleService** — generateLoyaltyId (e.g. LOY + 8 digits), createVehicle, getVehicles, getVehicleById; used by userService in registration
-- [ ] **GET vehicles** — Controller → vehicleService → vehicleRepository; include loyaltyId (no QR URLs)
-- [ ] **Add/edit vehicle** — POST/PUT via vehicleService; ownership check in controller or service
-- [ ] **Indexes** — userId, loyaltyId (unique), vehicleNumber (unique)
+- [x] **Vehicle model** — `src/models/Vehicle.model.js`: userId, vehicleNumber (unique), loyaltyId (unique), vehicleType, fuelType, brand, model, yearOfManufacture, status; **no** qrData, qrImageURL, qrExpiresAt
+- [x] **vehicleRepository** — `src/repositories/vehicle.repository.js`: create, findById, findByUserId, findByLoyaltyId, findByVehicleNumber, update, list
+- [x] **vehicleService** — `src/services/vehicle.service.js`: generateLoyaltyId (LOY + 8 digits), createVehicle, getVehiclesByUserId, getVehicleById, getVehicleByLoyaltyId
+- [x] **GET vehicles** — `GET /api/user/vehicles`; vehicleController.getVehicles → vehicleService; optional `?userId` for admin/manager; include loyaltyId (no QR URLs)
+- [x] **Add/edit vehicle** — `POST /api/user/vehicles` (Joi vehicleValidation.create), `PUT /api/user/vehicles/:vehicleId` (Joi vehicleValidation.update); ownership check in controller
+- [x] **Indexes** — userId, loyaltyId (unique), vehicleNumber (unique)
 
 ---
 
 ## Scan & verification
 
-- [ ] **Validate ID** — `POST /api/scan/validate` or `POST /api/scan/qr`; body: ID (loyaltyId or vehicleId from QR/manual); lookup vehicle/user; return user/vehicle info for transaction or redemption
-- [ ] **No QR generation on backend** — Only store and return IDs; no QR image storage or expiry
+- [x] **Scan service** — `src/services/scan.service.js`: validateIdentifier (resolves loyaltyId → vehicle/driver, **owner ID** → owner user, or mobile)
+- [x] **Scan controller** — `src/controllers/scan.controller.js`: validateIdentifier endpoint
+- [x] **Scan routes** — `src/routes/scan.routes.js`: `POST /api/scan/validate` returns user/vehicle info with `isOwner` flag
+- [x] **Validate ID** — `POST /api/scan/validate`; body: `{ identifier }` (loyaltyId for vehicle/driver, **owner ID** for fleet owner, or mobile). Returns:
+  - If **loyaltyId** → vehicle/driver user + vehicle info (points go to that vehicle/driver).
+  - If **owner ID** → owner user info (points go to owner's account for all vehicles).
+- [x] **No QR generation on backend** — Only store and return IDs; no QR image storage or expiry
 
 ---
 
 ## Pumps & staff assignment
 
-- [ ] **Pump model** — _id, name, code (unique), location, address, city, state, pincode, managerId, status, settings, timezone, currency
-- [ ] **Staff assignments** — Staff assigned to pump(s); used by RBAC to scope manager/staff to their pump(s)
-- [ ] **Admin pump CRUD** — Create, update, delete pumps; assign manager
-- [ ] **Manager/staff pump scope** — All manager/staff queries filter by assigned pumpId(s)
+- [x] **Pump model** — `src/models/Pump.model.js`: _id, name, code (unique), location (address, city, state, pincode, lat, lng), managerId, status, settings, timezone, currency
+- [x] **Staff assignments** — `src/models/StaffAssignment.model.js`: userId, pumpId, status; used by RBAC to scope manager/staff to their pump(s)
+- [x] **Admin pump CRUD** — `POST /api/admin/pumps` (create), `GET /api/admin/pumps` (list), `GET /api/admin/pumps/:pumpId` (get), `PUT /api/admin/pumps/:pumpId` (update), `DELETE /api/admin/pumps/:pumpId` (delete); Joi pumpValidation; assign manager via managerId
+- [x] **Manager/staff pump scope** — `attachPumpScope` middleware sets `req.allowedPumpIds`; manager gets pumps where `managerId = req.user._id`; staff gets pumps from `StaffAssignment`; all manager/staff queries filter by `req.allowedPumpIds`
 
 ---
 
@@ -112,11 +117,11 @@ Backend follows **Controller → Service → Repository → Model** plus cross-c
 
 *Layers: Model → transactionRepository → transactionService (+ pointsService, campaignService) → transactionController.*
 
-- [ ] **Transaction model** — `src/models/Transaction.model.js`: pumpId, vehicleId, userId, operatorId, amount, **liters**, category, billNumber (unique per pump), paymentMode, pointsEarned, campaignId, status, **attachments**, createdAt, updatedAt
+- [ ] **Transaction model** — `src/models/Transaction.model.js`: pumpId, vehicleId (optional if owner QR used), userId (vehicle/driver OR owner if owner QR scanned), operatorId, amount, **liters**, category, billNumber (unique per pump), paymentMode, pointsEarned, campaignId, status, **attachments**, createdAt, updatedAt
 - [ ] **transactionRepository** — create, findById, findByPumpAndBillNumber (duplicate check), list (filters, pagination, pump scope)
-- [ ] **transactionService** — createTransaction (validate, duplicate check, points calculation via pointsService, campaign lookup), listTransactions; call file upload util for attachments
+- [ ] **transactionService** — createTransaction (validate identifier: loyaltyId → vehicle/driver user, **owner ID → owner user**; duplicate check, points calculation via pointsService, campaign lookup), listTransactions; call file upload util for attachments
 - [ ] **Points calculation** — In pointsService or transactionService: Fuel = f(liters); others = f(amount); apply campaign multiplier
-- [ ] **POST /api/transactions** — Controller → transactionService; validation middleware for body (liters required for Fuel, attachments for Fuel)
+- [ ] **POST /api/transactions** — Controller → transactionService; body includes identifier (loyaltyId for vehicle/driver OR **owner ID** for fleet owner); validation middleware for body (liters required for Fuel, attachments for Fuel)
 - [ ] **File upload** — Middleware (multer + Cloudinary/S3); attach URLs to req; transactionService saves in transaction.attachments
 - [ ] **GET transactions** — Controller → transactionService → transactionRepository; pump-scoped for manager/staff
 - [ ] **Idempotency** — Optional `Idempotency-Key` in middleware or transactionService

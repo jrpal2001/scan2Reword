@@ -213,11 +213,11 @@ Core entities:
 
 | Entity | Purpose |
 |--------|--------|
-| Users | All roles (admin, manager, staff, user); referral code for manager/staff; FcmTokens; optional ownerId for fleet drivers |
+| Users | All roles (admin, manager, staff, user); referral code for manager/staff; FcmTokens; **fleet owner** has their own account with ID; **fleet drivers** have `ownerId` pointing to owner |
 | Vehicles | Per user; loyaltyId (ID for frontend QR generation and backend verification); no QR storage or expiry on backend |
 | Organizations | Fleet owner; links owner user to many vehicle-users (optional explicit collection or denormalized) |
 | Pumps | Store/location; managerId; timezone, currency |
-| Transactions | pumpId, vehicleId, userId, operatorId, amount, **liters** (required for fuel), billNumber, **attachments** (bill photo required for fuel) |
+| Transactions | pumpId, vehicleId (optional if owner QR used), userId (vehicle/driver OR owner if owner QR scanned), operatorId, amount, **liters** (required for fuel), billNumber, **attachments** (bill photo required for fuel) |
 | PointsLedger | userId, transactionId/redemptionId, type (credit/debit/expiry/adjustment/refund), points, balanceAfter, expiryDate |
 | Campaigns | name, type, multiplier/bonus, start/end, conditions, **pumpIds** (empty = all), **createdBy** (admin vs manager) |
 | **Banners** | Offers/promos for user banner section; startTime, endTime (auto-removed when endTime passed); pumpIds (empty = global); createdBy (admin or manager for store) |
@@ -292,10 +292,14 @@ Core entities:
 
 ### 3.4 Organization (Fleet) Model
 
-- **Option A:** No separate Organization collection: owner is a User; fleet drivers are Users with `ownerId` set to owner’s `_id`. Owner sees aggregate by querying all users where `ownerId = me`. Each driver has own Vehicles and PointsLedger.
+- **Option A:** No separate Organization collection: **owner is a User** (has their own account with `_id` and can have loyaltyId); fleet drivers are Users with `ownerId` set to owner’s `_id`. Owner sees aggregate by querying all users where `ownerId = me`. Each driver has own Vehicles and PointsLedger.
 - **Option B:** Organization collection with `ownerId`, `name`; Vehicle or User has `organizationId`. Same ledger per user; owner dashboard aggregates by `organizationId`.
 
 Design choice: **Option A** is sufficient for “one owner, many vehicle-users, each with own QR and points”; owner’s “all total fleet points” = sum of availablePoints (or ledger) for all users where `ownerId = req.user._id`.
+
+**Transaction entry:** When staff scans QR or enters ID:
+- **Vehicle/driver QR** (loyaltyId) → resolve to vehicle/driver user → transaction `userId` = vehicle/driver user, `vehicleId` = that vehicle.
+- **Owner QR** (owner's userId or loyaltyId) → resolve to owner user → transaction `userId` = owner user, `vehicleId` = null or optional (if vehicle info provided separately).
 
 ---
 
@@ -338,8 +342,14 @@ Design choice: **Option A** is sufficient for “one owner, many vehicle-users, 
 ### 4.4 Key Endpoints (Design Summary)
 
 - **Registration:** `POST /api/auth/register`, `POST /api/admin/users`, `POST /api/manager/users`, `POST /api/staff/users` — on success, if operator is manager/staff, credit registration points (config); if self-register with `referralCode`, credit referral points to that manager/staff.
-- **Transactions:** `POST /api/transactions` — body must include `liters` for category Fuel; `attachments` (bill photo) required for Fuel. Points calculated: fuel = f(liters); others = f(amount). Validate duplicate (pumpId + billNumber).
-- **Redemption at pump:** `POST /api/scan/redeem` or `POST /api/manager/redeem` — body: user identifier (loyaltyId or mobile or vehicleId from QR), `pointsToDeduct`, optional rewardId. Resolve user → deduct from wallet → create Redemption record.
+- **Transactions:** `POST /api/transactions` — body must include `liters` for category Fuel; `attachments` (bill photo) required for Fuel. **Identifier** can be:
+  - Vehicle/driver's **loyaltyId** → points go to that vehicle/driver's userId.
+  - **Owner ID** (fleet owner's userId) → points go to owner's userId (for all vehicles).
+- Points calculated: fuel = f(liters); others = f(amount). Validate duplicate (pumpId + billNumber).
+- **Scan/validate:** `POST /api/scan/validate` or `POST /api/scan/qr` — body: identifier (loyaltyId for vehicle/driver, **owner ID** for fleet owner, or mobile/vehicleId). Returns user/vehicle info:
+  - If loyaltyId → vehicle/driver user (points go to that vehicle/driver).
+  - If owner ID → owner user (points go to owner's account).
+- **Redemption at pump:** `POST /api/scan/redeem` or `POST /api/manager/redeem` — body: identifier (loyaltyId, **owner ID**, or mobile), `pointsToDeduct`, optional rewardId. Resolve user → deduct from wallet → create Redemption record.
 - **Campaigns:** Admin: CRUD campaigns, any pumpIds. Manager: CRUD campaigns with `pumpIds` restricted to their assigned pump(s) only.
 - **Notifications:** `POST /api/notifications/subscribeToken`, `GET/DELETE /api/notifications/my`; admin send to all or to userIds (FCM + save to Notification collection per user).
 - **Banners:** `GET /api/banners` — active banners for user (filter: startTime ≤ now & endTime > now; optional pumpId). Admin: CRUD at `/api/admin/banners` (global or pumpIds). Manager: CRUD at `/api/manager/banners` (their pump only). Banners past endTime are not returned (auto-removal).
@@ -393,7 +403,7 @@ Design choice: **Option A** is sufficient for “one owner, many vehicle-users, 
 | Fuel points | Based on **liters**; other categories on amount | PRD: fuel points per liter; flexibility for other categories |
 | Bill photo | Required for Fuel transactions; stored in `attachments` | Proof of purchase; PRD |
 | Registration/Referral points | Stored in SystemConfig; credited to operator/referrer via PointsLedger | Admin-configurable; separate from fuel points |
-| Fleet | Owner = user; drivers = users with `ownerId`; each driver has own vehicles/QR/points | Simple; owner aggregates by `ownerId` for “all total fleet points” |
+| Fleet | Owner = user (has own ID/QR); drivers = users with `ownerId`; each driver has own vehicles/QR/points; transactions can use vehicle loyaltyId OR owner ID | Simple; owner aggregates by `ownerId` for “all total fleet points”; owner QR usable for transactions |
 | Campaigns | Admin: any pumps; Manager: only their pump(s) | PRD: manager can set special campaigns for their store |
 | Redemption at pump | Deduct by user identified via QR/loyaltyId/mobile | PRD: staff/manager/admin scan or type ID, then deduct |
 | Banners | Admin: any scope; Manager: their pump only; active = startTime ≤ now & endTime > now (auto-removed when end time reached) | PRD: user banner section; admin/manager create; auto-removal |
