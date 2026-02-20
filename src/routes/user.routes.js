@@ -13,7 +13,7 @@ router.get('/referral-code', verifyJWT, userController.getReferralCode);
 
 router.get('/vehicles', verifyJWT, vehicleController.getVehicles);
 router.post('/vehicles', verifyJWT, validateRequest(vehicleValidation.create), vehicleController.addVehicle);
-router.put('/vehicles/:vehicleId', verifyJWT, validateRequest(vehicleValidation.update), vehicleController.updateVehicle);
+router.patch('/vehicles/:vehicleId', verifyJWT, validateRequest(vehicleValidation.update), vehicleController.updateVehicle);
 
 // Wallet
 router.get('/:userId/wallet', verifyJWT, walletController.getWallet);

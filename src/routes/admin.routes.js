@@ -74,7 +74,7 @@ router.get(
   adminController.getUserById
 );
 
-router.put(
+router.patch(
   '/users/:userId',
   verifyJWT,
   requireRoles([ROLES.ADMIN]),
@@ -82,7 +82,7 @@ router.put(
   adminController.updateUser
 );
 
-router.put(
+router.patch(
   '/users/:userId/status',
   verifyJWT,
   requireRoles([ROLES.ADMIN]),
@@ -113,7 +113,7 @@ router.get(
   pumpController.getPumpById
 );
 
-router.put(
+router.patch(
   '/pumps/:pumpId',
   verifyJWT,
   requireRoles([ROLES.ADMIN]),
@@ -160,7 +160,7 @@ router.get(
   campaignController.getCampaignById
 );
 
-router.put(
+router.patch(
   '/campaigns/:campaignId',
   verifyJWT,
   requireRoles([ROLES.ADMIN]),
@@ -198,7 +198,7 @@ router.get(
   bannerController.getBannerById
 );
 
-router.put(
+router.patch(
   '/banners/:bannerId',
   verifyJWT,
   requireRoles([ROLES.ADMIN]),
@@ -236,7 +236,7 @@ router.get(
   rewardController.getRewardById
 );
 
-router.put(
+router.patch(
   '/rewards/:rewardId',
   verifyJWT,
   requireRoles([ROLES.ADMIN]),
@@ -259,7 +259,7 @@ router.get(
   systemConfigController.getConfig
 );
 
-router.put(
+router.patch(
   '/config',
   verifyJWT,
   requireRoles([ROLES.ADMIN]),

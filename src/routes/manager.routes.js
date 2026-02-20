@@ -77,7 +77,7 @@ router.get(
   campaignController.getCampaignById
 );
 
-router.put(
+router.patch(
   '/campaigns/:campaignId',
   verifyJWT,
   requireRoles([ROLES.MANAGER]),
@@ -120,7 +120,7 @@ router.get(
   bannerController.getBannerById
 );
 
-router.put(
+router.patch(
   '/banners/:bannerId',
   verifyJWT,
   requireRoles([ROLES.MANAGER]),
