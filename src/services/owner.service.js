@@ -62,6 +62,7 @@ export const ownerService = {
       walletSummary: { totalEarned: 0, availablePoints: 0, redeemedPoints: 0, expiredPoints: 0 },
       status: 'active',
       mobileVerified: true,
+      address: userData.address || null,
       profilePhoto: profilePhoto || null,
       driverPhoto: driverPhoto || null,
       ownerId: ownerId, // Link to owner

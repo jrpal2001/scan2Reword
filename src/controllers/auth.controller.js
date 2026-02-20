@@ -95,6 +95,7 @@ export const register = asyncHandler(async (req, res) => {
     fullName: value.fullName,
     email: value.email,
     referralCode: value.referralCode,
+    address: value.address || null,
     vehicle: value.vehicle,
     profilePhoto: s3Uploads.profilePhoto || null,
     driverPhoto: s3Uploads.driverPhoto || null,

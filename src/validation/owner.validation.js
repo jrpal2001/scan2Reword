@@ -23,6 +23,12 @@ export const ownerValidation = {
       mobile: mobileSchema,
       fullName: Joi.string().trim().min(2).max(100).required(),
       email: Joi.string().email().trim().lowercase().allow('').optional(),
+      address: Joi.object({
+        street: Joi.string().trim().allow('').optional(),
+        city: Joi.string().trim().allow('').optional(),
+        state: Joi.string().trim().allow('').optional(),
+        pincode: Joi.string().trim().allow('').optional(),
+      }).optional(),
     }).required(),
     vehicle: vehicleSchema.required(),
   }),

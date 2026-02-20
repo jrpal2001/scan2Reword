@@ -14,6 +14,15 @@ const vehicleSchema = Joi.object({
   yearOfManufacture: Joi.number().integer().min(1900).max(new Date().getFullYear() + 1).optional(),
 });
 
+const addressSchema = Joi.object({
+  street: Joi.string().trim().allow('').optional(),
+  city: Joi.string().trim().allow('').optional(),
+  state: Joi.string().trim().allow('').optional(),
+  pincode: Joi.string().trim().allow('').optional(),
+}).optional();
+
+const objectIdSchema = Joi.string().trim().pattern(/^[0-9a-fA-F]{24}$/).allow('', null);
+
 /** Admin create user — can set role */
 export const userValidation = {
   createUser: Joi.object({
@@ -28,6 +37,22 @@ export const userValidation = {
     }).messages({
       'string.min': 'Password must be at least 6 characters long',
     }),
+    address: addressSchema,
+    managerCode: Joi.string().trim().max(50).when('role', {
+      is: ROLES.MANAGER,
+      then: Joi.optional(),
+      otherwise: Joi.forbidden(),
+    }),
+    staffCode: Joi.string().trim().max(50).when('role', {
+      is: ROLES.STAFF,
+      then: Joi.optional(),
+      otherwise: Joi.forbidden(),
+    }),
+    assignedManagerId: objectIdSchema.when('role', {
+      is: ROLES.STAFF,
+      then: Joi.optional(),
+      otherwise: Joi.forbidden(),
+    }),
     vehicle: vehicleSchema.optional(),
   }),
 
@@ -36,13 +61,24 @@ export const userValidation = {
     mobile: mobileSchema,
     fullName: Joi.string().trim().min(2).max(100).required(),
     email: Joi.string().email().trim().lowercase().allow('').optional(),
-    role: Joi.string().valid(ROLES.USER, ROLES.STAFF).default(ROLES.USER), // Manager can create staff, Staff can only create user
+    role: Joi.string().valid(ROLES.USER, ROLES.STAFF).default(ROLES.USER),
     password: Joi.string().min(6).when('role', {
       is: ROLES.STAFF,
       then: Joi.required(),
       otherwise: Joi.optional(),
     }).messages({
       'string.min': 'Password must be at least 6 characters long',
+    }),
+    address: addressSchema,
+    staffCode: Joi.string().trim().max(50).when('role', {
+      is: ROLES.STAFF,
+      then: Joi.optional(),
+      otherwise: Joi.forbidden(),
+    }),
+    assignedManagerId: objectIdSchema.when('role', {
+      is: ROLES.STAFF,
+      then: Joi.optional(),
+      otherwise: Joi.forbidden(),
     }),
     vehicle: vehicleSchema.optional(),
   }),
@@ -52,6 +88,10 @@ export const userValidation = {
     fullName: Joi.string().trim().min(2).max(100).optional(),
     email: Joi.string().email().trim().lowercase().allow('').optional(),
     role: Joi.string().valid(ROLES.USER, ROLES.MANAGER, ROLES.STAFF).optional(),
+    address: addressSchema,
+    managerCode: Joi.string().trim().max(50).allow('', null).optional(),
+    staffCode: Joi.string().trim().max(50).allow('', null).optional(),
+    assignedManagerId: objectIdSchema.optional(),
   }),
 
   /** Admin update user status */

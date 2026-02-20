@@ -13,12 +13,18 @@ import { USER_STATUS } from '../constants/status.js';
  */
 export const createUser = asyncHandler(async (req, res) => {
   const v = req.validated;
+  const s3Uploads = req.s3Uploads || {};
   const userData = {
     mobile: v.mobile,
     fullName: v.fullName,
     email: v.email || undefined,
     role: v.role,
-    password: v.password || undefined, // Password required for manager/staff
+    password: v.password || undefined,
+    address: v.address || undefined,
+    profilePhoto: s3Uploads.profilePhoto || undefined,
+    managerCode: v.managerCode || undefined,
+    staffCode: v.staffCode || undefined,
+    assignedManagerId: v.assignedManagerId && v.assignedManagerId.trim() ? v.assignedManagerId : undefined,
   };
   const result = await userService.createUserByAdmin(userData, v.vehicle || null, req.user._id);
 
@@ -58,12 +64,21 @@ export const createUserByOperator = asyncHandler(async (req, res) => {
     );
   }
 
+  const s3Uploads = req.s3Uploads || {};
+  let assignedManagerId = v.assignedManagerId && v.assignedManagerId.trim() ? v.assignedManagerId : undefined;
+  if (v.role === ROLES.STAFF && !assignedManagerId && operatorRole === ROLES.MANAGER) {
+    assignedManagerId = req.user._id; // Default to current manager when manager creates staff
+  }
   const userData = {
     mobile: v.mobile,
     fullName: v.fullName,
     email: v.email || undefined,
-    role: v.role || ROLES.USER, // Use role from validation (defaults to USER)
-    password: v.password || undefined, // Password required for staff
+    role: v.role || ROLES.USER,
+    password: v.password || undefined,
+    address: v.address || undefined,
+    profilePhoto: s3Uploads.profilePhoto || undefined,
+    staffCode: v.staffCode || undefined,
+    assignedManagerId,
   };
   
   const result = await userService.createUserByManagerOrStaff(

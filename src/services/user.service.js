@@ -29,6 +29,7 @@ export const userService = {
       fullName,
       email,
       referralCode,
+      address,
       vehicle,
       ownerType,
       ownerIdentifier,
@@ -104,6 +105,7 @@ export const userService = {
       walletSummary: { totalEarned: 0, availablePoints: 0, redeemedPoints: 0, expiredPoints: 0 },
       status: 'active',
       mobileVerified: true,
+      address: address || null,
       profilePhoto: profilePhoto || null,
       driverPhoto: driverPhoto || null,
       ownerPhoto: ownerPhoto || null,
@@ -158,6 +160,15 @@ export const userService = {
       throw new ApiError(HTTP_STATUS.CONFLICT, 'User with this mobile number already exists');
     }
 
+    // When role is staff, validate assignedManagerId is a manager
+    const role = (userData.role || '').toLowerCase();
+    if (role === ROLES.STAFF && userData.assignedManagerId) {
+      const manager = await userRepository.findById(userData.assignedManagerId);
+      if (!manager || (manager.role || '').toLowerCase() !== ROLES.MANAGER) {
+        throw new ApiError(HTTP_STATUS.BAD_REQUEST, 'assignedManagerId must be a valid manager');
+      }
+    }
+
     // Hash password if provided (required for manager/staff)
     let passwordHash = null;
     if (userData.password) {
@@ -166,9 +177,8 @@ export const userService = {
 
     // Auto-generate referral code for manager/staff roles
     let referralCode = userData.referralCode || null;
-    if ([ROLES.MANAGER, ROLES.STAFF].includes(userData.role?.toLowerCase())) {
+    if ([ROLES.MANAGER, ROLES.STAFF].includes(role)) {
       if (!referralCode) {
-        // Generate unique referral code
         let code;
         let exists = true;
         while (exists) {
@@ -187,10 +197,14 @@ export const userService = {
       ...userDataWithoutPassword,
       passwordHash,
       referralCode,
+      address: userData.address || null,
+      profilePhoto: userData.profilePhoto || null,
+      managerCode: role === ROLES.MANAGER ? (userData.managerCode || null) : null,
+      staffCode: role === ROLES.STAFF ? (userData.staffCode || null) : null,
+      assignedManagerId: role === ROLES.STAFF ? (userData.assignedManagerId || null) : null,
       walletSummary: { totalEarned: 0, availablePoints: 0, redeemedPoints: 0, expiredPoints: 0 },
       status: 'active',
       createdBy: adminId,
-      profilePhoto: userData.profilePhoto || null,
       driverPhoto: userData.driverPhoto || null,
       ownerPhoto: userData.ownerPhoto || null,
     });
@@ -224,6 +238,14 @@ export const userService = {
       throw new ApiError(HTTP_STATUS.FORBIDDEN, 'Only managers can create staff members');
     }
 
+    // When creating staff, validate assignedManagerId is a manager (if provided)
+    if (userRole === ROLES.STAFF && userData.assignedManagerId) {
+      const manager = await userRepository.findById(userData.assignedManagerId);
+      if (!manager || (manager.role || '').toLowerCase() !== ROLES.MANAGER) {
+        throw new ApiError(HTTP_STATUS.BAD_REQUEST, 'assignedManagerId must be a valid manager');
+      }
+    }
+
     // Hash password if provided (required for staff)
     let passwordHash = null;
     if (userData.password) {
@@ -252,10 +274,13 @@ export const userService = {
       role: userRole,
       passwordHash,
       referralCode,
+      address: userData.address || null,
+      profilePhoto: userData.profilePhoto || null,
+      staffCode: userRole === ROLES.STAFF ? (userData.staffCode || null) : null,
+      assignedManagerId: userRole === ROLES.STAFF ? (userData.assignedManagerId || null) : null,
       walletSummary: { totalEarned: 0, availablePoints: 0, redeemedPoints: 0, expiredPoints: 0 },
       status: 'active',
       createdBy: operatorId,
-      profilePhoto: userData.profilePhoto || null,
       driverPhoto: userData.driverPhoto || null,
       ownerPhoto: userData.ownerPhoto || null,
     });
@@ -351,6 +376,10 @@ export const userService = {
 
     // Don't allow updating passwordHash directly
     const { passwordHash, ...safeUpdateData } = updateData;
+    // Convert empty string assignedManagerId to null (so Mongoose doesn't cast error)
+    if (safeUpdateData.assignedManagerId === '') {
+      safeUpdateData.assignedManagerId = null;
+    }
     
     const updated = await userRepository.update(userId, safeUpdateData);
     return updated;

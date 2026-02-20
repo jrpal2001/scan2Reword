@@ -22,12 +22,18 @@ const userSchema = new mongoose.Schema(
     emailVerified: { type: Boolean, default: false },
     mobileVerified: { type: Boolean, default: false },
     address: {
-      street: String,
-      city: String,
-      state: String,
-      pincode: String,
+      street: { type: String, default: null },
+      city: { type: String, default: null },
+      state: { type: String, default: null },
+      pincode: { type: String, default: null },
     },
     profilePhoto: { type: String, default: null },
+    /** Manager-only: unique manager code (e.g. MGR001) */
+    managerCode: { type: String, trim: true, sparse: true },
+    /** Staff-only: unique staff code (e.g. STF001) */
+    staffCode: { type: String, trim: true, sparse: true },
+    /** Staff-only: manager this staff reports to */
+    assignedManagerId: { type: mongoose.Schema.Types.ObjectId, ref: 'UserLoyalty', default: null },
     driverPhoto: { type: String, default: null },
     ownerPhoto: { type: String, default: null },
     createdBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User', default: null },
@@ -40,6 +46,9 @@ userSchema.index({ referralCode: 1 }, { unique: true, sparse: true });
 userSchema.index({ role: 1 });
 userSchema.index({ ownerId: 1 });
 userSchema.index({ status: 1 });
+userSchema.index({ managerCode: 1 }, { unique: true, sparse: true });
+userSchema.index({ staffCode: 1 }, { unique: true, sparse: true });
+userSchema.index({ assignedManagerId: 1 });
 
 const User = mongoose.models.UserLoyalty || mongoose.model('UserLoyalty', userSchema);
 export default User;

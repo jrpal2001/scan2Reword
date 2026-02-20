@@ -41,6 +41,12 @@ export const authValidation = {
     fullName: Joi.string().trim().min(2).max(100).required(),
     email: Joi.string().email().trim().lowercase().allow('').optional(),
     referralCode: Joi.string().trim().allow('').optional(),
+    address: Joi.object({
+      street: Joi.string().trim().allow('').optional(),
+      city: Joi.string().trim().allow('').optional(),
+      state: Joi.string().trim().allow('').optional(),
+      pincode: Joi.string().trim().allow('').optional(),
+    }).optional(),
     vehicle: vehicleSchema.required(),
     // Organization (Fleet) registration
     ownerType: Joi.when('accountType', {
