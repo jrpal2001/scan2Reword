@@ -17,12 +17,20 @@ export const sendOtp = asyncHandler(async (req, res) => {
 
 /**
  * POST /api/auth/verify-otp
- * Body: { mobile, otp, purpose? }
+ * Body: { mobile, otp, purpose?, fcmToken?, deviceInfo? }
  * Returns JWT + user if mobile already registered (login); else { user: null, token: null } for registration flow.
  */
 export const verifyOtp = asyncHandler(async (req, res) => {
   const value = req.validated;
-  const result = await authService.verifyOtp(value.mobile, value.otp, value.purpose);
+  const result = await authService.verifyOtp(
+    value.mobile,
+    value.otp,
+    value.purpose,
+    value.fcmToken || null,
+    value.deviceInfo || null,
+    req.ip,
+    req.get('user-agent')
+  );
   if (result.token) {
     return res.status(HTTP_STATUS.OK).json(
       ApiResponse.success(
@@ -38,12 +46,19 @@ export const verifyOtp = asyncHandler(async (req, res) => {
 
 /**
  * POST /api/auth/login
- * Body: { identifier, password }
+ * Body: { identifier, password, fcmToken?, deviceInfo? }
  * For Admin / Manager / Staff only.
  */
 export const login = asyncHandler(async (req, res) => {
   const value = req.validated;
-  const result = await authService.loginWithPassword(value.identifier, value.password);
+  const result = await authService.loginWithPassword(
+    value.identifier,
+    value.password,
+    value.fcmToken || null,
+    value.deviceInfo || null,
+    req.ip,
+    req.get('user-agent')
+  );
   return res.status(HTTP_STATUS.OK).json(
     ApiResponse.success(
       { user: result.user, token: result.token, refreshToken: result.refreshToken },
@@ -76,11 +91,11 @@ export const refresh = asyncHandler(async (req, res) => {
  * POST /api/auth/register
  * Body: 
  *   - accountType: 'individual' | 'organization'
- *   - For individual: { mobile, fullName, email?, referralCode?, vehicle }
+ *   - For individual: { mobile, fullName, email?, referralCode?, vehicle, fcmToken?, deviceInfo? }
  *   - For organization: 
  *     - ownerType: 'registered' | 'non-registered'
- *     - If registered: { ownerIdentifier (ID/phone), mobile, fullName, email?, vehicle }
- *     - If non-registered: { owner: { fullName, mobile, email?, address? }, mobile, fullName, email?, vehicle }
+ *     - If registered: { ownerIdentifier (ID/phone), mobile, fullName, email?, vehicle, fcmToken?, deviceInfo? }
+ *     - If non-registered: { owner: { fullName, mobile, email?, address? }, mobile, fullName, email?, vehicle, fcmToken?, deviceInfo? }
  * Files (optional): profilePhoto, driverPhoto, ownerPhoto, rcPhoto
  * Creates user + vehicle; returns userId, vehicleId, loyaltyId (frontend generates QR from loyaltyId)
  */
@@ -105,6 +120,9 @@ export const register = asyncHandler(async (req, res) => {
     ownerType: value.ownerType,
     ownerIdentifier: value.ownerIdentifier,
     owner: value.owner,
+    // FCM token and device info for multi-device support
+    fcmToken: value.fcmToken || null,
+    deviceInfo: value.deviceInfo || null,
   };
   
   const result = await userService.register(registrationData);
@@ -120,5 +138,36 @@ export const register = asyncHandler(async (req, res) => {
       },
       'Registration successful. Frontend can generate QR from loyaltyId.'
     )
+  );
+});
+
+/**
+ * POST /api/auth/logout
+ * Body: { fcmToken?, refreshToken? }
+ * Requires: Authorization header with access token
+ * 
+ * Logout behavior:
+ * - If fcmToken provided: Logs out from that specific device (revokes all tokens for that FCM token)
+ * - If refreshToken provided (but no fcmToken): Revokes that specific refresh token
+ * - If neither provided: Logs out from all devices (revokes all tokens for the user)
+ * 
+ * Recommended: Send fcmToken to logout from current device
+ */
+export const logout = asyncHandler(async (req, res) => {
+  const value = req.validated || {};
+  const userId = req.user?._id;
+  
+  if (!userId) {
+    throw new ApiError(HTTP_STATUS.UNAUTHORIZED, 'Unauthorized');
+  }
+
+  const result = await authService.logout(
+    userId,
+    value.refreshToken || null,
+    value.fcmToken || null
+  );
+
+  return res.status(HTTP_STATUS.OK).json(
+    ApiResponse.success(result, result.message)
   );
 });

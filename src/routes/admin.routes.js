@@ -8,6 +8,7 @@ import * as campaignController from '../controllers/campaign.controller.js';
 import * as bannerController from '../controllers/banner.controller.js';
 import * as rewardController from '../controllers/reward.controller.js';
 import * as systemConfigController from '../controllers/systemConfig.controller.js';
+import * as staffAssignmentController from '../controllers/staffAssignment.controller.js';
 import { verifyJWT } from '../middlewares/auth.middleware.js';
 import { requireRoles } from '../middlewares/rbac.middleware.js';
 import { validateRequest } from '../middlewares/validateRequest.js';
@@ -19,6 +20,7 @@ import { campaignValidation } from '../validation/campaign.validation.js';
 import { bannerValidation } from '../validation/banner.validation.js';
 import { rewardValidation } from '../validation/reward.validation.js';
 import { systemConfigValidation } from '../validation/systemConfig.validation.js';
+import { staffAssignmentValidation } from '../validation/staffAssignment.validation.js';
 import { ROLES } from '../constants/roles.js';
 import { upload } from '../utils/multerConfig.js';
 import { uploadToS3 } from '../middlewares/uploadToS3.js';
@@ -263,6 +265,44 @@ router.put(
   requireRoles([ROLES.ADMIN]),
   validateRequest(systemConfigValidation.update),
   systemConfigController.updateConfig
+);
+
+// Staff Assignments
+router.post(
+  '/staff-assignments',
+  verifyJWT,
+  requireRoles([ROLES.ADMIN]),
+  validateRequest(staffAssignmentValidation.assign),
+  staffAssignmentController.assignStaffToPump
+);
+
+router.get(
+  '/staff-assignments',
+  verifyJWT,
+  requireRoles([ROLES.ADMIN]),
+  validateRequest(staffAssignmentValidation.list, 'query'),
+  staffAssignmentController.listAssignments
+);
+
+router.get(
+  '/staff-assignments/staff/:staffId',
+  verifyJWT,
+  requireRoles([ROLES.ADMIN]),
+  staffAssignmentController.getAssignmentsByStaff
+);
+
+router.get(
+  '/staff-assignments/pump/:pumpId',
+  verifyJWT,
+  requireRoles([ROLES.ADMIN]),
+  staffAssignmentController.getStaffByPump
+);
+
+router.delete(
+  '/staff-assignments/:assignmentId',
+  verifyJWT,
+  requireRoles([ROLES.ADMIN]),
+  staffAssignmentController.removeStaffFromPump
 );
 
 export default router;

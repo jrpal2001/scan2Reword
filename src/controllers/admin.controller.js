@@ -25,6 +25,7 @@ export const createUser = asyncHandler(async (req, res) => {
     managerCode: v.managerCode || undefined,
     staffCode: v.staffCode || undefined,
     assignedManagerId: v.assignedManagerId && v.assignedManagerId.trim() ? v.assignedManagerId : undefined,
+    pumpId: v.pumpId && v.pumpId.trim() ? v.pumpId : undefined, // For staff - assign to pump during creation
   };
   const result = await userService.createUserByAdmin(userData, v.vehicle || null, req.user._id);
 
@@ -40,10 +41,22 @@ export const createUser = asyncHandler(async (req, res) => {
     userAgent: req.get('user-agent'),
   });
 
+  const responseData = {
+    user: result.user,
+    vehicle: result.vehicle,
+  };
+  
+  // Include assignment info if staff was assigned to pump
+  if (result.assignment) {
+    responseData.assignment = result.assignment;
+  }
+
+  const assignmentMessage = result.assignment ? ' and assigned to pump' : '';
+
   return res.status(HTTP_STATUS.CREATED).json(
     ApiResponse.success(
-      { user: result.user, vehicle: result.vehicle },
-      'User created successfully'
+      responseData,
+      'User created successfully' + assignmentMessage
     )
   );
 });
@@ -79,6 +92,7 @@ export const createUserByOperator = asyncHandler(async (req, res) => {
     profilePhoto: s3Uploads.profilePhoto || undefined,
     staffCode: v.staffCode || undefined,
     assignedManagerId,
+    pumpId: v.pumpId && v.pumpId.trim() ? v.pumpId : undefined, // For staff - assign to pump during creation
   };
   
   const result = await userService.createUserByManagerOrStaff(
@@ -88,10 +102,22 @@ export const createUserByOperator = asyncHandler(async (req, res) => {
     operatorRole
   );
   
+  const responseData = {
+    user: result.user,
+    vehicle: result.vehicle,
+  };
+  
+  // Include assignment info if staff was assigned to pump
+  if (result.assignment) {
+    responseData.assignment = result.assignment;
+  }
+
+  const assignmentMessage = result.assignment ? ' and assigned to pump' : '';
+
   return res.status(HTTP_STATUS.CREATED).json(
     ApiResponse.success(
-      { user: result.user, vehicle: result.vehicle },
-      'User created successfully'
+      responseData,
+      'User created successfully' + assignmentMessage
     )
   );
 });

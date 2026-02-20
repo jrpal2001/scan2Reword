@@ -28,10 +28,38 @@ export const authValidation = {
   login: Joi.object({
     identifier: Joi.string().trim().min(1).required(),
     password: Joi.string().min(1).required(),
+    fcmToken: Joi.string().trim().allow('', null).optional(),
+    deviceInfo: Joi.object({
+      deviceId: Joi.string().trim().allow('', null).optional(),
+      deviceName: Joi.string().trim().allow('', null).optional(),
+      platform: Joi.string().valid('ios', 'android', 'web').allow('', null).optional(),
+      appVersion: Joi.string().trim().allow('', null).optional(),
+    }).optional(),
   }),
 
   refresh: Joi.object({
     refreshToken: Joi.string().trim().required(),
+  }),
+
+  logout: Joi.object({
+    // Optional: If provided, revokes specific refresh token (rarely needed)
+    refreshToken: Joi.string().trim().allow('', null).optional(),
+    // Recommended: FCM token identifies the device - revokes all tokens for that device
+    fcmToken: Joi.string().trim().allow('', null).optional(),
+    // If neither provided, logs out from all devices
+  }),
+
+  verifyOtp: Joi.object({
+    mobile: mobileSchema,
+    otp: Joi.string().trim().min(4).max(8).required(),
+    purpose: Joi.string().valid('login', 'register').default('register'),
+    fcmToken: Joi.string().trim().allow('', null).optional(),
+    deviceInfo: Joi.object({
+      deviceId: Joi.string().trim().allow('', null).optional(),
+      deviceName: Joi.string().trim().allow('', null).optional(),
+      platform: Joi.string().valid('ios', 'android', 'web').allow('', null).optional(),
+      appVersion: Joi.string().trim().allow('', null).optional(),
+    }).optional(),
   }),
 
   register: Joi.object({
@@ -74,5 +102,13 @@ export const authValidation = {
       }).required(),
       otherwise: Joi.optional(),
     }),
+    // FCM token and device info for multi-device support
+    fcmToken: Joi.string().trim().allow('', null).optional(),
+    deviceInfo: Joi.object({
+      deviceId: Joi.string().trim().allow('', null).optional(),
+      deviceName: Joi.string().trim().allow('', null).optional(),
+      platform: Joi.string().valid('ios', 'android', 'web').allow('', null).optional(),
+      appVersion: Joi.string().trim().allow('', null).optional(),
+    }).optional(),
   }),
 };

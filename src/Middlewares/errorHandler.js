@@ -67,6 +67,30 @@ export const errorHandler = (err, req, res, next) => {
     });
   }
 
+  // Multer errors (file upload)
+  if (err.name === 'MulterError') {
+    let message = 'File upload error';
+    let statusCode = 400;
+    
+    if (err.code === 'LIMIT_FILE_SIZE') {
+      message = 'File too large. Maximum file size is 50MB';
+      statusCode = 413; // Payload Too Large
+    } else if (err.code === 'LIMIT_FILE_COUNT') {
+      message = 'Too many files uploaded';
+    } else if (err.code === 'LIMIT_UNEXPECTED_FILE') {
+      message = 'Unexpected file field';
+    } else if (err.message) {
+      message = err.message;
+    }
+    
+    return res.status(statusCode).json({
+      success: false,
+      message,
+      data: null,
+      meta: config.nodeEnv !== 'production' ? { code: err.code, field: err.field } : null,
+    });
+  }
+
   // JWT errors
   if (err.name === 'JsonWebTokenError' || err.name === 'TokenExpiredError') {
     return res.status(401).json({

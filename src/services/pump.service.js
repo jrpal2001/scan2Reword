@@ -27,6 +27,12 @@ export const pumpService = {
       if (manager.role?.toLowerCase() !== ROLES.MANAGER) {
         throw new ApiError(HTTP_STATUS.BAD_REQUEST, 'User must have manager role');
       }
+      
+      // RESTRICTION: Check if manager is already assigned to another pump
+      const existingPump = await pumpRepository.list({ managerId: data.managerId, status: 'active' });
+      if (existingPump.list && existingPump.list.length > 0) {
+        throw new ApiError(HTTP_STATUS.CONFLICT, 'Manager can only be assigned to one pump. Please remove existing assignment first.');
+      }
     }
 
     const pump = await pumpRepository.create({
@@ -64,6 +70,15 @@ export const pumpService = {
       }
       if (manager.role?.toLowerCase() !== ROLES.MANAGER) {
         throw new ApiError(HTTP_STATUS.BAD_REQUEST, 'User must have manager role');
+      }
+      
+      // RESTRICTION: Check if manager is already assigned to another pump (excluding current pump)
+      const existingPump = await pumpRepository.list({ managerId: data.managerId, status: 'active' });
+      if (existingPump.list && existingPump.list.length > 0) {
+        const otherPump = existingPump.list.find(p => p._id.toString() !== pumpId.toString());
+        if (otherPump) {
+          throw new ApiError(HTTP_STATUS.CONFLICT, 'Manager can only be assigned to one pump. Please remove existing assignment first.');
+        }
       }
     }
 

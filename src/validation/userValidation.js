@@ -72,6 +72,11 @@ export const userValidation = {
       then: Joi.optional(),
       otherwise: Joi.forbidden(),
     }),
+    pumpId: objectIdSchema.when('role', {
+      is: ROLES.STAFF,
+      then: Joi.optional(),
+      otherwise: Joi.forbidden(),
+    }),
     vehicle: vehicleSchema.optional(),
   }),
 
@@ -95,6 +100,11 @@ export const userValidation = {
       otherwise: Joi.forbidden(),
     }),
     assignedManagerId: objectIdSchema.when('role', {
+      is: ROLES.STAFF,
+      then: Joi.optional(),
+      otherwise: Joi.forbidden(),
+    }),
+    pumpId: objectIdSchema.when('role', {
       is: ROLES.STAFF,
       then: Joi.optional(),
       otherwise: Joi.forbidden(),

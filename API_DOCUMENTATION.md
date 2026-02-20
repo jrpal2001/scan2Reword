@@ -847,6 +847,152 @@ ownerEmail: "owner@example.com" (if non-registered)
 
 ---
 
+### Staff Assignments Management
+
+#### Assign Staff to Pump
+**Endpoint:** `POST /api/admin/staff-assignments`  
+**Description:** Assign a staff member to a pump (required before staff can create transactions)
+
+**Request Body:**
+```json
+{
+  "staffId": "staff-user-id",
+  "pumpId": "pump-id"
+}
+```
+
+**Response:**
+```json
+{
+  "success": true,
+  "message": "Staff assigned to pump successfully",
+  "data": {
+    "_id": "assignment-id",
+    "userId": "staff-id",
+    "pumpId": "pump-id",
+    "status": "active",
+    "assignedAt": "2026-02-20T12:00:00.000Z"
+  }
+}
+```
+
+**Note:** 
+- Staff can be assigned to **multiple pumps**
+- If assignment already exists (inactive), it will be reactivated
+- Staff must be assigned to pump before they can create transactions
+
+---
+
+#### List Staff Assignments
+**Endpoint:** `GET /api/admin/staff-assignments`  
+**Description:** List all staff assignments with filters
+
+**Query Parameters:**
+- `page` (optional): Page number
+- `limit` (optional): Items per page
+- `staffId` (optional): Filter by staff ID
+- `pumpId` (optional): Filter by pump ID
+- `status` (optional): Filter by status (`active`, `inactive`)
+
+**Response:**
+```json
+{
+  "success": true,
+  "data": {
+    "list": [
+      {
+        "_id": "assignment-id",
+        "userId": {
+          "_id": "staff-id",
+          "fullName": "Priya Staff",
+          "mobile": "9876543211",
+          "staffCode": "STF0001"
+        },
+        "pumpId": {
+          "_id": "pump-id",
+          "name": "Mumbai Central Pump",
+          "code": "MUM001"
+        },
+        "status": "active",
+        "assignedAt": "2026-02-20T12:00:00.000Z"
+      }
+    ],
+    "total": 1,
+    "page": 1,
+    "limit": 20
+  }
+}
+```
+
+---
+
+#### Get Assignments for Staff
+**Endpoint:** `GET /api/admin/staff-assignments/staff/:staffId`  
+**Description:** Get all pump assignments for a specific staff member
+
+**Response:**
+```json
+{
+  "success": true,
+  "data": [
+    {
+      "_id": "assignment-id",
+      "pumpId": {
+        "_id": "pump-id",
+        "name": "Mumbai Central Pump",
+        "code": "MUM001"
+      },
+      "status": "active",
+      "assignedAt": "2026-02-20T12:00:00.000Z"
+    }
+  ]
+}
+```
+
+---
+
+#### Get Staff for Pump
+**Endpoint:** `GET /api/admin/staff-assignments/pump/:pumpId`  
+**Description:** Get all staff assigned to a specific pump
+
+**Response:**
+```json
+{
+  "success": true,
+  "data": [
+    {
+      "_id": "assignment-id",
+      "userId": {
+        "_id": "staff-id",
+        "fullName": "Priya Staff",
+        "mobile": "9876543211",
+        "staffCode": "STF0001"
+      },
+      "status": "active",
+      "assignedAt": "2026-02-20T12:00:00.000Z"
+    }
+  ]
+}
+```
+
+---
+
+#### Remove Staff from Pump
+**Endpoint:** `DELETE /api/admin/staff-assignments/:assignmentId`  
+**Description:** Remove staff from pump (sets status to inactive)
+
+**Response:**
+```json
+{
+  "success": true,
+  "message": "Staff removed from pump successfully"
+}
+```
+
+**Note:** This is a soft delete (sets `status: 'inactive'`). Staff can be reassigned later.
+
+---
+
 ### System Config
 
 #### Get Config
@@ -1708,10 +1854,16 @@ attachments: (files, optional - max 5)
 }
 ```
 
-**Note:** 
+**Important Notes:**
+- **`pumpId` is REQUIRED** - Every transaction stores which pump it happened at
+- **Staff must be assigned to pump** before creating transactions (via `POST /api/admin/staff-assignments`)
+- **Staff can only create transactions** for pumps they're assigned to (403 Forbidden if not assigned)
+- **Manager can only create transactions** for their assigned pump(s)
+- **Admin can create transactions** for any pump
 - For `category: "Fuel"`, `liters` is required
 - Points calculation: Fuel = 1 point/liter, Others = 5 points/₹100
 - Campaign multipliers are applied automatically if active
+- **Transaction tracking:** Admin/Manager can always see which pump a transaction happened at via `pumpId` field
 
 ---
 
