@@ -14,12 +14,31 @@ const vehicleSchema = Joi.object({
   yearOfManufacture: Joi.number().integer().min(1900).max(new Date().getFullYear() + 1).optional(),
 });
 
-const addressSchema = Joi.object({
+const addressObjectSchema = Joi.object({
   street: Joi.string().trim().allow('').optional(),
   city: Joi.string().trim().allow('').optional(),
   state: Joi.string().trim().allow('').optional(),
   pincode: Joi.string().trim().allow('').optional(),
-}).optional();
+});
+
+/** Accepts object or JSON string (form-data sends address as string) */
+const addressSchema = Joi.alternatives()
+  .try(
+    addressObjectSchema,
+    Joi.string().trim().custom((value, helpers) => {
+      if (!value) return undefined;
+      try {
+        const parsed = JSON.parse(value);
+        if (typeof parsed !== 'object' || parsed === null) return helpers.error('any.invalid');
+        const { error } = addressObjectSchema.validate(parsed);
+        if (error) return helpers.error('any.invalid');
+        return parsed;
+      } catch (e) {
+        return helpers.error('any.invalid');
+      }
+    })
+  )
+  .optional();
 
 const objectIdSchema = Joi.string().trim().pattern(/^[0-9a-fA-F]{24}$/).allow('', null);
 
