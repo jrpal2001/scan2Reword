@@ -130,7 +130,7 @@ app.get('/test', (req, res) => {
   });
 });
 
-// Global Error Handler (Controller → Service → Repository pattern)
+// Global Error Handler (Controller → Service → Repository Pattern)
 app.use(errorHandler);
 
 export default app;
