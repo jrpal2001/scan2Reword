@@ -1,7 +1,14 @@
 import dotenv from 'dotenv';
+import { fileURLToPath } from 'url';
+import path from 'path';
 
 // Load environment variables FIRST before importing any config
 dotenv.config();
+
+// Debug: where this file lives (helps fix Render path issues)
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
+console.log('[server.js] Running from directory:', __dirname);
+console.log('[server.js] CWD:', process.cwd());
 
 import connectDB from './src/config/db.js';
 import app from './src/app.js';
