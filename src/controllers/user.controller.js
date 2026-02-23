@@ -7,21 +7,18 @@ import { HTTP_STATUS } from '../constants/errorCodes.js';
 
 /**
  * GET /api/user/referral-code
- * Get or generate referral code for manager/staff
+ * Get or generate referral code for manager/staff (req.user is Manager or Staff from verifyJWT)
  */
 export const getReferralCode = asyncHandler(async (req, res) => {
   const userId = req.user._id;
-  const user = await userService.getUserById(userId);
-  
-  if (![ROLES.MANAGER, ROLES.STAFF].includes(user.role?.toLowerCase())) {
+  const userType = req.userType === ROLES.MANAGER ? 'Manager' : req.userType === ROLES.STAFF ? 'Staff' : null;
+  if (!userType) {
     throw new ApiError(HTTP_STATUS.FORBIDDEN, 'Referral codes are only available for managers and staff');
   }
 
-  let referralCode = user.referralCode;
-  
-  // Generate if doesn't exist
+  let referralCode = req.user.referralCode;
   if (!referralCode) {
-    referralCode = await userService.generateReferralCode(userId);
+    referralCode = await userService.generateReferralCode(userId, userType);
   }
 
   return res.status(HTTP_STATUS.OK).json(

@@ -116,6 +116,10 @@ export const register = asyncHandler(async (req, res) => {
     driverPhoto: s3Uploads.driverPhoto || null,
     ownerPhoto: s3Uploads.ownerPhoto || null,
     rcPhoto: s3Uploads.rcPhoto || null,
+    insurancePhoto: s3Uploads.insurancePhoto || null,
+    fitnessPhoto: s3Uploads.fitnessPhoto || null,
+    pollutionPhoto: s3Uploads.pollutionPhoto || null,
+    vehiclePhoto: Array.isArray(s3Uploads.vehiclePhoto) ? s3Uploads.vehiclePhoto : (s3Uploads.vehiclePhoto ? [s3Uploads.vehiclePhoto] : null),
     // Organization fields
     ownerType: value.ownerType,
     ownerIdentifier: value.ownerIdentifier,
@@ -164,7 +168,8 @@ export const logout = asyncHandler(async (req, res) => {
   const result = await authService.logout(
     userId,
     value.refreshToken || null,
-    value.fcmToken || null
+    value.fcmToken || null,
+    req.userType || null
   );
 
   return res.status(HTTP_STATUS.OK).json(

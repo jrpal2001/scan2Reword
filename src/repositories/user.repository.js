@@ -30,15 +30,7 @@ export const userRepository = {
     return User.findOne({ referralCode: code?.trim() }).lean();
   },
 
-  async findByManagerCode(code) {
-    return User.findOne({ managerCode: code?.trim() }).lean();
-  },
-
-  async findByStaffCode(code) {
-    return User.findOne({ staffCode: code?.trim() }).lean();
-  },
-
-  /** Resolve identifier (email, phone, or _id) to user - for admin/manager/staff login */
+  /** Resolve identifier (email, phone, or _id) - for customer lookup / owner search */
   async findByIdentifier(identifier) {
     if (!identifier || typeof identifier !== 'string') return null;
     const trimmed = identifier.trim();

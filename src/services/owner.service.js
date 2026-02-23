@@ -39,7 +39,7 @@ export const ownerService = {
    * @returns {Promise<Object>} Created user and vehicle
    */
   async addVehicle(ownerId, data) {
-    const { user: userData, vehicle: vehicleData, profilePhoto, driverPhoto, rcPhoto } = data;
+    const { user: userData, vehicle: vehicleData, profilePhoto, driverPhoto, rcPhoto, insurancePhoto, fitnessPhoto, pollutionPhoto, vehiclePhoto } = data;
 
     // Verify owner exists
     const owner = await userRepository.findById(ownerId);
@@ -58,7 +58,6 @@ export const ownerService = {
       fullName: userData.fullName,
       mobile: userData.mobile,
       email: userData.email || null,
-      role: ROLES.USER,
       walletSummary: { totalEarned: 0, availablePoints: 0, redeemedPoints: 0, expiredPoints: 0 },
       status: 'active',
       mobileVerified: true,
@@ -73,6 +72,10 @@ export const ownerService = {
       ...vehicleData,
       userId: driver._id,
       rcPhoto: rcPhoto || null,
+      insurancePhoto: insurancePhoto || null,
+      fitnessPhoto: fitnessPhoto || null,
+      pollutionPhoto: pollutionPhoto || null,
+      vehiclePhoto: vehiclePhoto || [],
     });
 
     return {

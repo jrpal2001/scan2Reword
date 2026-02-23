@@ -18,7 +18,7 @@ export const upload = multer({
 });
 
 /**
- * User-related file field names (profile, driver, owner, RC).
+ * User-related file field names (profile, driver, owner, vehicle photos).
  * Used by upload.fields() so Multer knows which form fields to accept.
  * uploadToS3 then puts URLs in req.s3Uploads under these same keys.
  */
@@ -27,4 +27,8 @@ export const userUploadFields = [
   { name: 'driverPhoto', maxCount: 1 },
   { name: 'ownerPhoto', maxCount: 1 },
   { name: 'rcPhoto', maxCount: 1 },
+  { name: 'insurancePhoto', maxCount: 1 },
+  { name: 'fitnessPhoto', maxCount: 1 },
+  { name: 'pollutionPhoto', maxCount: 1 },
+  { name: 'vehiclePhoto', maxCount: 5 },
 ];

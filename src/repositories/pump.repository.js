@@ -11,7 +11,7 @@ export const pumpRepository = {
   },
 
   async findPumpIdsByStaffId(staffId) {
-    const assignments = await StaffAssignment.find({ userId: staffId, status: 'active' })
+    const assignments = await StaffAssignment.find({ staffId, status: 'active' })
       .select('pumpId')
       .lean();
     return assignments.map((a) => a.pumpId);

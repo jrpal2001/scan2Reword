@@ -2,20 +2,20 @@ import jwt from 'jsonwebtoken';
 import { asyncHandler } from '../utils/asyncHandler.js';
 import ApiError from '../utils/ApiError.js';
 import { config } from '../config/index.js';
-import User from '../models/User.model.js';
 import Admin from '../models/Admin.js';
+import { userRepository } from '../repositories/user.repository.js';
+import { managerRepository } from '../repositories/manager.repository.js';
+import { staffRepository } from '../repositories/staff.repository.js';
 import { HTTP_STATUS } from '../constants/errorCodes.js';
+import { ROLES } from '../constants/roles.js';
 
 /**
- * Verify JWT and attach req.user, req.userType (role).
- * Supports both UserLoyalty model (new system) and Admin model (legacy).
- * Use for protected routes (all roles: admin, manager, staff, user).
+ * Verify JWT and attach req.user, req.userType (role: 'admin' | 'manager' | 'staff' | 'user').
+ * Resolves by decoded.userType: Admin, Manager, Staff, UserLoyalty.
  */
 export const verifyJWT = asyncHandler(async (req, res, next) => {
   const authHeader = req.headers.authorization;
   const token = authHeader?.startsWith('Bearer ') ? authHeader.split(' ')[1] : null;
-
-  console.log('[verifyJWT] Token received:', { hasToken: !!token, authHeader: authHeader?.substring(0, 20) });
 
   if (!token) {
     throw new ApiError(HTTP_STATUS.UNAUTHORIZED, 'Unauthorized — No token provided');
@@ -24,48 +24,64 @@ export const verifyJWT = asyncHandler(async (req, res, next) => {
   let decoded;
   try {
     decoded = jwt.verify(token, config.jwt.accessSecret);
-    console.log('[verifyJWT] Token decoded:', { _id: decoded._id, userType: decoded.userType, role: decoded.role });
   } catch (err) {
-    console.log('[verifyJWT] Token verification failed:', err.message);
     throw new ApiError(HTTP_STATUS.UNAUTHORIZED, err.name === 'TokenExpiredError' ? 'Token expired' : 'Invalid token');
   }
 
-  // Check if this is a legacy Admin token (has userType: "Admin")
-  if (decoded.userType === 'Admin') {
-    console.log('[verifyJWT] Legacy Admin token detected, looking up Admin model');
+  const userType = decoded.userType || 'UserLoyalty';
+
+  if (userType === 'Admin') {
     const admin = await Admin.findById(decoded._id).select('-password');
     if (!admin) {
-      console.log('[verifyJWT] Admin not found for ID:', decoded._id);
       throw new ApiError(HTTP_STATUS.UNAUTHORIZED, 'Admin not found or unauthorized');
     }
-    // Convert Admin to user-like object for compatibility
     req.user = {
       _id: admin._id,
       fullName: admin.name,
       email: admin.email,
       phone: admin.phone,
-      role: 'admin', // Map Admin userType to 'admin' role
-      status: 'active', // Legacy admins are always active
+      role: ROLES.ADMIN,
+      status: 'active',
     };
-    req.userType = 'admin';
-    console.log('[verifyJWT] Admin authenticated:', { _id: admin._id, email: admin.email });
+    req.userType = ROLES.ADMIN;
     return next();
   }
 
-  // Otherwise, look up in UserLoyalty model
-  console.log('[verifyJWT] UserLoyalty token detected, looking up User model');
-  const user = await User.findById(decoded._id).select('-passwordHash');
+  if (userType === 'Manager') {
+    const manager = await managerRepository.findById(decoded._id);
+    if (!manager) {
+      throw new ApiError(HTTP_STATUS.UNAUTHORIZED, 'Manager not found or unauthorized');
+    }
+    if (manager.status !== 'active') {
+      throw new ApiError(HTTP_STATUS.FORBIDDEN, 'Account is inactive or blocked');
+    }
+    req.user = { ...manager, role: ROLES.MANAGER };
+    req.userType = ROLES.MANAGER;
+    return next();
+  }
+
+  if (userType === 'Staff') {
+    const staff = await staffRepository.findById(decoded._id);
+    if (!staff) {
+      throw new ApiError(HTTP_STATUS.UNAUTHORIZED, 'Staff not found or unauthorized');
+    }
+    if (staff.status !== 'active') {
+      throw new ApiError(HTTP_STATUS.FORBIDDEN, 'Account is inactive or blocked');
+    }
+    req.user = { ...staff, role: ROLES.STAFF };
+    req.userType = ROLES.STAFF;
+    return next();
+  }
+
+  // UserLoyalty (customer)
+  const user = await userRepository.findById(decoded._id);
   if (!user) {
-    console.log('[verifyJWT] User not found for ID:', decoded._id);
     throw new ApiError(HTTP_STATUS.UNAUTHORIZED, 'User not found or unauthorized');
   }
   if (user.status !== 'active') {
-    console.log('[verifyJWT] User account is inactive:', user.status);
     throw new ApiError(HTTP_STATUS.FORBIDDEN, 'Account is inactive or blocked');
   }
-
-  req.user = user;
-  req.userType = (user.role || decoded.role || '').toLowerCase();
-  console.log('[verifyJWT] User authenticated:', { _id: user._id, role: req.userType });
+  req.user = { ...user, role: ROLES.USER };
+  req.userType = ROLES.USER;
   next();
 });

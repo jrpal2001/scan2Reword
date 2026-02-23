@@ -18,8 +18,9 @@ export const refreshTokenRepository = {
   },
 
   async findByUserId(userId, options = {}) {
-    const { revoked, fcmToken } = options;
+    const { revoked, fcmToken, userType } = options;
     const filter = { userId };
+    if (userType) filter.userType = userType;
     if (revoked !== undefined) filter.revoked = revoked;
     if (fcmToken) filter.fcmToken = fcmToken;
     return RefreshToken.find(filter).sort({ createdAt: -1 }).lean();
@@ -45,18 +46,16 @@ export const refreshTokenRepository = {
     ).lean();
   },
 
-  async revokeByFcmToken(userId, fcmToken) {
-    return RefreshToken.updateMany(
-      { userId, fcmToken },
-      { revoked: true, revokedAt: new Date() }
-    );
+  async revokeByFcmToken(userId, fcmToken, userType = null) {
+    const filter = { userId, fcmToken };
+    if (userType) filter.userType = userType;
+    return RefreshToken.updateMany(filter, { revoked: true, revokedAt: new Date() });
   },
 
-  async revokeAllUserTokens(userId) {
-    return RefreshToken.updateMany(
-      { userId, revoked: false },
-      { revoked: true, revokedAt: new Date() }
-    );
+  async revokeAllUserTokens(userId, userType = null) {
+    const filter = { userId, revoked: false };
+    if (userType) filter.userType = userType;
+    return RefreshToken.updateMany(filter, { revoked: true, revokedAt: new Date() });
   },
 
   async deleteExpired() {

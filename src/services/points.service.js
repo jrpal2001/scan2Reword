@@ -1,8 +1,27 @@
 import { pointsLedgerRepository } from '../repositories/pointsLedger.repository.js';
 import { userRepository } from '../repositories/user.repository.js';
+import { managerRepository } from '../repositories/manager.repository.js';
+import { staffRepository } from '../repositories/staff.repository.js';
 import { systemConfigService } from './systemConfig.service.js';
 import ApiError from '../utils/ApiError.js';
 import { HTTP_STATUS } from '../constants/errorCodes.js';
+
+/** Resolve owner document and update function by ownerType */
+async function getOwnerAndUpdater(ownerId, ownerType) {
+  let entity = null;
+  let updateFn = null;
+  if (ownerType === 'Manager') {
+    entity = await managerRepository.findById(ownerId);
+    updateFn = (id, data) => managerRepository.update(id, data);
+  } else if (ownerType === 'Staff') {
+    entity = await staffRepository.findById(ownerId);
+    updateFn = (id, data) => staffRepository.update(id, data);
+  } else {
+    entity = await userRepository.findById(ownerId);
+    updateFn = (id, data) => userRepository.update(id, data);
+  }
+  return { entity, updateFn };
+}
 
 /**
  * Points calculation service
@@ -68,10 +87,10 @@ export const pointsService = {
   },
 
   /**
-   * Credit points to user (from transaction, referral, etc.)
-   * Creates ledger entry and updates wallet summary
+   * Credit points to owner (User, Manager, or Staff)
    * @param {Object} params
-   * @param {string} params.userId - User ID
+   * @param {string} params.userId - Owner ID
+   * @param {string} params.ownerType - 'UserLoyalty' | 'Manager' | 'Staff' (default 'UserLoyalty')
    * @param {number} params.points - Points to credit
    * @param {string} params.type - 'credit' | 'adjustment' | 'refund'
    * @param {string} params.reason - Reason for credit
@@ -79,34 +98,30 @@ export const pointsService = {
    * @param {string} params.createdBy - Admin/Manager ID (optional)
    * @returns {Object} Ledger entry
    */
-  async creditPoints({ userId, points, type = 'credit', reason = null, transactionId = null, createdBy = null }) {
+  async creditPoints({ userId, ownerType = 'UserLoyalty', points, type = 'credit', reason = null, transactionId = null, createdBy = null }) {
     if (points <= 0) {
       throw new ApiError(HTTP_STATUS.BAD_REQUEST, 'Points must be positive');
     }
 
-    const user = await userRepository.findById(userId);
+    const { entity: user, updateFn } = await getOwnerAndUpdater(userId, ownerType);
     if (!user) {
-      throw new ApiError(HTTP_STATUS.NOT_FOUND, 'User not found');
+      throw new ApiError(HTTP_STATUS.NOT_FOUND, 'Owner not found');
     }
 
     const currentBalance = user.walletSummary?.availablePoints || 0;
     const balanceAfter = currentBalance + points;
 
-    // Get expiry duration from SystemConfig
     let expiryMonths = POINTS_EXPIRY_MONTHS;
     try {
       const config = await systemConfigService.getConfig();
       expiryMonths = config.pointsExpiry?.durationMonths || 12;
-    } catch (error) {
-      // Use default if config fetch fails
-    }
+    } catch (error) {}
 
-    // Calculate expiry date (from SystemConfig, default 12 months)
     const expiryDate = type === 'credit' ? new Date(Date.now() + expiryMonths * 30 * 24 * 60 * 60 * 1000) : null;
 
-    // Create ledger entry
     const ledgerEntry = await pointsLedgerRepository.create({
       userId,
+      ownerType,
       transactionId,
       type,
       points,
@@ -116,7 +131,6 @@ export const pointsService = {
       createdBy,
     });
 
-    // Update wallet summary
     const updateData = {
       walletSummary: {
         totalEarned: (user.walletSummary?.totalEarned || 0) + (type === 'credit' ? points : 0),
@@ -125,13 +139,11 @@ export const pointsService = {
         expiredPoints: user.walletSummary?.expiredPoints || 0,
       },
     };
-
-    // If this is an expiry, increment expiredPoints
     if (type === 'expiry') {
       updateData.walletSummary.expiredPoints = (user.walletSummary?.expiredPoints || 0) + points;
     }
 
-    await userRepository.update(userId, updateData);
+    await updateFn(userId, updateData);
 
     return ledgerEntry;
   },
@@ -148,14 +160,14 @@ export const pointsService = {
    * @param {string} params.createdBy - Admin/Manager ID (optional)
    * @returns {Object} Ledger entry
    */
-  async debitPoints({ userId, points, type = 'debit', reason = null, redemptionId = null, createdBy = null }) {
+  async debitPoints({ userId, ownerType = 'UserLoyalty', points, type = 'debit', reason = null, redemptionId = null, createdBy = null }) {
     if (points <= 0) {
       throw new ApiError(HTTP_STATUS.BAD_REQUEST, 'Points must be positive');
     }
 
-    const user = await userRepository.findById(userId);
+    const { entity: user, updateFn } = await getOwnerAndUpdater(userId, ownerType);
     if (!user) {
-      throw new ApiError(HTTP_STATUS.NOT_FOUND, 'User not found');
+      throw new ApiError(HTTP_STATUS.NOT_FOUND, 'Owner not found');
     }
 
     const currentBalance = user.walletSummary?.availablePoints || 0;
@@ -165,20 +177,19 @@ export const pointsService = {
 
     const balanceAfter = currentBalance - points;
 
-    // Create ledger entry (points stored as negative for debit)
     const ledgerEntry = await pointsLedgerRepository.create({
       userId,
+      ownerType,
       redemptionId,
       type,
-      points: -points, // Negative for debit
+      points: -points,
       balanceAfter,
       expiryDate: null,
       reason: reason || `Points ${type}`,
       createdBy,
     });
 
-    // Update wallet summary
-    await userRepository.update(userId, {
+    await updateFn(userId, {
       walletSummary: {
         totalEarned: user.walletSummary?.totalEarned || 0,
         availablePoints: balanceAfter,
@@ -191,18 +202,19 @@ export const pointsService = {
   },
 
   /**
-   * Get wallet summary and ledger for user
-   * @param {string} userId
-   * @param {Object} options - Pagination options
+   * Get wallet summary and ledger for owner (User, Manager, or Staff)
+   * @param {string} ownerId - Owner ID
+   * @param {Object} options - { page, limit, ownerType: 'UserLoyalty' | 'Manager' | 'Staff' }
    * @returns {Object} Wallet summary and ledger
    */
-  async getWallet(userId, options = {}) {
-    const user = await userRepository.findById(userId);
+  async getWallet(ownerId, options = {}) {
+    const ownerType = options.ownerType || 'UserLoyalty';
+    const { entity: user } = await getOwnerAndUpdater(ownerId, ownerType);
     if (!user) {
-      throw new ApiError(HTTP_STATUS.NOT_FOUND, 'User not found');
+      throw new ApiError(HTTP_STATUS.NOT_FOUND, 'Owner not found');
     }
 
-    const ledger = await pointsLedgerRepository.findByUserId(userId, options);
+    const ledger = await pointsLedgerRepository.findByUserId(ownerId, { ...options, ownerType });
 
     return {
       walletSummary: user.walletSummary || {

@@ -2,7 +2,7 @@
 	"info": {
 		"_postman_id": "scen2reword-api-collection",
 		"name": "Scan2Reward API Collection",
-		"description": "Complete API collection for Fuel Station Loyalty & QR Vehicle Reward System",
+		"description": "Complete API collection for Fuel Station Loyalty & QR Vehicle Reward System. Auth: Login uses identifier (email/mobile) + password for Admin/Manager/Staff; JWT includes userType. Users list is customers only; Manager/Staff are separate. Vehicle optional photos: rcPhoto, insurancePhoto, fitnessPhoto, pollutionPhoto, vehiclePhoto (array).",
 		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
 		"_exporter_id": "scen2reword"
 	},
@@ -104,12 +104,38 @@
 								{
 									"key": "profilePhoto",
 									"type": "file",
-									"src": []
+									"src": [],
+									"description": "Optional"
 								},
 								{
 									"key": "rcPhoto",
 									"type": "file",
-									"src": []
+									"src": [],
+									"description": "Optional"
+								},
+								{
+									"key": "insurancePhoto",
+									"type": "file",
+									"src": [],
+									"description": "Optional"
+								},
+								{
+									"key": "fitnessPhoto",
+									"type": "file",
+									"src": [],
+									"description": "Optional"
+								},
+								{
+									"key": "pollutionPhoto",
+									"type": "file",
+									"src": [],
+									"description": "Optional"
+								},
+								{
+									"key": "vehiclePhoto",
+									"type": "file",
+									"src": [],
+									"description": "Optional, multiple allowed (up to 5)"
 								}
 							]
 						},
@@ -121,13 +147,13 @@
 					}
 				},
 				{
-					"name": "Login (Admin/Manager/Staff)",
+					"name": "Login (Admin/Manager/Staff/User with password)",
 					"request": {
 						"method": "POST",
 						"header": [],
 						"body": {
 							"mode": "raw",
-							"raw": "{\n  \"identifier\": \"admin@gmail.com\",\n  \"password\": \"admin123\"\n}",
+							"raw": "{\n  \"identifier\": \"admin@gmail.com\",\n  \"password\": \"admin123\",\n  \"fcmToken\": \"\",\n  \"deviceInfo\": {}\n}",
 							"options": {
 								"raw": {
 									"language": "json"
@@ -138,7 +164,36 @@
 							"raw": "{{baseUrl}}/api/auth/login",
 							"host": ["{{baseUrl}}"],
 							"path": ["api", "auth", "login"]
-						}
+						},
+						"description": "Identifier = email or mobile or _id. Tries Manager, Staff, Admin, then User. Returns user with role, token, refreshToken."
+					}
+				},
+				{
+					"name": "Logout",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{accessToken}}",
+								"type": "text"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"fcmToken\": \"\",\n  \"refreshToken\": \"\"\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/auth/logout",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "auth", "logout"]
+						},
+						"description": "Requires Authorization. Send fcmToken for device logout, or omit both to logout all devices."
 					}
 				},
 				{
@@ -256,7 +311,8 @@
 									"raw": "{{baseUrl}}/api/admin/users",
 									"host": ["{{baseUrl}}"],
 									"path": ["api", "admin", "users"]
-								}
+								},
+								"description": "Role: user | manager | staff. For role=user with vehicle, use form-data with optional files: profilePhoto, driverPhoto, ownerPhoto, rcPhoto, insurancePhoto, fitnessPhoto, pollutionPhoto, vehiclePhoto."
 							}
 						},
 						{
@@ -271,7 +327,7 @@
 									}
 								],
 								"url": {
-									"raw": "{{baseUrl}}/api/admin/users?page=1&limit=20&role=user&status=active",
+									"raw": "{{baseUrl}}/api/admin/users?page=1&limit=20&status=active",
 									"host": ["{{baseUrl}}"],
 									"path": ["api", "admin", "users"],
 									"query": [
@@ -284,15 +340,17 @@
 											"value": "20"
 										},
 										{
-											"key": "role",
-											"value": "user"
-										},
-										{
 											"key": "status",
 											"value": "active"
+										},
+										{
+											"key": "search",
+											"value": "",
+											"disabled": true
 										}
 									]
-								}
+								},
+								"description": "Lists customers (User) only. Managers/Staff are in separate collections."
 							}
 						},
 						{

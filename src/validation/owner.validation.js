@@ -11,6 +11,11 @@ const vehicleSchema = Joi.object({
   brand: Joi.string().trim().allow('').optional(),
   model: Joi.string().trim().allow('').optional(),
   yearOfManufacture: Joi.number().integer().min(1900).max(new Date().getFullYear() + 1).optional(),
+  rcPhoto: Joi.string().trim().allow('', null).optional(),
+  insurancePhoto: Joi.string().trim().allow('', null).optional(),
+  fitnessPhoto: Joi.string().trim().allow('', null).optional(),
+  pollutionPhoto: Joi.string().trim().allow('', null).optional(),
+  vehiclePhoto: Joi.array().items(Joi.string().trim()).optional(),
 });
 
 export const ownerValidation = {

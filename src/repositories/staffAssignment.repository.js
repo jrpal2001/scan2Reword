@@ -15,7 +15,7 @@ export const staffAssignmentRepository = {
 
   async findByStaffId(staffId, options = {}) {
     const { status } = options;
-    const filter = { userId: staffId };
+    const filter = { staffId };
     if (status) filter.status = status;
     return StaffAssignment.find(filter).populate('pumpId', 'name code').lean();
   },
@@ -24,15 +24,15 @@ export const staffAssignmentRepository = {
     const { status } = options;
     const filter = { pumpId };
     if (status) filter.status = status;
-    return StaffAssignment.find(filter).populate('userId', 'fullName mobile email role staffCode').lean();
+    return StaffAssignment.find(filter).populate('staffId', 'fullName mobile email staffCode').lean();
   },
 
   async findByStaffAndPump(staffId, pumpId) {
-    return StaffAssignment.findOne({ userId: staffId, pumpId }).lean();
+    return StaffAssignment.findOne({ staffId, pumpId }).lean();
   },
 
   async findActiveAssignmentByStaff(staffId) {
-    return StaffAssignment.findOne({ userId: staffId, status: 'active' }).lean();
+    return StaffAssignment.findOne({ staffId, status: 'active' }).lean();
   },
 
   async update(id, data) {
@@ -49,7 +49,7 @@ export const staffAssignmentRepository = {
     const skip = (page - 1) * limit;
     const [list, total] = await Promise.all([
       StaffAssignment.find(filter)
-        .populate('userId', 'fullName mobile email role staffCode')
+        .populate('staffId', 'fullName mobile email staffCode')
         .populate('pumpId', 'name code managerId')
         .sort(sort)
         .skip(skip)

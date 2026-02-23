@@ -44,6 +44,10 @@ export const addVehicle = asyncHandler(async (req, res) => {
     profilePhoto: s3Uploads.profilePhoto || null,
     driverPhoto: s3Uploads.driverPhoto || null,
     rcPhoto: s3Uploads.rcPhoto || null,
+    insurancePhoto: s3Uploads.insurancePhoto || null,
+    fitnessPhoto: s3Uploads.fitnessPhoto || null,
+    pollutionPhoto: s3Uploads.pollutionPhoto || null,
+    vehiclePhoto: Array.isArray(s3Uploads.vehiclePhoto) ? s3Uploads.vehiclePhoto : (s3Uploads.vehiclePhoto ? [s3Uploads.vehiclePhoto] : []),
   });
 
   return res.status(HTTP_STATUS.CREATED).json(

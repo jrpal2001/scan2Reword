@@ -3,6 +3,8 @@ import jwt from 'jsonwebtoken';
 import Otp from '../models/Otp.model.js';
 import Admin from '../models/Admin.js';
 import { userRepository } from '../repositories/user.repository.js';
+import { managerRepository } from '../repositories/manager.repository.js';
+import { staffRepository } from '../repositories/staff.repository.js';
 import { refreshTokenRepository } from '../repositories/refreshToken.repository.js';
 import { config } from '../config/index.js';
 import { ROLES, STAFF_ROLES } from '../constants/roles.js';
@@ -73,16 +75,14 @@ export const authService = {
     await Otp.findByIdAndUpdate(record._id, { used: true });
     const user = await userRepository.findByMobile(trimmed);
     if (user) {
-      const accessToken = this.issueJwt(user);
-      const refreshToken = this.issueRefreshToken(user);
-      
-      // Store refresh token in MongoDB and handle FCM token
-      await this.storeRefreshToken(user._id, refreshToken, fcmToken, deviceInfo, ipAddress, userAgent);
-      
-      return { 
-        user: { _id: user._id, fullName: user.fullName, mobile: user.mobile, role: user.role }, 
+      const userType = 'UserLoyalty';
+      const accessToken = this.issueJwt(user, userType);
+      const refreshToken = this.issueRefreshToken(user, userType);
+      await this.storeRefreshToken(user._id, userType, refreshToken, fcmToken, deviceInfo, ipAddress, userAgent);
+      return {
+        user: { _id: user._id, fullName: user.fullName, mobile: user.mobile, role: ROLES.USER },
         token: accessToken,
-        refreshToken 
+        refreshToken,
       };
     }
     return { user: null, token: null, refreshToken: null };
@@ -92,94 +92,88 @@ export const authService = {
     if (!identifier || !password) {
       throw new ApiError(HTTP_STATUS.BAD_REQUEST, 'Identifier and password are required', null, ERROR_CODES.BAD_REQUEST);
     }
-    
-    // First try UserLoyalty model (new system)
-    let user = await userRepository.findByIdentifier(identifier);
-    let isLegacyAdmin = false;
-    
-    // If not found, try legacy Admin model
-    if (!user) {
+
+    // Try in order: Manager, Staff, Admin, User (UserLoyalty)
+    let entity = await managerRepository.findByIdentifier(identifier);
+    let userType = 'Manager';
+
+    if (!entity) {
+      entity = await staffRepository.findByIdentifier(identifier);
+      userType = 'Staff';
+    }
+    if (!entity) {
       const trimmed = identifier.trim();
       const admin = await Admin.findOne({
-        $or: [
-          { email: trimmed.toLowerCase() },
-          { phone: trimmed },
-        ]
+        $or: [{ email: trimmed.toLowerCase() }, { phone: trimmed }],
       });
-      
       if (admin) {
-        // Check password for legacy admin
         const isMatch = await admin.comparePassword(password);
         if (!isMatch) {
           throw new ApiError(HTTP_STATUS.UNAUTHORIZED, 'Invalid identifier or password', null, ERROR_CODES.INVALID_CREDENTIALS);
         }
-        
-        // Convert legacy Admin to user-like object for compatibility
-        user = {
+        entity = {
           _id: admin._id,
           fullName: admin.name,
           mobile: admin.phone,
           email: admin.email,
           role: ROLES.ADMIN,
-          passwordHash: admin.password, // For compatibility
           status: 'active',
         };
-        isLegacyAdmin = true;
+        userType = 'Admin';
       }
     }
-    
-    if (!user) {
+    if (!entity) {
+      entity = await userRepository.findByIdentifier(identifier);
+      userType = 'UserLoyalty';
+    }
+
+    if (!entity) {
       throw new ApiError(HTTP_STATUS.UNAUTHORIZED, 'Invalid identifier or password', null, ERROR_CODES.INVALID_CREDENTIALS);
     }
-    
-    // For UserLoyalty model, check password
-    if (!isLegacyAdmin) {
-      if (!user.passwordHash) {
+
+    // Password check (Admin already checked above)
+    if (userType !== 'Admin') {
+      if (!entity.passwordHash) {
         throw new ApiError(HTTP_STATUS.UNAUTHORIZED, 'Password not set for this account', null, ERROR_CODES.INVALID_CREDENTIALS);
       }
-      const match = await bcrypt.compare(password, user.passwordHash);
+      const match = await bcrypt.compare(password, entity.passwordHash);
       if (!match) {
         throw new ApiError(HTTP_STATUS.UNAUTHORIZED, 'Invalid identifier or password', null, ERROR_CODES.INVALID_CREDENTIALS);
       }
     }
-    
-    const role = (user.role || '').toLowerCase();
+
+    const role = userType === 'Admin' ? ROLES.ADMIN : userType === 'Manager' ? ROLES.MANAGER : userType === 'Staff' ? ROLES.STAFF : ROLES.USER;
     if (!STAFF_ROLES.includes(role)) {
       throw new ApiError(HTTP_STATUS.FORBIDDEN, 'Use OTP login for customer accounts', null, ERROR_CODES.FORBIDDEN);
     }
-    
-    // Issue JWT - for legacy admin, include userType for backward compatibility
-    const accessToken = isLegacyAdmin 
-      ? this.issueJwtForLegacyAdmin(user)
-      : this.issueJwt(user);
-    const refreshToken = this.issueRefreshToken(user);
-    
-    // Store refresh token in MongoDB and handle FCM token
-    await this.storeRefreshToken(user._id, refreshToken, fcmToken, deviceInfo, ipAddress, userAgent);
-    
-    // Return user data
+
+    const accessToken = this.issueJwt(entity, userType);
+    const refreshToken = this.issueRefreshToken(entity, userType);
+    await this.storeRefreshToken(entity._id, userType, refreshToken, fcmToken, deviceInfo, ipAddress, userAgent);
+
     let userSafe;
-    if (isLegacyAdmin) {
-      // Return legacy admin data
-      userSafe = {
-        _id: user._id,
-        fullName: user.fullName,
-        mobile: user.mobile,
-        email: user.email,
-        role: user.role,
-        status: user.status,
-      };
+    if (userType === 'Admin') {
+      userSafe = { _id: entity._id, fullName: entity.fullName, mobile: entity.mobile, email: entity.email, role: entity.role, status: entity.status };
+    } else if (userType === 'Manager') {
+      userSafe = await managerRepository.findById(entity._id);
+      userSafe = { ...userSafe, role: ROLES.MANAGER };
+    } else if (userType === 'Staff') {
+      userSafe = await staffRepository.findById(entity._id);
+      userSafe = { ...userSafe, role: ROLES.STAFF };
     } else {
-      userSafe = await userRepository.findById(user._id);
+      userSafe = await userRepository.findById(entity._id);
+      userSafe = { ...userSafe, role: ROLES.USER };
     }
-    
+
     return { user: userSafe, token: accessToken, refreshToken };
   },
 
-  issueJwt(user) {
+  issueJwt(user, userType = 'UserLoyalty') {
+    const role = userType === 'Admin' ? ROLES.ADMIN : userType === 'Manager' ? ROLES.MANAGER : userType === 'Staff' ? ROLES.STAFF : ROLES.USER;
     const payload = {
       _id: user._id,
-      role: (user.role || ROLES.USER).toLowerCase(),
+      userType,
+      role: (user.role || role).toLowerCase(),
       mobile: user.mobile,
     };
     const secret = config.jwt.accessSecret;
@@ -187,22 +181,11 @@ export const authService = {
     return jwt.sign(payload, secret, { expiresIn });
   },
 
-  issueJwtForLegacyAdmin(admin) {
-    // Legacy admin token format (for backward compatibility with verifyJWT middleware)
-    const payload = {
-      _id: admin._id,
-      userType: 'Admin', // Legacy format
-      role: ROLES.ADMIN, // Also include role for new system compatibility
-    };
-    const secret = config.jwt.accessSecret;
-    const expiresIn = config.jwt.accessExpiry;
-    return jwt.sign(payload, secret, { expiresIn });
-  },
-
-  issueRefreshToken(user) {
+  issueRefreshToken(user, userType = 'UserLoyalty') {
     const payload = {
       _id: user._id,
       type: 'refresh',
+      userType: userType || 'UserLoyalty',
     };
     const secret = config.jwt.refreshSecret;
     const expiresIn = config.jwt.refreshExpiry;
@@ -238,9 +221,8 @@ export const authService = {
 
       // If token is revoked, logout from that device
       if (storedToken.revoked) {
-        // Logout from the device associated with this token
         if (storedToken.fcmToken) {
-          await this.logout(storedToken.userId, null, storedToken.fcmToken);
+          await this.logout(storedToken.userId, null, storedToken.fcmToken, storedToken.userType);
         } else {
           // If no FCM token, just revoke this specific token (already revoked)
           await refreshTokenRepository.revokeByToken(refreshTokenString);
@@ -250,44 +232,58 @@ export const authService = {
 
       // Check if token is expired (MongoDB TTL should handle this, but double-check)
       if (new Date() > new Date(storedToken.expiresAt)) {
-        // Token expired - logout from that device
         if (storedToken.fcmToken) {
-          await this.logout(storedToken.userId, null, storedToken.fcmToken);
+          await this.logout(storedToken.userId, null, storedToken.fcmToken, storedToken.userType);
         }
         throw new ApiError(HTTP_STATUS.UNAUTHORIZED, 'Refresh token expired. Device logged out.', null, ERROR_CODES.INVALID_CREDENTIALS);
       }
 
-      const user = await userRepository.findById(decoded._id);
+      const userType = storedToken.userType || decoded.userType || 'UserLoyalty';
+      let user = null;
+      if (userType === 'Admin') {
+        const admin = await Admin.findById(decoded._id);
+        if (admin) user = { _id: admin._id, fullName: admin.name, mobile: admin.phone, email: admin.email, role: ROLES.ADMIN, status: 'active' };
+      } else if (userType === 'Manager') {
+        user = await managerRepository.findById(decoded._id);
+      } else if (userType === 'Staff') {
+        user = await staffRepository.findById(decoded._id);
+      } else {
+        user = await userRepository.findById(decoded._id);
+      }
+
       if (!user) {
         throw new ApiError(HTTP_STATUS.UNAUTHORIZED, 'User not found', null, ERROR_CODES.INVALID_CREDENTIALS);
       }
-
-      if (user.status !== 'active') {
+      if (user.status && user.status !== 'active') {
         throw new ApiError(HTTP_STATUS.FORBIDDEN, 'User account is not active', null, ERROR_CODES.FORBIDDEN);
       }
 
-      // Revoke old refresh token
       await refreshTokenRepository.revokeByToken(refreshTokenString);
 
-      // Issue new tokens
-      const newAccessToken = this.issueJwt(user);
-      const newRefreshToken = this.issueRefreshToken(user);
-
-      // Store new refresh token in MongoDB
+      const newAccessToken = this.issueJwt(user, userType);
+      const newRefreshToken = this.issueRefreshToken(user, userType);
       await this.storeRefreshToken(
         user._id,
+        userType,
         newRefreshToken,
-        storedToken.fcmToken, // Preserve FCM token
-        storedToken.deviceInfo, // Preserve device info
-        storedToken.ipAddress, // Preserve IP
-        storedToken.userAgent // Preserve user agent
+        storedToken.fcmToken,
+        storedToken.deviceInfo,
+        storedToken.ipAddress,
+        storedToken.userAgent
       );
 
-      return {
-        accessToken: newAccessToken,
-        refreshToken: newRefreshToken,
-        user: await userRepository.findById(user._id),
-      };
+      let userSafe;
+      if (userType === 'Admin') {
+        userSafe = { _id: user._id, fullName: user.fullName, mobile: user.mobile, email: user.email, role: ROLES.ADMIN };
+      } else if (userType === 'Manager') {
+        userSafe = { ...(await managerRepository.findById(user._id)), role: ROLES.MANAGER };
+      } else if (userType === 'Staff') {
+        userSafe = { ...(await staffRepository.findById(user._id)), role: ROLES.STAFF };
+      } else {
+        userSafe = await userRepository.findById(user._id);
+      }
+
+      return { accessToken: newAccessToken, refreshToken: newRefreshToken, user: userSafe };
     } catch (error) {
       if (error instanceof ApiError) {
         throw error;
@@ -299,7 +295,7 @@ export const authService = {
             // Try to find any token with this signature pattern (unlikely but try)
             const foundToken = await refreshTokenRepository.findByTokenIncludeRevoked(refreshTokenString);
             if (foundToken && foundToken.fcmToken) {
-              await this.logout(foundToken.userId, null, foundToken.fcmToken);
+              await this.logout(foundToken.userId, null, foundToken.fcmToken, foundToken.userType);
             }
           }
         } catch (logoutError) {
@@ -315,17 +311,16 @@ export const authService = {
   },
 
   /**
-   * Store refresh token in MongoDB
+   * Store refresh token in MongoDB. userType: 'UserLoyalty' | 'Manager' | 'Staff' | 'Admin'
    */
-  async storeRefreshToken(userId, refreshToken, fcmToken = null, deviceInfo = null, ipAddress = null, userAgent = null) {
+  async storeRefreshToken(userId, userType, refreshToken, fcmToken = null, deviceInfo = null, ipAddress = null, userAgent = null) {
     try {
-      // Decode token to get expiry
       const decoded = jwt.decode(refreshToken);
-      const expiresAt = decoded.exp ? new Date(decoded.exp * 1000) : new Date(Date.now() + 7 * 24 * 60 * 60 * 1000); // Default 7 days
+      const expiresAt = decoded.exp ? new Date(decoded.exp * 1000) : new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
 
-      // Store refresh token
       await refreshTokenRepository.create({
         userId,
+        userType: userType || 'UserLoyalty',
         token: refreshToken,
         fcmToken: fcmToken || null,
         deviceInfo: deviceInfo || {},
@@ -335,54 +330,55 @@ export const authService = {
         revoked: false,
       });
 
-      // Update user's FCM tokens array if FCM token provided
-      if (fcmToken) {
-        const user = await userRepository.findById(userId);
-        if (user) {
-          const tokens = user.FcmTokens || [];
+      if (fcmToken && userType !== 'Admin') {
+        let current = null;
+        if (userType === 'UserLoyalty') current = await userRepository.findById(userId);
+        else if (userType === 'Manager') current = await managerRepository.findById(userId);
+        else if (userType === 'Staff') current = await staffRepository.findById(userId);
+        if (current) {
+          const tokens = current.FcmTokens || [];
           if (!tokens.includes(fcmToken)) {
-            await userRepository.update(userId, {
-              FcmTokens: [...tokens, fcmToken],
-            });
+            const update = { FcmTokens: [...tokens, fcmToken] };
+            if (userType === 'UserLoyalty') await userRepository.update(userId, update);
+            else if (userType === 'Manager') await managerRepository.update(userId, update);
+            else if (userType === 'Staff') await staffRepository.update(userId, update);
           }
         }
       }
     } catch (error) {
       console.error('Failed to store refresh token:', error.message);
-      // Don't throw - token generation should still succeed
     }
   },
 
   /**
-   * Logout - revoke refresh token and remove FCM token
-   * 
-   * Priority:
-   * 1. If fcmToken provided: Revoke all tokens for that device and remove FCM token (device-specific logout)
-   * 2. If refreshToken provided (but no fcmToken): Revoke that specific token
-   * 3. If neither provided: Revoke all tokens for the user (logout from all devices)
+   * Logout - revoke refresh token and remove FCM token.
+   * userType: 'UserLoyalty' | 'Manager' | 'Staff' | 'Admin' (optional; used when revoking by fcmToken or all devices)
    */
-  async logout(userId, refreshTokenString = null, fcmToken = null) {
+  async logout(userId, refreshTokenString = null, fcmToken = null, userType = null) {
     if (fcmToken) {
-      // Device-specific logout: Revoke all refresh tokens for this FCM token
-      await refreshTokenRepository.revokeByFcmToken(userId, fcmToken);
-      
-      // Remove FCM token from user's array
-      const user = await userRepository.findById(userId);
-      if (user && user.FcmTokens) {
-        const tokens = user.FcmTokens.filter(t => t !== fcmToken);
-        await userRepository.update(userId, { FcmTokens: tokens });
+      await refreshTokenRepository.revokeByFcmToken(userId, fcmToken, userType);
+      if (userType && userType !== 'Admin') {
+        let current = null;
+        if (userType === 'UserLoyalty') current = await userRepository.findById(userId);
+        else if (userType === 'Manager') current = await managerRepository.findById(userId);
+        else if (userType === 'Staff') current = await staffRepository.findById(userId);
+        if (current && current.FcmTokens) {
+          const tokens = current.FcmTokens.filter(t => t !== fcmToken);
+          if (userType === 'UserLoyalty') await userRepository.update(userId, { FcmTokens: tokens });
+          else if (userType === 'Manager') await managerRepository.update(userId, { FcmTokens: tokens });
+          else if (userType === 'Staff') await staffRepository.update(userId, { FcmTokens: tokens });
+        }
       }
     } else if (refreshTokenString) {
-      // Revoke the specific refresh token (if no FCM token provided)
       await refreshTokenRepository.revokeByToken(refreshTokenString);
     } else {
-      // Logout from all devices: Revoke all active refresh tokens for the user
-      await refreshTokenRepository.revokeAllUserTokens(userId);
-      
-      // Clear all FCM tokens
-      await userRepository.update(userId, { FcmTokens: [] });
+      await refreshTokenRepository.revokeAllUserTokens(userId, userType);
+      if (userType && userType !== 'Admin') {
+        if (userType === 'UserLoyalty') await userRepository.update(userId, { FcmTokens: [] });
+        else if (userType === 'Manager') await managerRepository.update(userId, { FcmTokens: [] });
+        else if (userType === 'Staff') await staffRepository.update(userId, { FcmTokens: [] });
+      }
     }
-
     return { message: 'Logged out successfully' };
   },
 

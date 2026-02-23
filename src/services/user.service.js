@@ -1,4 +1,6 @@
 import { userRepository } from '../repositories/user.repository.js';
+import { managerRepository } from '../repositories/manager.repository.js';
+import { staffRepository } from '../repositories/staff.repository.js';
 import { vehicleService } from './vehicle.service.js';
 import { authService } from './auth.service.js';
 import { pointsService } from './points.service.js';
@@ -27,7 +29,7 @@ async function generateUniqueManagerCode() {
   let n = 1;
   while (exists) {
     code = `MGR${String(n).padStart(4, '0')}`;
-    const existing = await userRepository.findByManagerCode(code);
+    const existing = await managerRepository.findByManagerCode(code);
     exists = !!existing;
     n++;
   }
@@ -43,11 +45,34 @@ async function generateUniqueStaffCode() {
   let n = 1;
   while (exists) {
     code = `STF${String(n).padStart(4, '0')}`;
-    const existing = await userRepository.findByStaffCode(code);
+    const existing = await staffRepository.findByStaffCode(code);
     exists = !!existing;
     n++;
   }
   return code;
+}
+
+/** Check referral code uniqueness across Manager, Staff, and User */
+async function isReferralCodeTaken(code) {
+  if (!code) return false;
+  const [m, s, u] = await Promise.all([
+    managerRepository.findByReferralCode(code),
+    staffRepository.findByReferralCode(code),
+    userRepository.findByReferralCode(code),
+  ]);
+  return !!(m || s || u);
+}
+
+/** Resolve referrer by referral code (Manager, Staff, or User). Returns { _id, _ownerType } plus doc. */
+async function findReferrerByCode(referralCode) {
+  if (!referralCode) return null;
+  const manager = await managerRepository.findByReferralCode(referralCode);
+  if (manager) return { ...manager, _ownerType: 'Manager' };
+  const staff = await staffRepository.findByReferralCode(referralCode);
+  if (staff) return { ...staff, _ownerType: 'Staff' };
+  const user = await userRepository.findByReferralCode(referralCode);
+  if (user) return { ...user, _ownerType: 'UserLoyalty' };
+  return null;
 }
 
 export const userService = {
@@ -72,6 +97,10 @@ export const userService = {
       driverPhoto,
       ownerPhoto,
       rcPhoto,
+      insurancePhoto,
+      fitnessPhoto,
+      pollutionPhoto,
+      vehiclePhoto,
     } = registrationData;
 
     // Check if mobile already exists
@@ -80,14 +109,14 @@ export const userService = {
       throw new ApiError(HTTP_STATUS.CONFLICT, 'User with this mobile number already exists');
     }
 
-    // Validate referral code if provided
+    // Validate referral code if provided (referrer must be Manager or Staff)
     let referrer = null;
     if (referralCode) {
-      referrer = await userRepository.findByReferralCode(referralCode);
+      referrer = await findReferrerByCode(referralCode);
       if (!referrer) {
         throw new ApiError(HTTP_STATUS.BAD_REQUEST, 'Invalid referral code');
       }
-      if (![ROLES.MANAGER, ROLES.STAFF].includes(referrer.role?.toLowerCase())) {
+      if (referrer._ownerType !== 'Manager' && referrer._ownerType !== 'Staff') {
         throw new ApiError(HTTP_STATUS.BAD_REQUEST, 'Referral code is not valid for manager/staff');
       }
     }
@@ -119,23 +148,21 @@ export const userService = {
           fullName: owner.fullName,
           mobile: ownerMobile,
           email: owner.email || null,
-          role: ROLES.USER,
           walletSummary: { totalEarned: 0, availablePoints: 0, redeemedPoints: 0, expiredPoints: 0 },
           status: 'active',
           mobileVerified: true,
           address: owner.address || null,
-          ownerId: null, // Owner has no owner
+          ownerId: null,
         });
         ownerId = newOwner._id;
       }
     }
 
-    // Create user (driver)
+    // Create user (customer/driver)
     const user = await userRepository.create({
       fullName,
       mobile,
       email: email || null,
-      role: ROLES.USER,
       walletSummary: { totalEarned: 0, availablePoints: 0, redeemedPoints: 0, expiredPoints: 0 },
       status: 'active',
       mobileVerified: true,
@@ -143,7 +170,7 @@ export const userService = {
       profilePhoto: profilePhoto || null,
       driverPhoto: driverPhoto || null,
       ownerPhoto: ownerPhoto || null,
-      ownerId: ownerId, // Link to owner if organization
+      ownerId: ownerId,
     });
 
     // Create vehicle with loyaltyId
@@ -151,18 +178,22 @@ export const userService = {
       ...vehicle,
       userId: user._id,
       rcPhoto: rcPhoto || null,
+      insurancePhoto: registrationData.insurancePhoto || null,
+      fitnessPhoto: registrationData.fitnessPhoto || null,
+      pollutionPhoto: registrationData.pollutionPhoto || null,
+      vehiclePhoto: registrationData.vehiclePhoto || [],
     };
     const vehicleCreated = await vehicleService.createVehicle(vehicleData);
 
-    // Credit referral points to referrer if referralCode provided
-    if (referrer && referrer._id) {
+    // Credit referral points to referrer (Manager or Staff) if referralCode provided
+    if (referrer && referrer._id && (referrer._ownerType === 'Manager' || referrer._ownerType === 'Staff')) {
       try {
         const systemConfig = await systemConfigService.getConfig();
         const referralPoints = systemConfig.points?.referral || 0;
-        
         if (referralPoints > 0) {
           await pointsService.creditPoints({
             userId: referrer._id,
+            ownerType: referrer._ownerType,
             points: referralPoints,
             type: 'credit',
             reason: `Referral bonus - User ${user._id} registered with referral code`,
@@ -171,7 +202,6 @@ export const userService = {
         }
       } catch (error) {
         console.error('Failed to credit referral points:', error.message);
-        // Don't fail registration if referral points credit fails
       }
     }
 
@@ -231,104 +261,138 @@ export const userService = {
           fullName: userData.owner.fullName,
           mobile: ownerMobile,
           email: userData.owner.email || null,
-          role: ROLES.USER,
           walletSummary: { totalEarned: 0, availablePoints: 0, redeemedPoints: 0, expiredPoints: 0 },
           status: 'active',
-          mobileVerified: false, // Admin created, not OTP verified
+          mobileVerified: false,
           address: userData.owner.address || null,
-          ownerId: null, // Owner has no owner
+          ownerId: null,
           createdBy: adminId,
+          createdByModel: 'Admin',
         });
         ownerId = newOwner._id;
       }
     }
 
-    // When role is staff, validate assignedManagerId is a manager
     if (role === ROLES.STAFF && userData.assignedManagerId) {
-      const manager = await userRepository.findById(userData.assignedManagerId);
-      if (!manager || (manager.role || '').toLowerCase() !== ROLES.MANAGER) {
+      const manager = await managerRepository.findById(userData.assignedManagerId);
+      if (!manager) {
         throw new ApiError(HTTP_STATUS.BAD_REQUEST, 'assignedManagerId must be a valid manager');
       }
     }
 
-    // Hash password if provided (required for manager/staff)
     let passwordHash = null;
     if (userData.password) {
       passwordHash = await authService.hashPassword(userData.password);
     }
 
-    // Auto-generate referral code for manager/staff roles
     let referralCode = userData.referralCode || null;
     if ([ROLES.MANAGER, ROLES.STAFF].includes(role)) {
       if (!referralCode) {
         let code;
-        let exists = true;
-        while (exists) {
-          code = generateReferralCode();
-          const existing = await userRepository.findByReferralCode(code);
-          exists = !!existing;
-        }
+        while (await isReferralCodeTaken(code = generateReferralCode())) {}
         referralCode = code;
       }
     }
 
-    // Auto-generate managerCode for managers (if not provided)
     let managerCode = role === ROLES.MANAGER ? (userData.managerCode?.trim() || null) : null;
     if (role === ROLES.MANAGER && !managerCode) {
       managerCode = await generateUniqueManagerCode();
     }
 
-    // Auto-generate staffCode for staff (if not provided)
     let staffCode = role === ROLES.STAFF ? (userData.staffCode?.trim() || null) : null;
     if (role === ROLES.STAFF && !staffCode) {
       staffCode = await generateUniqueStaffCode();
     }
 
-    // Remove password and organization-specific fields from userData (we use passwordHash instead)
-    const { password, ownerType, ownerIdentifier, owner, accountType: _, ...userDataWithoutPassword } = userData;
+    const { password, ownerType, ownerIdentifier, owner, accountType: _, role: __, ...userDataWithoutPassword } = userData;
 
-    const user = await userRepository.create({
+    let created = null;
+    let vehicle = null;
+    let assignment = null;
+
+    if (role === ROLES.MANAGER) {
+      created = await managerRepository.create({
+        fullName: userData.fullName,
+        mobile: userData.mobile,
+        email: userData.email || null,
+        passwordHash: passwordHash || (await authService.hashPassword('ChangeMe123!')),
+        managerCode,
+        referralCode,
+        walletSummary: { totalEarned: 0, availablePoints: 0, redeemedPoints: 0, expiredPoints: 0 },
+        address: userData.address || null,
+        profilePhoto: userData.profilePhoto || null,
+        status: 'active',
+        createdBy: adminId,
+        createdByModel: 'Admin',
+      });
+      return {
+        user: { ...(await managerRepository.findById(created._id)), role: ROLES.MANAGER },
+        vehicle: null,
+        assignment: null,
+        ownerId: null,
+      };
+    }
+
+    if (role === ROLES.STAFF) {
+      created = await staffRepository.create({
+        fullName: userData.fullName,
+        mobile: userData.mobile,
+        email: userData.email || null,
+        passwordHash: passwordHash || (await authService.hashPassword('ChangeMe123!')),
+        staffCode,
+        referralCode,
+        assignedManagerId: userData.assignedManagerId || null,
+        walletSummary: { totalEarned: 0, availablePoints: 0, redeemedPoints: 0, expiredPoints: 0 },
+        address: userData.address || null,
+        profilePhoto: userData.profilePhoto || null,
+        status: 'active',
+        createdBy: adminId,
+        createdByModel: 'Admin',
+      });
+      if (userData.pumpId) {
+        try {
+          assignment = await staffAssignmentService.assignStaffToPump(created._id, userData.pumpId, adminId);
+        } catch (error) {
+          console.error('Failed to assign staff to pump during creation:', error.message);
+        }
+      }
+      return {
+        user: { ...(await staffRepository.findById(created._id)), role: ROLES.STAFF },
+        vehicle: null,
+        assignment: assignment || null,
+        ownerId: null,
+      };
+    }
+
+    // role === ROLES.USER (customer)
+    created = await userRepository.create({
       ...userDataWithoutPassword,
-      passwordHash,
-      referralCode,
+      passwordHash: passwordHash || null,
+      referralCode: null,
       address: userData.address || null,
       profilePhoto: userData.profilePhoto || null,
-      managerCode: role === ROLES.MANAGER ? managerCode : null,
-      staffCode: role === ROLES.STAFF ? staffCode : null,
-      assignedManagerId: role === ROLES.STAFF ? (userData.assignedManagerId || null) : null,
-      ownerId: ownerId, // Link to owner if organization
+      ownerId,
       walletSummary: { totalEarned: 0, availablePoints: 0, redeemedPoints: 0, expiredPoints: 0 },
       status: 'active',
       createdBy: adminId,
+      createdByModel: 'Admin',
       driverPhoto: userData.driverPhoto || null,
       ownerPhoto: userData.ownerPhoto || null,
-      mobileVerified: false, // Admin created, not OTP verified
+      mobileVerified: false,
     });
 
-    let vehicle = null;
     if (vehicleData) {
       vehicle = await vehicleService.createVehicle({
         ...vehicleData,
-        userId: user._id,
+        userId: created._id,
       });
     }
 
-    // If staff and pumpId provided, assign staff to pump (admin can assign to any pump)
-    let assignment = null;
-    if (role === ROLES.STAFF && userData.pumpId) {
-      try {
-        assignment = await staffAssignmentService.assignStaffToPump(user._id, userData.pumpId, adminId);
-      } catch (error) {
-        console.error('Failed to assign staff to pump during creation:', error.message);
-        // Don't fail user creation if assignment fails - they can be assigned later
-      }
-    }
-
-    return { 
-      user: await userRepository.findById(user._id), 
+    return {
+      user: await userRepository.findById(created._id),
       vehicle,
-      assignment: assignment || null,
-      ownerId: ownerId || null, // Return ownerId if organization
+      assignment: null,
+      ownerId: ownerId || null,
     };
   },
 
@@ -386,191 +450,194 @@ export const userService = {
           fullName: userData.owner.fullName,
           mobile: ownerMobile,
           email: userData.owner.email || null,
-          role: ROLES.USER,
           walletSummary: { totalEarned: 0, availablePoints: 0, redeemedPoints: 0, expiredPoints: 0 },
           status: 'active',
-          mobileVerified: false, // Operator created, not OTP verified
+          mobileVerified: false,
           address: userData.owner.address || null,
-          ownerId: null, // Owner has no owner
+          ownerId: null,
           createdBy: operatorId,
+          createdByModel: operatorRole === ROLES.MANAGER ? 'Manager' : 'Staff',
         });
         ownerId = newOwner._id;
       }
     }
 
-    // When creating staff, validate assignedManagerId is a manager (if provided)
     if (userRole === ROLES.STAFF && userData.assignedManagerId) {
-      const manager = await userRepository.findById(userData.assignedManagerId);
-      if (!manager || (manager.role || '').toLowerCase() !== ROLES.MANAGER) {
+      const manager = await managerRepository.findById(userData.assignedManagerId);
+      if (!manager) {
         throw new ApiError(HTTP_STATUS.BAD_REQUEST, 'assignedManagerId must be a valid manager');
       }
     }
 
-    // Hash password if provided (required for staff)
     let passwordHash = null;
     if (userData.password) {
       passwordHash = await authService.hashPassword(userData.password);
     }
 
-    // Auto-generate referral code for staff created by manager
     let referralCode = userData.referralCode || null;
     if (userRole === ROLES.STAFF) {
       let code;
-      let exists = true;
-      while (exists) {
-        code = generateReferralCode();
-        const existing = await userRepository.findByReferralCode(code);
-        exists = !!existing;
-      }
+      while (await isReferralCodeTaken(code = generateReferralCode())) {}
       referralCode = code;
     }
 
-    // Auto-generate staffCode for staff (if not provided)
     let staffCode = userRole === ROLES.STAFF ? (userData.staffCode?.trim() || null) : null;
     if (userRole === ROLES.STAFF && !staffCode) {
       staffCode = await generateUniqueStaffCode();
     }
 
-    // Remove password and organization-specific fields from userData (we use passwordHash instead)
-    const { password, ownerType, ownerIdentifier, owner, accountType: _, ...userDataWithoutPassword } = userData;
+    const { password, ownerType, ownerIdentifier, owner, accountType: _, role: __, ...userDataWithoutPassword } = userData;
 
-    // When manager creates staff, automatically set assignedManagerId to manager's ID
     let finalAssignedManagerId = userRole === ROLES.STAFF ? (userData.assignedManagerId || null) : null;
     if (userRole === ROLES.STAFF && operatorRole === ROLES.MANAGER && !finalAssignedManagerId) {
-      finalAssignedManagerId = operatorId; // Auto-assign to creating manager
+      finalAssignedManagerId = operatorId;
     }
 
-    const user = await userRepository.create({
+    const operatorType = operatorRole === ROLES.MANAGER ? 'Manager' : 'Staff';
+
+    let created = null;
+    let vehicle = null;
+    let assignment = null;
+
+    if (userRole === ROLES.STAFF) {
+      created = await staffRepository.create({
+        fullName: userData.fullName,
+        mobile: userData.mobile,
+        email: userData.email || null,
+        passwordHash: passwordHash || (await authService.hashPassword('ChangeMe123!')),
+        staffCode,
+        referralCode,
+        assignedManagerId: finalAssignedManagerId,
+        walletSummary: { totalEarned: 0, availablePoints: 0, redeemedPoints: 0, expiredPoints: 0 },
+        address: userData.address || null,
+        profilePhoto: userData.profilePhoto || null,
+        status: 'active',
+        createdBy: operatorId,
+        createdByModel: operatorRole === ROLES.MANAGER ? 'Manager' : 'Admin',
+      });
+
+      if (operatorRole === ROLES.MANAGER) {
+        if (userData.pumpId) {
+          const pump = await pumpRepository.findById(userData.pumpId);
+          if (!pump) throw new ApiError(HTTP_STATUS.NOT_FOUND, 'Pump not found');
+          if (pump.managerId?.toString() !== operatorId.toString()) {
+            throw new ApiError(HTTP_STATUS.FORBIDDEN, 'You can only assign staff to pumps you manage');
+          }
+          try {
+            assignment = await staffAssignmentService.assignStaffToPump(created._id, userData.pumpId, operatorId);
+          } catch (error) {
+            console.error('Failed to assign staff to pump during creation:', error.message);
+          }
+        } else {
+          try {
+            const managerPumpIds = await pumpRepository.findPumpIdsByManagerId(operatorId);
+            if (managerPumpIds.length > 0) {
+              try {
+                assignment = await staffAssignmentService.assignStaffToPump(created._id, managerPumpIds[0], operatorId);
+              } catch (error) {
+                console.error('Failed to auto-assign staff to manager pump:', error.message);
+              }
+            }
+          } catch (error) {
+            console.error('Failed to auto-assign staff to manager pump during creation:', error.message);
+          }
+        }
+      } else if (userData.pumpId) {
+        try {
+          assignment = await staffAssignmentService.assignStaffToPump(created._id, userData.pumpId, operatorId);
+        } catch (error) {
+          console.error('Failed to assign staff to pump during creation:', error.message);
+        }
+      }
+
+      return {
+        user: { ...(await staffRepository.findById(created._id)), role: ROLES.STAFF },
+        vehicle: null,
+        assignment: assignment || null,
+        ownerId: null,
+      };
+    }
+
+    // userRole === ROLES.USER (customer)
+    created = await userRepository.create({
       ...userDataWithoutPassword,
-      role: userRole,
-      passwordHash,
-      referralCode,
+      passwordHash: passwordHash || null,
+      referralCode: null,
       address: userData.address || null,
       profilePhoto: userData.profilePhoto || null,
-      staffCode: userRole === ROLES.STAFF ? staffCode : null,
-      assignedManagerId: finalAssignedManagerId,
-      ownerId: ownerId, // Link to owner if organization
+      ownerId,
       walletSummary: { totalEarned: 0, availablePoints: 0, redeemedPoints: 0, expiredPoints: 0 },
       status: 'active',
       createdBy: operatorId,
+      createdByModel: operatorType,
       driverPhoto: userData.driverPhoto || null,
       ownerPhoto: userData.ownerPhoto || null,
-      mobileVerified: false, // Operator created, not OTP verified
+      mobileVerified: false,
     });
 
-    let vehicle = null;
     if (vehicleData) {
       vehicle = await vehicleService.createVehicle({
         ...vehicleData,
-        userId: user._id,
+        userId: created._id,
       });
     }
 
-    // Credit registration points to operator (manager/staff) - only for regular users, not staff
     if (userRole === ROLES.USER) {
       try {
         const systemConfig = await systemConfigService.getConfig();
         const registrationPoints = systemConfig.points?.registration || 0;
-        
         if (registrationPoints > 0) {
           await pointsService.creditPoints({
             userId: operatorId,
+            ownerType: operatorType,
             points: registrationPoints,
             type: 'credit',
-            reason: `Registration bonus - Created user ${user._id} (${user.fullName})`,
+            reason: `Registration bonus - Created user ${created._id} (${created.fullName})`,
             createdBy: operatorId,
           });
         }
       } catch (error) {
         console.error('Failed to credit registration points:', error.message);
-        // Don't fail user creation if registration points credit fails
       }
     }
 
-    // If manager creates staff, automatically assign to manager's pump (ONE pump only)
-    let assignment = null;
-    if (userRole === ROLES.STAFF && operatorRole === ROLES.MANAGER) {
-      if (userData.pumpId) {
-        // If specific pumpId provided, validate it belongs to manager and assign
-        const pump = await pumpRepository.findById(userData.pumpId);
-        if (!pump) {
-          throw new ApiError(HTTP_STATUS.NOT_FOUND, 'Pump not found');
-        }
-        if (pump.managerId?.toString() !== operatorId.toString()) {
-          throw new ApiError(HTTP_STATUS.FORBIDDEN, 'You can only assign staff to pumps you manage');
-        }
-        
-        try {
-          assignment = await staffAssignmentService.assignStaffToPump(user._id, userData.pumpId, operatorId);
-        } catch (error) {
-          console.error('Failed to assign staff to specified pump during creation:', error.message);
-          // Don't fail user creation if assignment fails - they can be assigned later
-        }
-      } else {
-        // No pumpId provided - automatically assign to manager's pump (only ONE pump)
-        try {
-          const managerPumpIds = await pumpRepository.findPumpIdsByManagerId(operatorId);
-          if (managerPumpIds.length > 0) {
-            // RESTRICTION: Assign to only the first pump (manager should have only one)
-            const pumpId = managerPumpIds[0];
-            try {
-              assignment = await staffAssignmentService.assignStaffToPump(user._id, pumpId, operatorId);
-            } catch (error) {
-              console.error(`Failed to assign staff to pump ${pumpId} during creation:`, error.message);
-              // Don't fail user creation if assignment fails - they can be assigned later
-            }
-          }
-        } catch (error) {
-          console.error('Failed to auto-assign staff to manager pump during creation:', error.message);
-          // Don't fail user creation if assignment fails - they can be assigned later
-        }
-      }
-    } else if (userRole === ROLES.STAFF && userData.pumpId) {
-      // Admin creating staff with pumpId (no auto-assignment)
-      try {
-        assignment = await staffAssignmentService.assignStaffToPump(user._id, userData.pumpId, operatorId);
-      } catch (error) {
-        console.error('Failed to assign staff to pump during creation:', error.message);
-        // Don't fail user creation if assignment fails - they can be assigned later
-      }
-    }
-
-    return { 
-      user: await userRepository.findById(user._id), 
+    return {
+      user: await userRepository.findById(created._id),
       vehicle,
-      assignment: assignment || null,
-      ownerId: ownerId || null, // Return ownerId if organization
+      assignment: null,
+      ownerId: ownerId || null,
     };
   },
 
   /**
-   * Generate referral code for manager/staff
+   * Generate referral code for manager/staff. userId + userType identify the entity (Manager or Staff).
    */
-  async generateReferralCode(userId) {
-    const user = await userRepository.findById(userId);
-    if (!user) {
-      throw new ApiError(HTTP_STATUS.NOT_FOUND, 'User not found');
+  async generateReferralCode(userId, userType = null) {
+    let entity = null;
+    let ownerType = userType;
+    if (!ownerType) {
+      if (await managerRepository.findById(userId)) ownerType = 'Manager';
+      else if (await staffRepository.findById(userId)) ownerType = 'Staff';
     }
-    
-    if (![ROLES.MANAGER, ROLES.STAFF].includes(user.role?.toLowerCase())) {
-      throw new ApiError(HTTP_STATUS.FORBIDDEN, 'Referral codes are only available for managers and staff');
+    if (ownerType === 'Manager') {
+      entity = await managerRepository.findById(userId);
+      if (!entity) throw new ApiError(HTTP_STATUS.NOT_FOUND, 'Manager not found');
+      if (entity.referralCode) return entity.referralCode;
+      let code;
+      while (await isReferralCodeTaken(code = generateReferralCode())) {}
+      await managerRepository.update(userId, { referralCode: code });
+      return code;
     }
-
-    // If already has referral code, return it
-    if (user.referralCode) {
-      return user.referralCode;
+    if (ownerType === 'Staff') {
+      entity = await staffRepository.findById(userId);
+      if (!entity) throw new ApiError(HTTP_STATUS.NOT_FOUND, 'Staff not found');
+      if (entity.referralCode) return entity.referralCode;
+      let code;
+      while (await isReferralCodeTaken(code = generateReferralCode())) {}
+      await staffRepository.update(userId, { referralCode: code });
+      return code;
     }
-
-    // Generate unique referral code
-    let code;
-    let exists = true;
-    while (exists) {
-      code = generateReferralCode();
-      const existing = await userRepository.findByReferralCode(code);
-      exists = !!existing;
-    }
-    await userRepository.update(userId, { referralCode: code });
-    return code;
+    throw new ApiError(HTTP_STATUS.FORBIDDEN, 'Referral codes are only available for managers and staff');
   },
 
   /**
@@ -592,21 +659,14 @@ export const userService = {
   },
 
   /**
-   * Update user (admin)
+   * Update user (admin) - for customers (User model) only. Manager/Staff updates use separate endpoints if needed.
    */
   async updateUser(userId, updateData, adminId) {
     const user = await userRepository.findById(userId);
     if (!user) {
       throw new ApiError(HTTP_STATUS.NOT_FOUND, 'User not found');
     }
-
-    // Don't allow updating passwordHash directly
-    const { passwordHash, ...safeUpdateData } = updateData;
-    // Convert empty string assignedManagerId to null (so Mongoose doesn't cast error)
-    if (safeUpdateData.assignedManagerId === '') {
-      safeUpdateData.assignedManagerId = null;
-    }
-    
+    const { passwordHash, assignedManagerId, managerCode, staffCode, role, ...safeUpdateData } = updateData;
     const updated = await userRepository.update(userId, safeUpdateData);
     return updated;
   },

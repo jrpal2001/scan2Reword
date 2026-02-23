@@ -1,23 +1,18 @@
 import { staffAssignmentRepository } from '../repositories/staffAssignment.repository.js';
-import { userRepository } from '../repositories/user.repository.js';
+import { staffRepository } from '../repositories/staff.repository.js';
 import { pumpRepository } from '../repositories/pump.repository.js';
-import { ROLES } from '../constants/roles.js';
 import ApiError from '../utils/ApiError.js';
 import { HTTP_STATUS } from '../constants/errorCodes.js';
 
 export const staffAssignmentService = {
   /**
-   * Assign staff to pump
+   * Assign staff to pump (staffId = Staff model _id)
    * RESTRICTION: Staff can only be assigned to ONE pump at a time
    */
   async assignStaffToPump(staffId, pumpId, adminId) {
-    // Verify staff exists and is actually staff
-    const staff = await userRepository.findById(staffId);
+    const staff = await staffRepository.findById(staffId);
     if (!staff) {
       throw new ApiError(HTTP_STATUS.NOT_FOUND, 'Staff not found');
-    }
-    if ((staff.role || '').toLowerCase() !== ROLES.STAFF) {
-      throw new ApiError(HTTP_STATUS.BAD_REQUEST, 'User is not a staff member');
     }
 
     // Verify pump exists
@@ -47,9 +42,8 @@ export const staffAssignmentService = {
       }
     }
 
-    // Create new assignment
     const assignment = await staffAssignmentRepository.create({
-      userId: staffId,
+      staffId,
       pumpId,
       status: 'active',
       assignedAt: new Date(),
@@ -77,14 +71,13 @@ export const staffAssignmentService = {
   },
 
   /**
-   * Get assignments for a staff member
+   * Get assignments for a staff member (staffId = Staff model _id)
    */
   async getAssignmentsByStaff(staffId, options = {}) {
-    const staff = await userRepository.findById(staffId);
+    const staff = await staffRepository.findById(staffId);
     if (!staff) {
       throw new ApiError(HTTP_STATUS.NOT_FOUND, 'Staff not found');
     }
-
     return await staffAssignmentRepository.findByStaffId(staffId, options);
   },
 

@@ -2,7 +2,8 @@ import mongoose from 'mongoose';
 
 const refreshTokenSchema = new mongoose.Schema(
   {
-    userId: { type: mongoose.Schema.Types.ObjectId, ref: 'UserLoyalty', required: true, index: true },
+    userId: { type: mongoose.Schema.Types.ObjectId, required: true, index: true },
+    userType: { type: String, enum: ['UserLoyalty', 'Manager', 'Staff', 'Admin'], default: 'UserLoyalty', index: true },
     token: { type: String, required: true, unique: true, index: true },
     fcmToken: { type: String, default: null }, // FCM token for this device
     deviceInfo: {
@@ -21,7 +22,7 @@ const refreshTokenSchema = new mongoose.Schema(
 );
 
 // Compound index for faster lookups
-refreshTokenSchema.index({ userId: 1, revoked: 1 });
+refreshTokenSchema.index({ userId: 1, userType: 1, revoked: 1 });
 refreshTokenSchema.index({ token: 1, revoked: 1 });
 
 const RefreshToken = mongoose.models.RefreshToken || mongoose.model('RefreshToken', refreshTokenSchema);

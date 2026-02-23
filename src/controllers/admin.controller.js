@@ -35,12 +35,16 @@ export const createUser = asyncHandler(async (req, res) => {
     owner: v.owner || undefined,
   };
   
-  // Prepare vehicle data with rcPhoto
+  // Prepare vehicle data with optional photos
   const vehicleData = v.vehicle ? {
     ...v.vehicle,
     rcPhoto: s3Uploads.rcPhoto || null,
+    insurancePhoto: s3Uploads.insurancePhoto || null,
+    fitnessPhoto: s3Uploads.fitnessPhoto || null,
+    pollutionPhoto: s3Uploads.pollutionPhoto || null,
+    vehiclePhoto: Array.isArray(s3Uploads.vehiclePhoto) ? s3Uploads.vehiclePhoto : (s3Uploads.vehiclePhoto ? [s3Uploads.vehiclePhoto] : []),
   } : null;
-  
+
   const result = await userService.createUserByAdmin(userData, vehicleData, req.user._id);
 
   // Log audit
@@ -122,12 +126,16 @@ export const createUserByOperator = asyncHandler(async (req, res) => {
     owner: v.owner || undefined,
   };
   
-  // Prepare vehicle data with rcPhoto
+  // Prepare vehicle data with optional photos
   const vehicleData = v.vehicle ? {
     ...v.vehicle,
     rcPhoto: s3Uploads.rcPhoto || null,
+    insurancePhoto: s3Uploads.insurancePhoto || null,
+    fitnessPhoto: s3Uploads.fitnessPhoto || null,
+    pollutionPhoto: s3Uploads.pollutionPhoto || null,
+    vehiclePhoto: Array.isArray(s3Uploads.vehiclePhoto) ? s3Uploads.vehiclePhoto : (s3Uploads.vehiclePhoto ? [s3Uploads.vehiclePhoto] : []),
   } : null;
-  
+
   const result = await userService.createUserByManagerOrStaff(
     userData,
     vehicleData,
@@ -166,10 +174,8 @@ export const createUserByOperator = asyncHandler(async (req, res) => {
  * List users with filters and pagination
  */
 export const listUsers = asyncHandler(async (req, res) => {
-  const { page = 1, limit = 20, role, status, search } = req.query;
+  const { page = 1, limit = 20, status, search } = req.query;
   const filter = {};
-  
-  if (role) filter.role = role;
   if (status) filter.status = status;
   if (search) {
     filter.$or = [
@@ -178,7 +184,6 @@ export const listUsers = asyncHandler(async (req, res) => {
       { email: { $regex: search, $options: 'i' } },
     ];
   }
-
   const result = await userService.listUsers(filter, {
     page: parseInt(page),
     limit: parseInt(limit),
