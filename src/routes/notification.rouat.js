@@ -1,5 +1,5 @@
 import { notificationController } from "../controllers/notification.controller.js";
-import { verifyJWT } from "../Middlewares/AdminauthMiddlewares.js";
+import { verifyJWT } from "../middlewares/AdminauthMiddlewares.js";
 import express from "express";
 
 const router = express.Router();
