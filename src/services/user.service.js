@@ -7,6 +7,7 @@ import { pointsService } from './points.service.js';
 import { systemConfigService } from './systemConfig.service.js';
 import { staffAssignmentService } from './staffAssignment.service.js';
 import { pumpRepository } from '../repositories/pump.repository.js';
+import { staffAssignmentRepository } from '../repositories/staffAssignment.repository.js';
 import { ROLES } from '../constants/roles.js';
 import ApiError from '../utils/ApiError.js';
 import { HTTP_STATUS } from '../constants/errorCodes.js';
@@ -672,7 +673,7 @@ export const userService = {
   },
 
   /**
-   * Block/unblock user (admin)
+   * Block/unblock user (admin) - customers only
    */
   async updateUserStatus(userId, status, adminId) {
     const user = await userRepository.findById(userId);
@@ -682,5 +683,45 @@ export const userService = {
 
     const updated = await userRepository.update(userId, { status });
     return updated;
+  },
+
+  /**
+   * Delete any user (manager, staff, or customer) by ID. Admin only.
+   * @param {string} userId - ID of the entity to delete
+   * @param {string} type - Optional: 'manager' | 'staff' | 'user'. If omitted, resolves by checking Manager, then Staff, then User.
+   * @returns {{ deleted: true, type: string }}
+   */
+  async deleteUser(userId, type = null) {
+    let ownerType = type;
+    if (!ownerType) {
+      if (await managerRepository.findById(userId)) ownerType = 'Manager';
+      else if (await staffRepository.findById(userId)) ownerType = 'Staff';
+      else if (await userRepository.findById(userId)) ownerType = 'User';
+    }
+
+    if (ownerType === 'Manager') {
+      const manager = await managerRepository.findById(userId);
+      if (!manager) throw new ApiError(HTTP_STATUS.NOT_FOUND, 'Manager not found');
+      await pumpRepository.unsetManagerId(userId);
+      await managerRepository.delete(userId);
+      return { deleted: true, type: 'manager' };
+    }
+
+    if (ownerType === 'Staff') {
+      const staff = await staffRepository.findById(userId);
+      if (!staff) throw new ApiError(HTTP_STATUS.NOT_FOUND, 'Staff not found');
+      await staffAssignmentRepository.deleteByStaffId(userId);
+      await staffRepository.delete(userId);
+      return { deleted: true, type: 'staff' };
+    }
+
+    if (ownerType === 'User') {
+      const user = await userRepository.findById(userId);
+      if (!user) throw new ApiError(HTTP_STATUS.NOT_FOUND, 'User not found');
+      await userRepository.delete(userId);
+      return { deleted: true, type: 'user' };
+    }
+
+    throw new ApiError(HTTP_STATUS.NOT_FOUND, 'User not found');
   },
 };

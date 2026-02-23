@@ -442,6 +442,38 @@
 									]
 								}
 							}
+						},
+						{
+							"name": "Delete User",
+							"request": {
+								"method": "DELETE",
+								"header": [
+									{
+										"key": "Authorization",
+										"value": "Bearer {{accessToken}}",
+										"type": "text"
+									}
+								],
+								"url": {
+									"raw": "{{baseUrl}}/api/admin/users/:userId?type=user",
+									"host": ["{{baseUrl}}"],
+									"path": ["api", "admin", "users", ":userId"],
+									"query": [
+										{
+											"key": "type",
+											"value": "user",
+											"description": "Optional: manager | staff | user. Omit to auto-detect."
+										}
+									],
+									"variable": [
+										{
+											"key": "userId",
+											"value": ""
+										}
+									]
+								},
+								"description": "Delete any user (manager, staff, or customer). Query param type optional; if omitted, resolves by checking Manager, then Staff, then User."
+							}
 						}
 					]
 				},

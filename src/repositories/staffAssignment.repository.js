@@ -44,6 +44,11 @@ export const staffAssignmentRepository = {
     return true;
   },
 
+  async deleteByStaffId(staffId) {
+    const result = await StaffAssignment.deleteMany({ staffId });
+    return result.deletedCount;
+  },
+
   async list(filter = {}, options = {}) {
     const { page = 1, limit = 20, sort = { createdAt: -1 } } = options;
     const skip = (page - 1) * limit;

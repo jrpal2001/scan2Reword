@@ -61,4 +61,9 @@ export const staffRepository = {
     ]);
     return { list, total, page, limit, totalPages: Math.ceil(total / limit) };
   },
+
+  async delete(id) {
+    const doc = await Staff.findByIdAndDelete(id);
+    return !!doc;
+  },
 };

@@ -266,3 +266,31 @@ export const updateUserStatus = asyncHandler(async (req, res) => {
     ApiResponse.success(updated, `User ${status === USER_STATUS.BLOCKED ? 'blocked' : 'unblocked'} successfully`)
   );
 });
+
+/**
+ * DELETE /api/admin/users/:userId
+ * Query: type (optional) - 'manager' | 'staff' | 'user'. If omitted, resolves by checking Manager, then Staff, then User.
+ * Delete any user (manager, staff, or customer). Admin only.
+ */
+export const deleteUser = asyncHandler(async (req, res) => {
+  const { userId } = req.params;
+  const query = req.validated || {};
+  const type = query.type || null;
+
+  const result = await userService.deleteUser(userId, type);
+
+  await auditLogService.log({
+    userId: req.user._id,
+    action: 'user.delete',
+    entityType: result.type === 'manager' ? 'Manager' : result.type === 'staff' ? 'Staff' : 'User',
+    entityId: userId,
+    before: null,
+    after: { deleted: true, type: result.type },
+    ipAddress: req.ip,
+    userAgent: req.get('user-agent'),
+  });
+
+  return res.status(HTTP_STATUS.OK).json(
+    ApiResponse.success({ deleted: true, type: result.type }, `${result.type} deleted successfully`)
+  );
+});

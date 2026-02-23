@@ -57,4 +57,9 @@ export const managerRepository = {
     ]);
     return { list, total, page, limit, totalPages: Math.ceil(total / limit) };
   },
+
+  async delete(id) {
+    const doc = await Manager.findByIdAndDelete(id);
+    return !!doc;
+  },
 };

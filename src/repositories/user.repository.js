@@ -60,4 +60,9 @@ export const userRepository = {
     ]);
     return { list, total, page, limit, totalPages: Math.ceil(total / limit) };
   },
+
+  async delete(id) {
+    const doc = await User.findByIdAndDelete(id);
+    return !!doc;
+  },
 };

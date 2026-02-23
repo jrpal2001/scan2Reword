@@ -90,6 +90,14 @@ router.patch(
   adminController.updateUserStatus
 );
 
+router.delete(
+  '/users/:userId',
+  verifyJWT,
+  requireRoles([ROLES.ADMIN]),
+  validateRequest(userValidation.deleteUser, 'query'),
+  adminController.deleteUser
+);
+
 // Pumps CRUD
 router.post(
   '/pumps',

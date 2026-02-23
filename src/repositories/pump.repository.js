@@ -46,6 +46,11 @@ export const pumpRepository = {
     return true;
   },
 
+  async unsetManagerId(managerId) {
+    const result = await Pump.updateMany({ managerId }, { $set: { managerId: null } });
+    return result.modifiedCount;
+  },
+
   async findByCode(code) {
     return Pump.findOne({ code: code?.trim() }).lean();
   },

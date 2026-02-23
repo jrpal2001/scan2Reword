@@ -195,4 +195,9 @@ export const userValidation = {
     status: Joi.string().valid('active', 'inactive', 'blocked').required(),
     reason: Joi.string().trim().allow('').optional(),
   }),
+
+  /** Admin delete user - optional query type to target manager, staff, or user */
+  deleteUser: Joi.object({
+    type: Joi.string().valid('manager', 'staff', 'user').optional(),
+  }),
 };
