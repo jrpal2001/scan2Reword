@@ -2,7 +2,7 @@
 
 **Base URL:** `http://localhost:3000` (or your server URL)  
 **Version:** 1.0.0  
-**Last Updated:** February 19, 2026
+**Last Updated:** February 23, 2026
 
 ---
 
@@ -197,7 +197,7 @@ ownerEmail: "owner@example.com" (if non-registered)
 ### 6. Refresh Token
 **Endpoint:** `POST /api/auth/refresh`  
 **Access:** Public  
-**Description:** Get new access token using refresh token
+**Description:** Get new access and refresh tokens using a valid refresh token. Refresh tokens are stored in MongoDB; rotation is applied (old token revoked, new one issued). If the refresh token is expired/revoked/invalid, the backend logs out only the device associated with that token (if identifiable via fcmToken) and returns 401.
 
 **Request Body:**
 ```json
@@ -215,6 +215,32 @@ ownerEmail: "owner@example.com" (if non-registered)
     "accessToken": "...",
     "refreshToken": "..."
   }
+}
+```
+
+---
+
+### 7. Logout
+**Endpoint:** `POST /api/auth/logout`  
+**Access:** Authenticated (Bearer Token)  
+**Description:** Log out the user. Optional body: `refreshToken`, `fcmToken`. If `fcmToken` is provided, only that device is logged out; if `refreshToken` is provided, only that token is revoked; if neither is provided, all devices are logged out.
+
+**Headers:** `Authorization: Bearer <access-token>`
+
+**Request Body (optional):**
+```json
+{
+  "refreshToken": "eyJhbGci...",
+  "fcmToken": "fcm-device-token..."
+}
+```
+
+**Response:**
+```json
+{
+  "success": true,
+  "message": "Logged out successfully",
+  "data": { "loggedOutDevices": 1 }
 }
 ```
 
@@ -294,12 +320,11 @@ ownerEmail: "owner@example.com" (if non-registered)
 ```
 
 **Note:** 
-- **Admin can create Manager:** Set `"role": "manager"` - password required, referral code is auto-generated
-- **Admin can create Staff:** Set `"role": "staff"` - password required, referral code is auto-generated
-- **Admin can create User:** Set `"role": "user"` (or omit, defaults to "user") - password optional
-- **Password:** Minimum 6 characters, required for manager/staff roles (they login with password)
-- Manager/Staff roles get auto-generated referral codes
-- Vehicle is optional and typically only for regular users
+- **Admin can create Manager:** Set `"role": "manager"` - password required; managerCode and referral code auto-generated. **accountType** not needed (ignored for manager/staff).
+- **Admin can create Staff:** Set `"role": "staff"` - password required; staffCode and referral code auto-generated; optional `assignedManagerId`, `pumpId`. **accountType** not needed.
+- **Admin can create User:** Set `"role": "user"` (or omit) - optional **accountType**: `"individual"` (default) or `"organization"`. For organization: **ownerType** `"registered"` (use **ownerIdentifier** to link) or `"non-registered"` (send **owner** object to create owner + driver). Optional files: profilePhoto, driverPhoto, ownerPhoto, rcPhoto.
+- **Password:** Minimum 6 characters, required for manager/staff roles.
+- Manager restricted to one pump; staff restricted to one manager and one pump. Response may include `assignment` and `ownerId` when applicable.
 
 **Response:**
 ```json
@@ -368,7 +393,7 @@ ownerEmail: "owner@example.com" (if non-registered)
 ---
 
 #### Update User
-**Endpoint:** `PUT /api/admin/users/:userId`  
+**Endpoint:** `PATCH /api/admin/users/:userId`  
 **Description:** Update user details
 
 **Request Body:**
@@ -391,7 +416,7 @@ ownerEmail: "owner@example.com" (if non-registered)
 ---
 
 #### Update User Status
-**Endpoint:** `PUT /api/admin/users/:userId/status`  
+**Endpoint:** `PATCH /api/admin/users/:userId/status`  
 **Description:** Block or unblock a user
 
 **Request Body:**
@@ -478,7 +503,7 @@ ownerEmail: "owner@example.com" (if non-registered)
 ---
 
 #### Update Pump
-**Endpoint:** `PUT /api/admin/pumps/:pumpId`  
+**Endpoint:** `PATCH /api/admin/pumps/:pumpId`  
 **Description:** Update pump details
 
 **Request Body:**
@@ -582,7 +607,7 @@ ownerEmail: "owner@example.com" (if non-registered)
 ---
 
 #### Update Campaign
-**Endpoint:** `PUT /api/admin/campaigns/:campaignId`  
+**Endpoint:** `PATCH /api/admin/campaigns/:campaignId`  
 **Description:** Update campaign details
 
 **Request Body:**
@@ -680,7 +705,7 @@ ownerEmail: "owner@example.com" (if non-registered)
 ---
 
 #### Update Banner
-**Endpoint:** `PUT /api/admin/banners/:bannerId`  
+**Endpoint:** `PATCH /api/admin/banners/:bannerId`  
 **Description:** Update banner details
 
 **Request Body:**
@@ -782,7 +807,7 @@ ownerEmail: "owner@example.com" (if non-registered)
 ---
 
 #### Update Reward
-**Endpoint:** `PUT /api/admin/rewards/:rewardId`  
+**Endpoint:** `PATCH /api/admin/rewards/:rewardId`  
 **Description:** Update reward details
 
 **Request Body:**
@@ -1021,7 +1046,7 @@ ownerEmail: "owner@example.com" (if non-registered)
 ---
 
 #### Update Config
-**Endpoint:** `PUT /api/admin/config`  
+**Endpoint:** `PATCH /api/admin/config`  
 **Description:** Update system configuration
 
 **Request Body:**
@@ -1249,7 +1274,7 @@ ownerEmail: "owner@example.com" (if non-registered)
 ---
 
 #### Update Campaign
-**Endpoint:** `PUT /api/manager/campaigns/:campaignId`  
+**Endpoint:** `PATCH /api/manager/campaigns/:campaignId`  
 **Description:** Update campaign (only if manager owns it)
 
 **Request Body:**
@@ -1345,7 +1370,7 @@ ownerEmail: "owner@example.com" (if non-registered)
 ---
 
 #### Update Banner
-**Endpoint:** `PUT /api/manager/banners/:bannerId`  
+**Endpoint:** `PATCH /api/manager/banners/:bannerId`  
 **Description:** Update banner (only if manager owns it)
 
 **Request Body:**
@@ -1650,7 +1675,7 @@ ownerEmail: "owner@example.com" (if non-registered)
 ---
 
 #### Update Vehicle
-**Endpoint:** `PUT /api/user/vehicles/:vehicleId`  
+**Endpoint:** `PATCH /api/user/vehicles/:vehicleId`  
 **Description:** Update vehicle details
 
 **Request Body:**
@@ -2554,4 +2579,4 @@ If the same key is used within 24 hours, the cached response is returned.
 
 ---
 
-**Last Updated:** February 19, 2026
+**Last Updated:** February 23, 2026

@@ -1,6 +1,6 @@
 # Complete System Flow with APIs - Scan2Reward
 
-**Last Updated:** February 19, 2026  
+**Last Updated:** February 23, 2026  
 **Base URL:** `http://localhost:3000` (or your server URL)
 
 This document explains the complete flow of how the Scan2Reward loyalty system works, including all API calls at each step.
@@ -26,7 +26,7 @@ This document explains the complete flow of how the Scan2Reward loyalty system w
 
 ### Step 1.1: Admin Login
 
-**API:** `POST /api/admin/login`
+**API:** `POST /api/auth/login` (or legacy `POST /api/admin/login`)
 
 **Request:**
 ```json
@@ -83,7 +83,7 @@ Authorization: Bearer <admin-access-token>
 }
 ```
 
-**Note:** You can update these values using `PUT /api/admin/config` if needed.
+**Note:** You can update these values using `PATCH /api/admin/config` if needed.
 
 ---
 
@@ -429,7 +429,7 @@ Authorization: Bearer <admin-access-token>
 
 ### Step 4.2: Assign Manager to Pump
 
-**API:** `PUT /api/admin/pumps/:pumpId`
+**API:** `PATCH /api/admin/pumps/:pumpId`
 
 **Request:**
 ```json
@@ -454,7 +454,7 @@ Authorization: Bearer <admin-access-token>
 
 ### Step 4.3: Remove Manager from Pump
 
-**API:** `PUT /api/admin/pumps/:pumpId`
+**API:** `PATCH /api/admin/pumps/:pumpId`
 
 **Request:**
 ```json
@@ -1225,4 +1225,4 @@ GET /api/user/:userId/wallet
 
 ---
 
-**Last Updated:** February 19, 2026
+**Last Updated:** February 23, 2026

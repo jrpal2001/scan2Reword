@@ -1,7 +1,7 @@
 # Fuel Station Loyalty & QR Vehicle Reward System — Design Document
 
 **Version:** 1.0  
-**Last Updated:** February 18, 2026  
+**Last Updated:** February 23, 2026  
 **Status:** Draft  
 **Document Classification:** Internal Use
 
@@ -333,7 +333,7 @@ Design choice: **Option A** is sufficient for “one owner, many vehicle-users, 
 |-------|----------|-----|
 | Auth | register, login, verify-otp, resend-otp | Public / User |
 | Owner | search owner, add vehicle to fleet, get fleet vehicles | Public (search) / Owner (authenticated) |
-| Users | GET/PUT /users/:id, vehicles, wallet | User (self), Admin |
+| Users | GET/PATCH /users/:id, vehicles, wallet | User (self), Admin |
 | Scan | POST /scan/qr, /scan/validate, /scan/redeem | Staff, Manager, Admin |
 | Transactions | POST/GET /transactions, calculate-points | Staff, Manager, Admin |
 | Wallet | GET wallet, ledger; POST adjust | User, Manager, Admin |

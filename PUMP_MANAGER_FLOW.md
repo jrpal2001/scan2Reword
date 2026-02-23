@@ -133,13 +133,13 @@ Content-Type: application/json
 
 ### Step 3: Update Pump Manager
 
-**Endpoint:** `PUT /api/admin/pumps/:pumpId`  
+**Endpoint:** `PATCH /api/admin/pumps/:pumpId`  
 **Authentication:** Required (Admin Bearer Token)  
 **Description:** Update pump details, including changing the manager
 
 **Request:**
 ```http
-PUT /api/admin/pumps/507f1f77bcf86cd799439020
+PATCH /api/admin/pumps/507f1f77bcf86cd799439020
 Authorization: Bearer <admin-access-token>
 Content-Type: application/json
 ```
@@ -276,7 +276,7 @@ Content-Type: application/json
 
 #### 4. (Optional) Update Manager Later
 ```http
-PUT /api/admin/pumps/65b2c3d4e5f6g7h8i9j0k1l2
+PATCH /api/admin/pumps/65b2c3d4e5f6g7h8i9j0k1l2
 Authorization: Bearer eyJhbGci...
 Content-Type: application/json
 
@@ -372,8 +372,8 @@ Currently, there's no validation preventing a manager from being assigned to mul
 | **Get Managers** | `/api/admin/users?role=manager` | GET | N/A |
 | **Create Pump (with manager)** | `/api/admin/pumps` | POST | `"507f1f77bcf86cd799439011"` |
 | **Create Pump (no manager)** | `/api/admin/pumps` | POST | `""` or omit |
-| **Update Manager** | `/api/admin/pumps/:pumpId` | PUT | `"507f1f77bcf86cd799439012"` |
-| **Remove Manager** | `/api/admin/pumps/:pumpId` | PUT | `""` or `null` |
+| **Update Manager** | `/api/admin/pumps/:pumpId` | PATCH | `"507f1f77bcf86cd799439012"` |
+| **Remove Manager** | `/api/admin/pumps/:pumpId` | PATCH | `""` or `null` |
 
 ---
 

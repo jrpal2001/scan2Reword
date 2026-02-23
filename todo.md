@@ -1,6 +1,6 @@
 # Backend Todo — Fuel Station Loyalty & QR Vehicle Reward System
 
-**Last Updated:** February 18, 2026  
+**Last Updated:** February 23, 2026  
 **References:** `Fuel-Loyalty-System-PRD.md`, `Fuel-Loyalty-System-Design-Document.md`, `Tech-Stack-Definition.md`
 
 **Architecture:** Clean Architecture (Controller → Service → Repository → Model) in MVC-style folders.
@@ -49,7 +49,9 @@ Backend follows **Controller → Service → Repository → Model** plus cross-c
 - [x] **Password hashing** — Bcrypt in authService (hashPassword, compare in loginWithPassword)
 - [x] **Auth middleware** — `src/middlewares/auth.middleware.js` (verifyJWT); attach req.user, req.userType
 - [x] **OTP flow** — Generate, store in `Otp.model.js`, send via SMS stub; verify in verifyOtp; resend = sendOtp again
-- [x] **Refresh token** — `POST /api/auth/refresh`; `issueRefreshToken()` in authService; refresh endpoint validates refresh token and returns new access + refresh tokens; both tokens returned on login/verifyOtp
+- [x] **Refresh token** — `POST /api/auth/refresh`; refresh tokens stored in MongoDB (RefreshToken model); rotation on refresh; validates from DB; on expired/revoked refresh, logs out only that device (by fcmToken) and returns 401
+- [x] **Logout** — `POST /api/auth/logout` (verifyJWT); optional body: `refreshToken`, `fcmToken`; device-specific logout when fcmToken provided, else revoke single token or all user tokens
+- [x] **Multi-device login** — FCM tokens stored per user; refresh tokens per device with fcmToken, deviceInfo, ipAddress, userAgent; login/verifyOtp accept optional fcmToken, deviceInfo
 
 ---
 
@@ -75,7 +77,7 @@ Backend follows **Controller → Service → Repository → Model** plus cross-c
 - [x] **Staff create user** — `POST /api/staff/users`; Joi userValidation.createUserByOperator; attachPumpScope; credit registration points to staff (TODO: config)
 - [x] **Referral code** — Auto-generate referral code when admin creates manager/staff; `generateReferralCode()` in userService; `GET /api/user/referral-code` endpoint; validate on self-register; credit referral points from SystemConfig when user registers with referral code
 - [x] **Registration points** — SystemConfig for points per registration (`points.registration`); credit in `createUserByManagerOrStaff()` via pointsService/ledger when manager/staff creates user
-- [x] **Account types** — Support Individual and Organization (fleet) registration; **fleet owner** has their own User account with ID; fleet driver users have `ownerId` pointing to owner; registration supports registered owner (search by ID/phone) and non-registered owner (create owner + driver + vehicle); owner endpoints: search owner, add vehicle to fleet, get fleet vehicles
+- [x] **Account types** — Support Individual and Organization (fleet) registration; **fleet owner** has their own User account with ID; fleet driver users have `ownerId` pointing to owner; registration supports registered owner (search by ID/phone) and non-registered owner (create owner + driver + vehicle); owner endpoints: search owner, add vehicle to fleet, get fleet vehicles. **accountType** only required for role=USER; for manager/staff creation, accountType is optional/ignored
 
 ---
 
@@ -87,7 +89,7 @@ Backend follows **Controller → Service → Repository → Model** plus cross-c
 - [x] **vehicleRepository** — `src/repositories/vehicle.repository.js`: create, findById, findByUserId, findByLoyaltyId, findByVehicleNumber, update, list
 - [x] **vehicleService** — `src/services/vehicle.service.js`: generateLoyaltyId (LOY + 8 digits), createVehicle, getVehiclesByUserId, getVehicleById, getVehicleByLoyaltyId
 - [x] **GET vehicles** — `GET /api/user/vehicles`; vehicleController.getVehicles → vehicleService; optional `?userId` for admin/manager; include loyaltyId (no QR URLs)
-- [x] **Add/edit vehicle** — `POST /api/user/vehicles` (Joi vehicleValidation.create), `PUT /api/user/vehicles/:vehicleId` (Joi vehicleValidation.update); ownership check in controller
+- [x] **Add/edit vehicle** — `POST /api/user/vehicles` (Joi vehicleValidation.create), `PATCH /api/user/vehicles/:vehicleId` (Joi vehicleValidation.update); ownership check in controller
 - [x] **Indexes** — userId, loyaltyId (unique), vehicleNumber (unique)
 
 ---
@@ -107,8 +109,8 @@ Backend follows **Controller → Service → Repository → Model** plus cross-c
 ## Pumps & staff assignment
 
 - [x] **Pump model** — `src/models/Pump.model.js`: _id, name, code (unique), location (address, city, state, pincode, lat, lng), managerId, status, settings, timezone, currency
-- [x] **Staff assignments** — `src/models/StaffAssignment.model.js`: userId, pumpId, status; used by RBAC to scope manager/staff to their pump(s)
-- [x] **Admin pump CRUD** — `POST /api/admin/pumps` (create), `GET /api/admin/pumps` (list), `GET /api/admin/pumps/:pumpId` (get), `PUT /api/admin/pumps/:pumpId` (update), `DELETE /api/admin/pumps/:pumpId` (delete); Joi pumpValidation; assign manager via managerId
+- [x] **Staff assignments** — `src/models/StaffAssignment.model.js`: userId, pumpId, status; used by RBAC to scope manager/staff to their pump(s); staff restricted to one manager and one pump; manager restricted to one pump
+- [x] **Admin pump CRUD** — `POST /api/admin/pumps` (create), `GET /api/admin/pumps` (list), `GET /api/admin/pumps/:pumpId` (get), `PATCH /api/admin/pumps/:pumpId` (update), `DELETE /api/admin/pumps/:pumpId` (delete); Joi pumpValidation; assign manager via managerId; manager restricted to one pump only
 - [x] **Manager/staff pump scope** — `attachPumpScope` middleware sets `req.allowedPumpIds`; manager gets pumps where `managerId = req.user._id`; staff gets pumps from `StaffAssignment`; all manager/staff queries filter by `req.allowedPumpIds`
 
 ---
@@ -143,8 +145,8 @@ Backend follows **Controller → Service → Repository → Model** plus cross-c
 ## Campaigns
 
 - [x] **Campaign model** — `src/models/Campaign.model.js`: name, type (multiplier/bonusPoints/bonusPercentage), multiplier/bonusPoints/bonusPercentage, startDate, endDate, conditions (minAmount, categories, userSegment, frequencyLimit), pumpIds (empty = all), createdBy, createdByRole (admin|manager), status
-- [x] **Admin campaigns** — CRUD `POST/GET/PUT/DELETE /api/admin/campaigns`; Joi validation; can set any pumpIds or global (empty array)
-- [x] **Manager campaigns** — CRUD `POST/GET/PUT/DELETE /api/manager/campaigns`; Joi validation; pumpIds restricted to manager's assigned pump(s) only; manager must assign to at least one pump
+- [x] **Admin campaigns** — CRUD `POST/GET/PATCH/DELETE /api/admin/campaigns`; Joi validation; can set any pumpIds or global (empty array)
+- [x] **Manager campaigns** — CRUD `POST/GET/PATCH/DELETE /api/manager/campaigns`; Joi validation; pumpIds restricted to manager's assigned pump(s) only; manager must assign to at least one pump
 - [x] **Apply campaign** — In transaction points calculation: `campaignService.findActiveCampaignsForTransaction()` checks active campaigns (date, pump, category, min amount); applies multiplier/bonusPoints/bonusPercentage; first matching campaign applied; campaignId saved in transaction
 - [x] **Indexes** — status, startDate, endDate, pumpIds, createdBy, (status, startDate, endDate) composite
 
@@ -154,8 +156,8 @@ Backend follows **Controller → Service → Repository → Model** plus cross-c
 
 - [x] **Banner model** — `src/models/Banner.model.js`: title, description, imageUrl, linkUrl, startTime, endTime, pumpIds (empty = global), createdBy, createdByRole (admin|manager), status (active|expired), createdAt, updatedAt
 - [x] **GET active banners** — `GET /api/banners` (public); filters startTime ≤ now and endTime > now; optional `?pumpId` query param; returns only active banners (auto-removal via query-time filter)
-- [x] **Admin banners** — CRUD `POST/GET/PUT/DELETE /api/admin/banners`; Joi validation; can set any pumpIds or global (empty array)
-- [x] **Manager banners** — CRUD `POST/GET/PUT/DELETE /api/manager/banners`; Joi validation; pumpIds restricted to manager's assigned pump(s) only; manager must assign to at least one pump — CRUD `/api/manager/banners`; only for manager’s pump(s)
+- [x] **Admin banners** — CRUD `POST/GET/PATCH/DELETE /api/admin/banners`; Joi validation; can set any pumpIds or global (empty array)
+- [x] **Manager banners** — CRUD `POST/GET/PATCH/DELETE /api/manager/banners`; Joi validation; pumpIds restricted to manager's assigned pump(s) only; manager must assign to at least one pump — CRUD `/api/manager/banners`; only for manager’s pump(s)
 - [x] **Auto-removal** — `bannerRepository.findActiveBanners()` returns only banners where endTime > now (no cron needed, query-time filter)
 - [x] **Indexes** — startTime, endTime, pumpIds, status, (startTime, endTime) composite
 
@@ -191,7 +193,7 @@ Backend follows **Controller → Service → Repository → Model** plus cross-c
 ## System config
 
 - [x] **SystemConfig** — `src/models/SystemConfig.model.js`: Singleton model with registration points, referral points, fuel points per liter, other category rules (points per ₹100), points expiry duration (months), expiry notification days (array)
-- [x] **Admin config APIs** — `GET /api/admin/config` and `PUT /api/admin/config` (admin only); Joi validation; singleton pattern ensures only one config document
+- [x] **Admin config APIs** — `GET /api/admin/config` and `PATCH /api/admin/config` (admin only); Joi validation; points.fuel/lubricant/store/service accept number or object; singleton pattern ensures only one config document
 
 ---
 
@@ -199,7 +201,7 @@ Backend follows **Controller → Service → Repository → Model** plus cross-c
 
 - [x] **Cloudinary or S3** — Upload middleware (`src/middlewares/uploadToS3.js`) with multer + AWS S3; image compression using sharp (`src/utils/imageCompressor.js`) before upload; used for bill photos, receipts, user photos, vehicle RC photos
 - [x] **Store URLs** — URLs saved in `transaction.attachments`, `user.profilePhoto/driverPhoto/ownerPhoto`, `vehicle.rcPhoto` after S3 upload
-- [x] **Validation** — File type and size limits in `src/utils/multerConfig.js` (JPEG, PNG, PDF; 5MB limit)
+- [x] **Validation** — File type and size limits in `src/utils/multerConfig.js` (JPEG, PNG, PDF; 50MB limit); shared `userUploadFields` (profilePhoto, driverPhoto, ownerPhoto, rcPhoto) for user/registration routes
 
 ---
 
@@ -224,7 +226,7 @@ Backend follows **Controller → Service → Repository → Model** plus cross-c
 ## Admin & manager APIs
 
 - [x] **Admin dashboard** — `GET /api/admin/dashboard` (`src/services/dashboard.service.js`); aggregate stats: users (total, new today/month, active), transactions (total, today, this month), revenue (today, this month, last month, growth %), points (total earned/redeemed/expired/available), redemptions (total, today, this month)
-- [x] **Admin users** — `GET /api/admin/users` (list with filters: role, status, search), `GET /api/admin/users/:userId` (get by ID), `PUT /api/admin/users/:userId` (update), `PUT /api/admin/users/:userId/status` (block/unblock); all with audit logging
+- [x] **Admin users** — `GET /api/admin/users` (list with filters: role, status, search), `GET /api/admin/users/:userId` (get by ID), `PATCH /api/admin/users/:userId` (update), `PATCH /api/admin/users/:userId/status` (block/unblock); all with audit logging
 - [x] **Manager dashboard** — `GET /api/manager/dashboard` (`src/services/dashboard.service.js`); pump-scoped stats: transactions (today, this month), revenue (today, this month), points issued (today, this month), redemptions (today, this month)
 - [ ] **Manager transactions** — List transactions for manager’s pump(s); filters and pagination
 - [ ] **Organization (fleet)** — Owner: aggregate “all total fleet points” and per-vehicle points (users where ownerId = owner’s _id)
@@ -250,7 +252,7 @@ Backend follows **Controller → Service → Repository → Model** plus cross-c
 
 ## Optional / later
 
-- [ ] Refresh token rotation and blocklist (in-memory or DB)
+- [x] **Refresh token** — Stored in MongoDB (RefreshToken model), rotation on refresh, device-specific logout on expiry (see Authentication section)
 - [ ] OpenAPI/Swagger spec for API
 - [ ] Redis for rate limit or cache (if introduced, update Tech Stack and Design Doc)
 

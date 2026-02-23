@@ -33,9 +33,10 @@ Staff are connected to pumps via the **`StaffAssignment`** model:
 ```
 
 **Important:**
-- One staff can be assigned to **multiple pumps**
-- One pump can have **multiple staff** assigned
-- Unique constraint: `(userId, pumpId)` - prevents duplicate assignments
+- **Staff:** One staff is restricted to **one manager** and **one pump** (single active assignment).
+- **Manager:** One manager is restricted to **one pump**.
+- One pump can have **multiple staff** assigned.
+- Unique constraint: `(userId, pumpId)` - prevents duplicate assignments.
 
 ---
 

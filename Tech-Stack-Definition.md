@@ -2,7 +2,7 @@
 
 **Project:** Fuel Station Loyalty & QR Vehicle Reward System  
 **Version:** 1.0  
-**Last Updated:** February 18, 2026  
+**Last Updated:** February 23, 2026  
 **Status:** Active  
 **Document Classification:** Internal Use
 
@@ -82,7 +82,7 @@ This document defines the **mandatory technology stack** and **technical rules**
 - **Response shape:**
   - Success: `{ success: true, message?: string, data?: T, meta?: { page, limit, total, totalPages } }`.
   - Error: HTTP status 4xx/5xx + `{ success: false, message: string, errors?: [] }`.
-- **HTTP methods:** Use GET (read), POST (create), PUT/PATCH (update), DELETE (delete) as per REST.
+- **HTTP methods:** Use GET (read), POST (create), PATCH (update; prefer PATCH over PUT for partial updates), DELETE (delete) as per REST.
 - **Idempotency:** Support `Idempotency-Key` header for `POST /api/transactions` and `POST /api/redeem` (or equivalent) where applicable.
 - **Validation:** Validate and sanitize all inputs (e.g. Joi, Zod); reject invalid payloads with 400 and clear message.
 
@@ -95,7 +95,7 @@ This document defines the **mandatory technology stack** and **technical rules**
   - Identifier = one of: **email**, **username**, **phone number**, or **user ID** (string).
   - Endpoint: `POST /api/auth/login` with `identifier` and `password` → JWT.
 - **Passwords:** Never store or log plain text; use Bcrypt/Argon2 only.
-- **JWT:** Include `userId`, `role`, and (for manager/staff) pump scope in payload; validate on every protected request.
+- **JWT:** Include `userId`, `role`, and (for manager/staff) pump scope in payload; validate on every protected request. **Refresh tokens** stored in MongoDB (RefreshToken model); rotation on refresh; device-specific logout on expiry; **Logout** API supports device (fcmToken) or single-token or all-devices logout.
 
 ### 3.3 Authorization Rules
 
