@@ -653,6 +653,20 @@ export const userService = {
   },
 
   /**
+   * Get staff by ID
+   */
+  async getStaffById(staffId) {
+    return staffRepository.findById(staffId);
+  },
+
+  /**
+   * Get manager by ID
+   */
+  async getManagerById(managerId) {
+    return managerRepository.findById(managerId);
+  },
+
+  /**
    * List users with filters (admin)
    */
   async listUsers(filter = {}, options = {}) {
@@ -660,7 +674,7 @@ export const userService = {
   },
 
   /**
-   * Update user (admin) - for customers (User model) only. Manager/Staff updates use separate endpoints if needed.
+   * Update user (admin) - for customers (User model) only.
    */
   async updateUser(userId, updateData, adminId) {
     const user = await userRepository.findById(userId);
@@ -670,6 +684,47 @@ export const userService = {
     const { passwordHash, assignedManagerId, managerCode, staffCode, role, ...safeUpdateData } = updateData;
     const updated = await userRepository.update(userId, safeUpdateData);
     return updated;
+  },
+
+  /**
+   * Update staff (admin) - set assignedManagerId, fullName, email, address.
+   */
+  async updateStaff(staffId, updateData, adminId) {
+    const staff = await staffRepository.findById(staffId);
+    if (!staff) {
+      throw new ApiError(HTTP_STATUS.NOT_FOUND, 'Staff not found');
+    }
+    const allowed = ['fullName', 'email', 'address', 'assignedManagerId'];
+    const safe = {};
+    for (const key of allowed) {
+      if (updateData[key] !== undefined) safe[key] = updateData[key];
+    }
+    if (safe.assignedManagerId === '') safe.assignedManagerId = null;
+    if (Object.keys(safe).length === 0) return staff;
+    if (safe.assignedManagerId) {
+      const manager = await managerRepository.findById(safe.assignedManagerId);
+      if (!manager) throw new ApiError(HTTP_STATUS.BAD_REQUEST, 'assignedManagerId must be a valid manager');
+    }
+    const updated = await staffRepository.update(staffId, safe);
+    return { ...updated, role: ROLES.STAFF };
+  },
+
+  /**
+   * Update manager (admin) - fullName, email, address.
+   */
+  async updateManager(managerId, updateData, adminId) {
+    const manager = await managerRepository.findById(managerId);
+    if (!manager) {
+      throw new ApiError(HTTP_STATUS.NOT_FOUND, 'Manager not found');
+    }
+    const allowed = ['fullName', 'email', 'address'];
+    const safe = {};
+    for (const key of allowed) {
+      if (updateData[key] !== undefined) safe[key] = updateData[key];
+    }
+    if (Object.keys(safe).length === 0) return manager;
+    const updated = await managerRepository.update(managerId, safe);
+    return { ...updated, role: ROLES.MANAGER };
   },
 
   /**

@@ -207,32 +207,52 @@ export const getUserById = asyncHandler(async (req, res) => {
 });
 
 /**
- * PUT /api/admin/users/:userId
- * Update user
+ * PATCH /api/admin/users/:userId
+ * Query: type (optional) - 'manager' | 'staff' | 'user'. If omitted, treats as customer (user).
+ * Update user (customer), staff, or manager. For staff you can set assignedManagerId. For pump assignment use POST /api/admin/staff-assignments.
  */
 export const updateUser = asyncHandler(async (req, res) => {
   const { userId } = req.params;
   const updateData = req.validated;
+  const type = (req.query.type || 'user').toLowerCase();
 
-  // Get user before update for audit log
-  const userBefore = await userService.getUserById(userId);
+  let before = null;
+  let updated = null;
+  let entityType = 'User';
 
-  const updated = await userService.updateUser(userId, updateData, req.user._id);
+  if (type === 'staff') {
+    const staffBefore = await userService.getStaffById(userId);
+    if (!staffBefore) throw new ApiError(HTTP_STATUS.NOT_FOUND, 'Staff not found');
+    before = { fullName: staffBefore.fullName, email: staffBefore.email, assignedManagerId: staffBefore.assignedManagerId };
+    updated = await userService.updateStaff(userId, updateData, req.user._id);
+    entityType = 'Staff';
+  } else if (type === 'manager') {
+    const managerBefore = await userService.getManagerById(userId);
+    if (!managerBefore) throw new ApiError(HTTP_STATUS.NOT_FOUND, 'Manager not found');
+    before = { fullName: managerBefore.fullName, email: managerBefore.email };
+    updated = await userService.updateManager(userId, updateData, req.user._id);
+    entityType = 'Manager';
+  } else {
+    const userBefore = await userService.getUserById(userId);
+    before = { fullName: userBefore.fullName, email: userBefore.email, role: userBefore.role, status: userBefore.status };
+    updated = await userService.updateUser(userId, updateData, req.user._id);
+    entityType = 'User';
+  }
 
-  // Log audit
   await auditLogService.log({
     userId: req.user._id,
     action: 'user.update',
-    entityType: 'User',
+    entityType,
     entityId: userId,
-    before: { fullName: userBefore.fullName, email: userBefore.email, role: userBefore.role, status: userBefore.status },
-    after: { fullName: updated.fullName, email: updated.email, role: updated.role, status: updated.status },
+    before,
+    after: { fullName: updated.fullName, email: updated.email, ...(updated.assignedManagerId !== undefined && { assignedManagerId: updated.assignedManagerId }) },
     ipAddress: req.ip,
     userAgent: req.get('user-agent'),
   });
 
+  const message = type === 'staff' ? 'Staff updated successfully' : type === 'manager' ? 'Manager updated successfully' : 'User updated successfully';
   return res.status(HTTP_STATUS.OK).json(
-    ApiResponse.success(updated, 'User updated successfully')
+    ApiResponse.success(updated, message)
   );
 });
 

@@ -183,25 +183,62 @@ Or use owner `_id` or email as `identifier`.
 **Header:** `Authorization: Bearer <admin-accessToken>`
 
 #### 8) Create manager
-```http
-POST {{baseUrl}}/api/admin/users
-Content-Type: application/json
-```
+**API:** `POST {{baseUrl}}/api/admin/users`  
+**Header:** `Authorization: Bearer <admin-accessToken>`  
+**Body:** JSON or form-data (form-data if sending profilePhoto).
+
+**All allowed fields for Manager:**
+
+| Field        | Type   | Required | Description |
+|-------------|--------|----------|-------------|
+| fullName    | string | Yes      | 2–100 chars |
+| mobile      | string | Yes      | 10-digit Indian (6–9 start) |
+| email       | string | No       | Valid email, lowercased |
+| role        | string | Yes      | Must be `"manager"` |
+| password    | string | Yes      | Min 6 chars (for manager/staff) |
+| address     | object | No       | `{ street?, city?, state?, pincode? }` |
+| managerCode | string | No       | Auto-generated (e.g. MGR0001) if omitted |
+| profilePhoto| file   | No       | Send via form-data key `profilePhoto` |
+
+**Example (JSON):**
 ```json
 {
   "fullName": "Rajesh Manager",
   "mobile": "9777777777",
   "email": "rajesh@example.com",
   "role": "manager",
-  "password": "manager123"
+  "password": "manager123",
+  "address": {
+    "street": "Main Rd",
+    "city": "Mumbai",
+    "state": "MH",
+    "pincode": "400001"
+  }
 }
 ```
+*Optional: `managerCode` (e.g. `"MGR0001"`) — if not sent, a unique code is auto-generated. Referral code is auto-generated.*
 
 #### 9) Create staff
-```http
-POST {{baseUrl}}/api/admin/users
-Content-Type: application/json
-```
+**API:** `POST {{baseUrl}}/api/admin/users`  
+**Header:** `Authorization: Bearer <admin-accessToken>`  
+**Body:** JSON or form-data (form-data if sending profilePhoto).
+
+**All allowed fields for Staff:**
+
+| Field             | Type   | Required | Description |
+|-------------------|--------|----------|-------------|
+| fullName          | string | Yes      | 2–100 chars |
+| mobile            | string | Yes      | 10-digit Indian (6–9 start) |
+| email             | string | No       | Valid email, lowercased |
+| role              | string | Yes      | Must be `"staff"` |
+| password          | string | Yes      | Min 6 chars (for manager/staff) |
+| address           | object | No       | `{ street?, city?, state?, pincode? }` |
+| staffCode         | string | No       | Auto-generated (e.g. STF0001) if omitted |
+| assignedManagerId | string | No       | Manager’s MongoDB _id (24-char hex) |
+| pumpId            | string | No       | Pump’s _id to assign staff to this pump at creation |
+| profilePhoto      | file   | No       | Send via form-data key `profilePhoto` |
+
+**Example (JSON):**
 ```json
 {
   "fullName": "Priya Staff",
@@ -210,9 +247,45 @@ Content-Type: application/json
   "role": "staff",
   "password": "staff123",
   "assignedManagerId": "<manager-_id>",
+  "pumpId": "<pump-_id>",
+  "address": {
+    "street": "Pump Lane",
+    "city": "Pune",
+    "state": "MH",
+    "pincode": "411001"
+  }
+}
+```
+*Optional: `staffCode` — auto-generated if omitted. Referral code is auto-generated. If `pumpId` is provided, staff is assigned to that pump on creation.*
+
+#### 9a) Assign staff to a manager and/or pump
+
+**Assign staff to a manager (set who manages this staff):**  
+**API:** `PATCH {{baseUrl}}/api/admin/users/:userId?type=staff`  
+**Header:** `Authorization: Bearer <admin-accessToken>`  
+**Params:** `userId` = staff’s MongoDB `_id`.  
+**Query:** `type=staff` (required so the endpoint updates the Staff record).  
+**Body (JSON):**
+```json
+{
+  "assignedManagerId": "<manager-_id>"
+}
+```
+Optional: `fullName`, `email`, `address` can be included in the same body.
+
+**Assign staff to a pump (which pump they work at):**  
+**API:** `POST {{baseUrl}}/api/admin/staff-assignments`  
+**Header:** `Authorization: Bearer <admin-accessToken>`  
+**Body (JSON):**
+```json
+{
+  "staffId": "<staff-_id>",
   "pumpId": "<pump-_id>"
 }
 ```
+This creates a staff–pump assignment. To remove, use `DELETE /api/admin/staff-assignments/:assignmentId`. To list assignments: `GET /api/admin/staff-assignments`.
+
+**Summary:** Use **PATCH** with `?type=staff` to set a staff’s **manager**; use **POST** staff-assignments to assign the staff to a **pump**.
 
 #### 10) Admin – Create individual user
 ```http
@@ -426,8 +499,28 @@ GET {{baseUrl}}/api/user/me
 For **register** or **admin/manager/staff create user** with photos, use **form-data** in Postman:
 
 - **Body** → **form-data**
-- Add fields as above (e.g. `accountType`, `mobile`, `fullName`, `vehicle` as JSON string or separate keys).
-- Add file keys: `profilePhoto`, `driverPhoto`, `ownerPhoto`, `rcPhoto` (each one file).
+- Add all text fields as above (e.g. `accountType`, `mobile`, `fullName`, `vehicle` as JSON string).
+- Add **file** fields by choosing **File** in the type dropdown and selecting an image (JPEG/PNG) or PDF.
 
-For nested objects (e.g. `vehicle`, `owner`, `address`) you can send as a single key with value as JSON string, e.g.  
+### Image keys for `POST /api/admin/users` (and register / manager / staff create user)
+
+| Form-data key    | Type   | Where it goes                    |
+|------------------|--------|-----------------------------------|
+| **profilePhoto** | 1 file | User/Manager/Staff profile photo  |
+| **driverPhoto**  | 1 file | Driver (user) photo               |
+| **ownerPhoto**   | 1 file | Fleet owner photo (organization)  |
+| **rcPhoto**      | 1 file | Vehicle RC document               |
+| **insurancePhoto** | 1 file | Vehicle insurance                 |
+| **fitnessPhoto** | 1 file | Vehicle fitness                   |
+| **pollutionPhoto** | 1 file | Vehicle pollution                 |
+| **vehiclePhoto** | 1–5 files | Vehicle image(s)                |
+
+**Example in Postman:** For `POST {{baseUrl}}/api/admin/users` with organization + vehicle + images:
+
+- Text: `accountType`, `ownerType`, `owner`, `mobile`, `fullName`, `email`, `vehicle`, `role`, `address`, (optional) `referralCode`, etc.
+- File: `profilePhoto` (driver’s profile), `ownerPhoto` (owner’s photo), `rcPhoto` (vehicle RC image). Optionally add `driverPhoto`, `insurancePhoto`, `fitnessPhoto`, `pollutionPhoto`, `vehiclePhoto`.
+
+Allowed file types: **JPEG, PNG, PDF**. Max 50MB per file.
+
+For nested objects send as JSON strings, e.g.  
 `vehicle` = `{"vehicleNumber":"MH12AB1234","vehicleType":"Four-Wheeler","fuelType":"Petrol"}`.

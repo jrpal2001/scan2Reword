@@ -1,8 +1,7 @@
 import { pumpRepository } from '../repositories/pump.repository.js';
-import { userRepository } from '../repositories/user.repository.js';
+import { managerRepository } from '../repositories/manager.repository.js';
 import ApiError from '../utils/ApiError.js';
 import { HTTP_STATUS } from '../constants/errorCodes.js';
-import { ROLES } from '../constants/roles.js';
 import { PUMP_STATUS } from '../constants/status.js';
 
 export const pumpService = {
@@ -18,16 +17,13 @@ export const pumpService = {
       data.managerId = null;
     }
 
-    // Validate managerId if provided
+    // Validate managerId if provided (Manager model, not User)
     if (data.managerId) {
-      const manager = await userRepository.findById(data.managerId);
+      const manager = await managerRepository.findById(data.managerId);
       if (!manager) {
         throw new ApiError(HTTP_STATUS.NOT_FOUND, 'Manager not found');
       }
-      if (manager.role?.toLowerCase() !== ROLES.MANAGER) {
-        throw new ApiError(HTTP_STATUS.BAD_REQUEST, 'User must have manager role');
-      }
-      
+
       // RESTRICTION: Check if manager is already assigned to another pump
       const existingPump = await pumpRepository.list({ managerId: data.managerId, status: 'active' });
       if (existingPump.list && existingPump.list.length > 0) {
@@ -62,16 +58,13 @@ export const pumpService = {
       data.managerId = null;
     }
 
-    // Validate managerId if provided
+    // Validate managerId if provided (Manager model, not User)
     if (data.managerId !== undefined && data.managerId !== null) {
-      const manager = await userRepository.findById(data.managerId);
+      const manager = await managerRepository.findById(data.managerId);
       if (!manager) {
         throw new ApiError(HTTP_STATUS.NOT_FOUND, 'Manager not found');
       }
-      if (manager.role?.toLowerCase() !== ROLES.MANAGER) {
-        throw new ApiError(HTTP_STATUS.BAD_REQUEST, 'User must have manager role');
-      }
-      
+
       // RESTRICTION: Check if manager is already assigned to another pump (excluding current pump)
       const existingPump = await pumpRepository.list({ managerId: data.managerId, status: 'active' });
       if (existingPump.list && existingPump.list.length > 0) {
