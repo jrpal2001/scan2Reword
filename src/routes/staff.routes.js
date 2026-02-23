@@ -7,7 +7,7 @@ import { validateRequest } from '../middlewares/validateRequest.js';
 import { userValidation } from '../validation/userValidation.js';
 import { redemptionValidation } from '../validation/redemption.validation.js';
 import { ROLES } from '../constants/roles.js';
-import { upload } from '../utils/multerConfig.js';
+import { upload, userUploadFields } from '../utils/multerConfig.js';
 import { uploadToS3 } from '../middlewares/uploadToS3.js';
 
 const router = Router();
@@ -17,7 +17,7 @@ router.post(
   verifyJWT,
   requireRoles([ROLES.STAFF]),
   attachPumpScope,
-  upload.fields([{ name: 'profilePhoto', maxCount: 1 }]),
+  upload.fields(userUploadFields),
   uploadToS3('users'),
   validateRequest(userValidation.createUserByOperator),
   adminController.createUserByOperator

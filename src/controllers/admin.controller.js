@@ -15,6 +15,7 @@ export const createUser = asyncHandler(async (req, res) => {
   const v = req.validated;
   const s3Uploads = req.s3Uploads || {};
   const userData = {
+    accountType: v.accountType || 'individual',
     mobile: v.mobile,
     fullName: v.fullName,
     email: v.email || undefined,
@@ -22,12 +23,25 @@ export const createUser = asyncHandler(async (req, res) => {
     password: v.password || undefined,
     address: v.address || undefined,
     profilePhoto: s3Uploads.profilePhoto || undefined,
+    driverPhoto: s3Uploads.driverPhoto || undefined,
+    ownerPhoto: s3Uploads.ownerPhoto || undefined,
     managerCode: v.managerCode || undefined,
     staffCode: v.staffCode || undefined,
     assignedManagerId: v.assignedManagerId && v.assignedManagerId.trim() ? v.assignedManagerId : undefined,
     pumpId: v.pumpId && v.pumpId.trim() ? v.pumpId : undefined, // For staff - assign to pump during creation
+    // Organization fields
+    ownerType: v.ownerType || undefined,
+    ownerIdentifier: v.ownerIdentifier || undefined,
+    owner: v.owner || undefined,
   };
-  const result = await userService.createUserByAdmin(userData, v.vehicle || null, req.user._id);
+  
+  // Prepare vehicle data with rcPhoto
+  const vehicleData = v.vehicle ? {
+    ...v.vehicle,
+    rcPhoto: s3Uploads.rcPhoto || null,
+  } : null;
+  
+  const result = await userService.createUserByAdmin(userData, vehicleData, req.user._id);
 
   // Log audit
   await auditLogService.log({
@@ -51,12 +65,18 @@ export const createUser = asyncHandler(async (req, res) => {
     responseData.assignment = result.assignment;
   }
 
+  // Include ownerId if organization account
+  if (result.ownerId) {
+    responseData.ownerId = result.ownerId;
+  }
+
   const assignmentMessage = result.assignment ? ' and assigned to pump' : '';
+  const ownerMessage = result.ownerId ? (result.user.ownerId ? ' (linked to existing owner)' : ' (owner created)') : '';
 
   return res.status(HTTP_STATUS.CREATED).json(
     ApiResponse.success(
       responseData,
-      'User created successfully' + assignmentMessage
+      'User created successfully' + assignmentMessage + ownerMessage
     )
   );
 });
@@ -83,6 +103,7 @@ export const createUserByOperator = asyncHandler(async (req, res) => {
     assignedManagerId = req.user._id; // Default to current manager when manager creates staff
   }
   const userData = {
+    accountType: v.accountType || 'individual',
     mobile: v.mobile,
     fullName: v.fullName,
     email: v.email || undefined,
@@ -90,14 +111,26 @@ export const createUserByOperator = asyncHandler(async (req, res) => {
     password: v.password || undefined,
     address: v.address || undefined,
     profilePhoto: s3Uploads.profilePhoto || undefined,
+    driverPhoto: s3Uploads.driverPhoto || undefined,
+    ownerPhoto: s3Uploads.ownerPhoto || undefined,
     staffCode: v.staffCode || undefined,
     assignedManagerId,
     pumpId: v.pumpId && v.pumpId.trim() ? v.pumpId : undefined, // For staff - assign to pump during creation
+    // Organization fields
+    ownerType: v.ownerType || undefined,
+    ownerIdentifier: v.ownerIdentifier || undefined,
+    owner: v.owner || undefined,
   };
+  
+  // Prepare vehicle data with rcPhoto
+  const vehicleData = v.vehicle ? {
+    ...v.vehicle,
+    rcPhoto: s3Uploads.rcPhoto || null,
+  } : null;
   
   const result = await userService.createUserByManagerOrStaff(
     userData,
-    v.vehicle || null,
+    vehicleData,
     req.user._id,
     operatorRole
   );
@@ -112,12 +145,18 @@ export const createUserByOperator = asyncHandler(async (req, res) => {
     responseData.assignment = result.assignment;
   }
 
+  // Include ownerId if organization account
+  if (result.ownerId) {
+    responseData.ownerId = result.ownerId;
+  }
+
   const assignmentMessage = result.assignment ? ' and assigned to pump' : '';
+  const ownerMessage = result.ownerId ? (result.user.ownerId ? ' (linked to existing owner)' : ' (owner created)') : '';
 
   return res.status(HTTP_STATUS.CREATED).json(
     ApiResponse.success(
       responseData,
-      'User created successfully' + assignmentMessage
+      'User created successfully' + assignmentMessage + ownerMessage
     )
   );
 });

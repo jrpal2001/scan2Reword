@@ -4,7 +4,7 @@ import { authValidation } from '../validation/auth.validation.js';
 import { validateRequest } from '../middlewares/validateRequest.js';
 import { strictRateLimiter } from '../middlewares/rateLimiter.middleware.js';
 import { verifyJWT } from '../middlewares/auth.middleware.js';
-import { upload } from '../utils/multerConfig.js';
+import { upload, userUploadFields } from '../utils/multerConfig.js';
 import { uploadToS3 } from '../middlewares/uploadToS3.js';
 
 const router = Router();
@@ -16,12 +16,7 @@ router.post('/verify-otp', /* strictRateLimiter, */ validateRequest(authValidati
 // Registration with optional file uploads
 router.post(
   '/register',
-  upload.fields([
-    { name: 'profilePhoto', maxCount: 1 },
-    { name: 'driverPhoto', maxCount: 1 },
-    { name: 'ownerPhoto', maxCount: 1 },
-    { name: 'rcPhoto', maxCount: 1 },
-  ]),
+  upload.fields(userUploadFields),
   uploadToS3('users/registration'),
   validateRequest(authValidation.register),
   authController.register

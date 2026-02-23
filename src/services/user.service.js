@@ -187,6 +187,7 @@ export const userService = {
 
   /**
    * Create user by Admin
+   * Supports Individual and Organization (Fleet) account types
    */
   async createUserByAdmin(userData, vehicleData, adminId) {
     const existing = await userRepository.findByMobile(userData.mobile);
@@ -194,8 +195,55 @@ export const userService = {
       throw new ApiError(HTTP_STATUS.CONFLICT, 'User with this mobile number already exists');
     }
 
-    // When role is staff, validate assignedManagerId is a manager
     const role = (userData.role || '').toLowerCase();
+    // Only use accountType for USER role, ignore for manager/staff
+    const accountType = role === ROLES.USER ? (userData.accountType || 'individual') : 'individual';
+    
+    // Organization accounts only supported for USER role
+    if (accountType === 'organization' && role !== ROLES.USER) {
+      throw new ApiError(HTTP_STATUS.BAD_REQUEST, 'Organization accounts are only supported for regular users');
+    }
+
+    let ownerId = null;
+
+    // Handle Organization (Fleet) registration
+    if (accountType === 'organization' && role === ROLES.USER) {
+      if (userData.ownerType === 'registered') {
+        // Search for existing owner by ID or phone
+        const foundOwner = await userRepository.findByIdentifier(userData.ownerIdentifier);
+        if (!foundOwner) {
+          throw new ApiError(HTTP_STATUS.NOT_FOUND, 'Owner not found with the provided identifier');
+        }
+        // Verify owner is actually an owner (has role USER and no ownerId)
+        if (foundOwner.ownerId) {
+          throw new ApiError(HTTP_STATUS.BAD_REQUEST, 'The provided identifier belongs to a driver, not an owner');
+        }
+        ownerId = foundOwner._id;
+      } else if (userData.ownerType === 'non-registered') {
+        // Create new owner
+        const ownerMobile = userData.owner.mobile;
+        const existingOwner = await userRepository.findByMobile(ownerMobile);
+        if (existingOwner) {
+          throw new ApiError(HTTP_STATUS.CONFLICT, 'Owner with this mobile number already exists');
+        }
+
+        const newOwner = await userRepository.create({
+          fullName: userData.owner.fullName,
+          mobile: ownerMobile,
+          email: userData.owner.email || null,
+          role: ROLES.USER,
+          walletSummary: { totalEarned: 0, availablePoints: 0, redeemedPoints: 0, expiredPoints: 0 },
+          status: 'active',
+          mobileVerified: false, // Admin created, not OTP verified
+          address: userData.owner.address || null,
+          ownerId: null, // Owner has no owner
+          createdBy: adminId,
+        });
+        ownerId = newOwner._id;
+      }
+    }
+
+    // When role is staff, validate assignedManagerId is a manager
     if (role === ROLES.STAFF && userData.assignedManagerId) {
       const manager = await userRepository.findById(userData.assignedManagerId);
       if (!manager || (manager.role || '').toLowerCase() !== ROLES.MANAGER) {
@@ -236,8 +284,8 @@ export const userService = {
       staffCode = await generateUniqueStaffCode();
     }
 
-    // Remove password from userData (we use passwordHash instead)
-    const { password, ...userDataWithoutPassword } = userData;
+    // Remove password and organization-specific fields from userData (we use passwordHash instead)
+    const { password, ownerType, ownerIdentifier, owner, accountType: _, ...userDataWithoutPassword } = userData;
 
     const user = await userRepository.create({
       ...userDataWithoutPassword,
@@ -248,11 +296,13 @@ export const userService = {
       managerCode: role === ROLES.MANAGER ? managerCode : null,
       staffCode: role === ROLES.STAFF ? staffCode : null,
       assignedManagerId: role === ROLES.STAFF ? (userData.assignedManagerId || null) : null,
+      ownerId: ownerId, // Link to owner if organization
       walletSummary: { totalEarned: 0, availablePoints: 0, redeemedPoints: 0, expiredPoints: 0 },
       status: 'active',
       createdBy: adminId,
       driverPhoto: userData.driverPhoto || null,
       ownerPhoto: userData.ownerPhoto || null,
+      mobileVerified: false, // Admin created, not OTP verified
     });
 
     let vehicle = null;
@@ -278,12 +328,14 @@ export const userService = {
       user: await userRepository.findById(user._id), 
       vehicle,
       assignment: assignment || null,
+      ownerId: ownerId || null, // Return ownerId if organization
     };
   },
 
   /**
    * Create user by Manager/Staff (at pump)
    * Manager can create staff or user, Staff can only create user
+   * Supports Individual and Organization (Fleet) account types
    * Credits registration points to operator (only for regular users, not staff)
    * Auto-generates referral code for staff created by manager
    */
@@ -293,10 +345,57 @@ export const userService = {
       throw new ApiError(HTTP_STATUS.CONFLICT, 'User with this mobile number already exists');
     }
 
-    // Validate: Staff cannot create staff, only managers can
     const userRole = (userData.role || ROLES.USER).toLowerCase();
+    // Only use accountType for USER role, ignore for staff
+    const accountType = userRole === ROLES.USER ? (userData.accountType || 'individual') : 'individual';
+    
+    // Organization accounts only supported for USER role
+    if (accountType === 'organization' && userRole !== ROLES.USER) {
+      throw new ApiError(HTTP_STATUS.BAD_REQUEST, 'Organization accounts are only supported for regular users');
+    }
+
+    // Validate: Staff cannot create staff, only managers can
     if (userRole === ROLES.STAFF && operatorRole !== ROLES.MANAGER) {
       throw new ApiError(HTTP_STATUS.FORBIDDEN, 'Only managers can create staff members');
+    }
+
+    let ownerId = null;
+
+    // Handle Organization (Fleet) registration
+    if (accountType === 'organization' && userRole === ROLES.USER) {
+      if (userData.ownerType === 'registered') {
+        // Search for existing owner by ID or phone
+        const foundOwner = await userRepository.findByIdentifier(userData.ownerIdentifier);
+        if (!foundOwner) {
+          throw new ApiError(HTTP_STATUS.NOT_FOUND, 'Owner not found with the provided identifier');
+        }
+        // Verify owner is actually an owner (has role USER and no ownerId)
+        if (foundOwner.ownerId) {
+          throw new ApiError(HTTP_STATUS.BAD_REQUEST, 'The provided identifier belongs to a driver, not an owner');
+        }
+        ownerId = foundOwner._id;
+      } else if (userData.ownerType === 'non-registered') {
+        // Create new owner
+        const ownerMobile = userData.owner.mobile;
+        const existingOwner = await userRepository.findByMobile(ownerMobile);
+        if (existingOwner) {
+          throw new ApiError(HTTP_STATUS.CONFLICT, 'Owner with this mobile number already exists');
+        }
+
+        const newOwner = await userRepository.create({
+          fullName: userData.owner.fullName,
+          mobile: ownerMobile,
+          email: userData.owner.email || null,
+          role: ROLES.USER,
+          walletSummary: { totalEarned: 0, availablePoints: 0, redeemedPoints: 0, expiredPoints: 0 },
+          status: 'active',
+          mobileVerified: false, // Operator created, not OTP verified
+          address: userData.owner.address || null,
+          ownerId: null, // Owner has no owner
+          createdBy: operatorId,
+        });
+        ownerId = newOwner._id;
+      }
     }
 
     // When creating staff, validate assignedManagerId is a manager (if provided)
@@ -332,8 +431,8 @@ export const userService = {
       staffCode = await generateUniqueStaffCode();
     }
 
-    // Remove password from userData (we use passwordHash instead)
-    const { password, ...userDataWithoutPassword } = userData;
+    // Remove password and organization-specific fields from userData (we use passwordHash instead)
+    const { password, ownerType, ownerIdentifier, owner, accountType: _, ...userDataWithoutPassword } = userData;
 
     // When manager creates staff, automatically set assignedManagerId to manager's ID
     let finalAssignedManagerId = userRole === ROLES.STAFF ? (userData.assignedManagerId || null) : null;
@@ -350,11 +449,13 @@ export const userService = {
       profilePhoto: userData.profilePhoto || null,
       staffCode: userRole === ROLES.STAFF ? staffCode : null,
       assignedManagerId: finalAssignedManagerId,
+      ownerId: ownerId, // Link to owner if organization
       walletSummary: { totalEarned: 0, availablePoints: 0, redeemedPoints: 0, expiredPoints: 0 },
       status: 'active',
       createdBy: operatorId,
       driverPhoto: userData.driverPhoto || null,
       ownerPhoto: userData.ownerPhoto || null,
+      mobileVerified: false, // Operator created, not OTP verified
     });
 
     let vehicle = null;
@@ -438,6 +539,7 @@ export const userService = {
       user: await userRepository.findById(user._id), 
       vehicle,
       assignment: assignment || null,
+      ownerId: ownerId || null, // Return ownerId if organization
     };
   },
 

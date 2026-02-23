@@ -22,7 +22,7 @@ import { rewardValidation } from '../validation/reward.validation.js';
 import { systemConfigValidation } from '../validation/systemConfig.validation.js';
 import { staffAssignmentValidation } from '../validation/staffAssignment.validation.js';
 import { ROLES } from '../constants/roles.js';
-import { upload } from '../utils/multerConfig.js';
+import { upload, userUploadFields } from '../utils/multerConfig.js';
 import { uploadToS3 } from '../middlewares/uploadToS3.js';
 
 const router = Router();
@@ -49,12 +49,12 @@ router.get(
   dashboardController.getAdminDashboard
 );
 
-// Users (with optional profile photo upload)
+// Users (optional: profilePhoto, driverPhoto, ownerPhoto, rcPhoto — see multerConfig.userUploadFields)
 router.post(
   '/users',
   verifyJWT,
   requireRoles([ROLES.ADMIN]),
-  upload.fields([{ name: 'profilePhoto', maxCount: 1 }]),
+  upload.fields(userUploadFields),
   uploadToS3('users'),
   validateRequest(userValidation.createUser),
   adminController.createUser

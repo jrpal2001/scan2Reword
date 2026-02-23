@@ -45,6 +45,12 @@ const objectIdSchema = Joi.string().trim().pattern(/^[0-9a-fA-F]{24}$/).allow(''
 /** Admin create user — can set role */
 export const userValidation = {
   createUser: Joi.object({
+    // Account type: individual or organization (fleet) - only for role=USER
+    accountType: Joi.when('role', {
+      is: ROLES.USER,
+      then: Joi.string().valid('individual', 'organization').default('individual'),
+      otherwise: Joi.optional().allow(null, ''), // Ignore for manager/staff
+    }),
     mobile: mobileSchema,
     fullName: Joi.string().trim().min(2).max(100).required(),
     email: Joi.string().email().trim().lowercase().allow('').optional(),
@@ -78,10 +84,41 @@ export const userValidation = {
       otherwise: Joi.forbidden(),
     }),
     vehicle: vehicleSchema.optional(),
+    // Organization (Fleet) fields - only for role=USER and accountType=organization
+    ownerType: Joi.when('role', {
+      is: ROLES.USER,
+      then: Joi.when('accountType', {
+        is: 'organization',
+        then: Joi.string().valid('registered', 'non-registered').required(),
+        otherwise: Joi.optional().forbidden(),
+      }),
+      otherwise: Joi.optional().forbidden(),
+    }),
+    ownerIdentifier: Joi.when('ownerType', {
+      is: 'registered',
+      then: Joi.string().trim().required(),
+      otherwise: Joi.optional(),
+    }),
+    owner: Joi.when('ownerType', {
+      is: 'non-registered',
+      then: Joi.object({
+        fullName: Joi.string().trim().min(2).max(100).required(),
+        mobile: mobileSchema,
+        email: Joi.string().email().trim().lowercase().allow('').optional(),
+        address: addressSchema.optional(),
+      }).required(),
+      otherwise: Joi.optional(),
+    }),
   }),
 
   /** Manager/Staff create user — Manager can create staff or user, Staff can only create user */
   createUserByOperator: Joi.object({
+    // Account type: individual or organization (fleet) - only for role=USER
+    accountType: Joi.when('role', {
+      is: ROLES.USER,
+      then: Joi.string().valid('individual', 'organization').default('individual'),
+      otherwise: Joi.optional().allow(null, ''), // Ignore for staff
+    }),
     mobile: mobileSchema,
     fullName: Joi.string().trim().min(2).max(100).required(),
     email: Joi.string().email().trim().lowercase().allow('').optional(),
@@ -110,6 +147,31 @@ export const userValidation = {
       otherwise: Joi.forbidden(),
     }),
     vehicle: vehicleSchema.optional(),
+    // Organization (Fleet) fields - only for role=USER and accountType=organization
+    ownerType: Joi.when('role', {
+      is: ROLES.USER,
+      then: Joi.when('accountType', {
+        is: 'organization',
+        then: Joi.string().valid('registered', 'non-registered').required(),
+        otherwise: Joi.optional().forbidden(),
+      }),
+      otherwise: Joi.optional().forbidden(),
+    }),
+    ownerIdentifier: Joi.when('ownerType', {
+      is: 'registered',
+      then: Joi.string().trim().required(),
+      otherwise: Joi.optional(),
+    }),
+    owner: Joi.when('ownerType', {
+      is: 'non-registered',
+      then: Joi.object({
+        fullName: Joi.string().trim().min(2).max(100).required(),
+        mobile: mobileSchema,
+        email: Joi.string().email().trim().lowercase().allow('').optional(),
+        address: addressSchema.optional(),
+      }).required(),
+      otherwise: Joi.optional(),
+    }),
   }),
 
   /** Admin update user */
