@@ -1,13 +1,13 @@
 /**
  * Central config (env-based). No secrets in code.
  * Load dotenv here to ensure it runs before config object is created.
- */
+//  */
 import dotenv from 'dotenv';
 dotenv.config();
 
 export const config = Object.freeze({
   nodeEnv: process.env.NODE_ENV || (process.env.production === 'prod' ? 'production' : 'development'),
-  port: parseInt(process.env.PORT, 10) || 7000,
+  port: parseInt(process.env.PORT, 10) || 3000,
   mongoUri: process.env.MONGODB_URI || process.env.MONGODB_URI_TEST || '',
   dbName: process.env.DB_NAME || 'scan2reward',
 
