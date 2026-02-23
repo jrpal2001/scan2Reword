@@ -1,7 +1,7 @@
 /**
  * Central config (env-based). No secrets in code.
  * Load dotenv here to ensure it runs before config object is created.
-//  */
+ */
 import dotenv from 'dotenv';
 dotenv.config();
 
