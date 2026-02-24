@@ -57,9 +57,9 @@ export const createAtPumpRedemption = asyncHandler(async (req, res) => {
         redemption: result.redemption,
         redemptionCode: result.redemption.redemptionCode,
         user: result.user,
-        wallet: result.wallet, // Updated wallet balance
+        wallet: result.wallet,
       },
-      `Points deducted successfully. Updated balance: ${result.wallet.availablePoints} points`
+      'Redemption request created. Awaiting admin approval. Points will be deducted after approval.'
     )
   );
 });
@@ -151,5 +151,25 @@ export const getRedemptionById = asyncHandler(async (req, res) => {
   const redemption = await redemptionService.getRedemptionById(redemptionId);
   return res.status(HTTP_STATUS.OK).json(
     ApiResponse.success(redemption, 'Redemption retrieved')
+  );
+});
+
+/**
+ * POST /api/admin/redemptions/direct
+ * Body: { userId, pointsToDeduct }
+ * Admin only. Direct redeem: deduct points immediately (no approval flow).
+ */
+export const createDirectRedemption = asyncHandler(async (req, res) => {
+  const { userId, pointsToDeduct } = req.validated;
+  const redemption = await redemptionService.createDirectRedemption({
+    userId,
+    pointsToDeduct,
+    adminId: req.user._id,
+  });
+  return res.status(HTTP_STATUS.CREATED).json(
+    ApiResponse.success(
+      { redemption, redemptionCode: redemption.redemptionCode },
+      'Points redeemed successfully (direct by admin)'
+    )
   );
 });

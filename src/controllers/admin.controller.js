@@ -15,6 +15,7 @@ export const createUser = asyncHandler(async (req, res) => {
   const v = req.validated;
   const s3Uploads = req.s3Uploads || {};
   const userData = {
+    ownerOnly: !!v.ownerOnly,
     accountType: v.accountType || 'individual',
     mobile: v.mobile,
     fullName: v.fullName,
@@ -108,6 +109,7 @@ export const createUserByOperator = asyncHandler(async (req, res) => {
     assignedManagerId = req.user._id; // Default to current manager when manager creates staff
   }
   const userData = {
+    ownerOnly: !!v.ownerOnly,
     accountType: v.accountType || 'individual',
     mobile: v.mobile,
     fullName: v.fullName,

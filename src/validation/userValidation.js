@@ -107,14 +107,16 @@ const ownerSchemaOrString = Joi.alternatives().try(
 /** Admin create user — can set role */
 export const userValidation = {
   createUser: Joi.object({
+    /** When true, create only fleet owner (no driver, no vehicle). Requires role=user, accountType=organization, ownerType=non-registered. */
+    ownerOnly: Joi.boolean().optional(),
     // Account type: individual or organization (fleet) - only for role=USER (form-data: normalize case)
     accountType: Joi.when('role', {
       is: ROLES.USER,
       then: Joi.string().trim().lowercase().valid('individual', 'organization').default('individual'),
       otherwise: Joi.optional().allow(null, ''), // Ignore for manager/staff
     }),
-    mobile: mobileSchema,
-    fullName: Joi.string().trim().min(2).max(100).required(),
+    mobile: Joi.when('ownerOnly', { is: true, then: Joi.optional(), otherwise: mobileSchema }),
+    fullName: Joi.when('ownerOnly', { is: true, then: Joi.optional(), otherwise: Joi.string().trim().min(2).max(100).required() }),
     email: Joi.string().email().trim().lowercase().allow('').optional(),
     role: Joi.string().trim().lowercase().valid(ROLES.USER, ROLES.MANAGER, ROLES.STAFF).default(ROLES.USER),
     password: Joi.string().min(6).when('role', {
@@ -145,7 +147,7 @@ export const userValidation = {
       then: Joi.optional(),
       otherwise: Joi.forbidden(),
     }),
-    vehicle: vehicleSchemaOrString.optional(),
+    vehicle: Joi.when('ownerOnly', { is: true, then: Joi.forbidden(), otherwise: vehicleSchemaOrString.optional() }),
     // Organization (Fleet) fields - only for role=USER and accountType=organization (form-data: normalize case)
     ownerType: Joi.when('role', {
       is: ROLES.USER,
@@ -171,14 +173,14 @@ export const userValidation = {
 
   /** Manager/Staff create user — Manager can create staff or user, Staff can only create user */
   createUserByOperator: Joi.object({
-    // Account type: individual or organization (fleet) - only for role=USER
+    ownerOnly: Joi.boolean().optional(),
     accountType: Joi.when('role', {
       is: ROLES.USER,
       then: Joi.string().valid('individual', 'organization').default('individual'),
       otherwise: Joi.optional().allow(null, ''), // Ignore for staff
     }),
-    mobile: mobileSchema,
-    fullName: Joi.string().trim().min(2).max(100).required(),
+    mobile: Joi.when('ownerOnly', { is: true, then: Joi.optional(), otherwise: mobileSchema }),
+    fullName: Joi.when('ownerOnly', { is: true, then: Joi.optional(), otherwise: Joi.string().trim().min(2).max(100).required() }),
     email: Joi.string().email().trim().lowercase().allow('').optional(),
     role: Joi.string().valid(ROLES.USER, ROLES.STAFF).default(ROLES.USER),
     password: Joi.string().min(6).when('role', {
@@ -204,7 +206,7 @@ export const userValidation = {
       then: Joi.optional(),
       otherwise: Joi.forbidden(),
     }),
-    vehicle: vehicleSchema.optional(),
+    vehicle: Joi.when('ownerOnly', { is: true, then: Joi.forbidden(), otherwise: vehicleSchema.optional() }),
     // Organization (Fleet) fields - only for role=USER and accountType=organization
     ownerType: Joi.when('role', {
       is: ROLES.USER,

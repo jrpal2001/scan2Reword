@@ -4,6 +4,8 @@
 **Version:** 1.0.0  
 **Last Updated:** February 23, 2026
 
+**See also:** [PROJECT_UPDATES.md](./PROJECT_UPDATES.md) for userType (owner/driver/individual), owner-only registration, no points expiry, redemption (admin direct vs approval), wallet visibility (driver vs owner), and multiple pumps.
+
 ---
 
 ## Table of Contents

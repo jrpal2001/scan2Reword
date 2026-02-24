@@ -30,6 +30,11 @@ export const userRepository = {
     return User.findOne({ referralCode: code?.trim() }).lean();
   },
 
+  /** Find user (e.g. owner) by loyaltyId - used for fleet owner QR when vehicle QR not available */
+  async findByLoyaltyId(loyaltyId) {
+    return User.findOne({ loyaltyId: loyaltyId?.trim() }).lean();
+  },
+
   /** Resolve identifier (email, phone, or _id) - for customer lookup / owner search */
   async findByIdentifier(identifier) {
     if (!identifier || typeof identifier !== 'string') return null;

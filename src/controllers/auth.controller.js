@@ -106,6 +106,7 @@ export const register = asyncHandler(async (req, res) => {
   // Extract photo URLs from S3 uploads
   const registrationData = {
     accountType: value.accountType,
+    ownerOnly: !!value.ownerOnly,
     mobile: value.mobile,
     fullName: value.fullName,
     email: value.email,

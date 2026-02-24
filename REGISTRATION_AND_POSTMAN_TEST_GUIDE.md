@@ -524,3 +524,39 @@ Allowed file types: **JPEG, PNG, PDF**. Max 50MB per file.
 
 For nested objects send as JSON strings, e.g.  
 `vehicle` = `{"vehicleNumber":"MH12AB1234","vehicleType":"Four-Wheeler","fuelType":"Petrol"}`.
+
+---
+
+## 5. Where owners are created & owner loyalty ID
+
+### How an owner (fleet owner) is created
+
+An **owner** is a User document with `ownerId: null` and **`userType: "owner"`**. They are created in **organization** flows when the owner is **not already registered** (`ownerType: "non-registered"`).
+
+| Who creates | API | When owner is created |
+|-------------|-----|------------------------|
+| **Admin** | `POST /api/admin/users` | Body: `accountType: "organization"`, `ownerType: "non-registered"`, `owner: { fullName, mobile, email?, address? }` + driver + vehicle. Creates owner + driver + vehicle in one call. |
+| **User (self)** | `POST /api/auth/register` | Body: `accountType: "organization"`, `ownerType: "non-registered"`, `owner: { ... }` + driver + vehicle. Creates owner + driver + vehicle in one call. |
+| **Manager** | `POST /api/manager/users` | Same body as admin (organization + non-registered owner). Creates owner + driver + vehicle. |
+| **Staff** | `POST /api/staff/users` | Same body (organization + non-registered owner). Creates owner + driver + vehicle. |
+
+**Owner only (no driver, no vehicle):** Add **`ownerOnly: true`** to the same bodies and omit `vehicle`. Creates only the fleet owner (with `loyaltyId`). Supported in all four APIs above.
+
+If the owner **is already registered** (`ownerType: "registered"`, `ownerIdentifier: "<id|phone|email>"`), no new owner is created; the driver is linked to the existing owner.
+
+### User types (User model)
+
+- **`individual`** – Single user (no fleet).
+- **`owner`** – Fleet owner (has `loyaltyId`).
+- **`driver`** – Fleet driver (has `ownerId`).
+
+See **PROJECT_UPDATES.md** for points (no expiry), redemption (admin direct vs approval), wallet (driver vs owner visibility), and multiple pumps.
+
+### Owner loyalty ID (fleet QR when vehicle QR is not working)
+
+Each **fleet owner** gets a unique **owner loyalty ID** (same format as vehicle: `LOY` + 8 digits) when they are created. It is stored on the owner’s User document as `loyaltyId`.
+
+- **Use case:** When a fleet vehicle’s QR/loyalty ID is not working, the fleet can use the **owner’s loyalty ID** at the pump. The staff scans the owner’s loyalty ID; the transaction is credited to the **owner’s** account (points go to the owner’s wallet).
+- **Where it’s set:** Automatically when creating a new owner in any of the four flows above (admin, register, manager, staff).
+- **How to use it:** In **create transaction**, pass `identifier: <owner loyaltyId>` (e.g. `LOY12345678`) instead of a vehicle loyaltyId. The scan service resolves it to the owner and credits the owner.
+- **How to get it:** `GET /api/owner/search?identifier=<owner _id | phone | email>` returns the owner including `loyaltyId` (for owners created with this feature; older owners may have `loyaltyId: null` until backfilled).

@@ -37,6 +37,12 @@ export const scanService = {
       }
     }
 
+    // Try as owner loyalty ID (fleet owner's LOYxxx - when vehicle QR not available)
+    const ownerByLoyaltyId = await userRepository.findByLoyaltyId(trimmed);
+    if (ownerByLoyaltyId && ownerByLoyaltyId.ownerId == null) {
+      return { user: ownerByLoyaltyId, vehicle: null, isOwner: true };
+    }
+
     // Try as owner ID (userId) or mobile
     const user = await userRepository.findByIdentifier(trimmed);
     if (user) {

@@ -9,6 +9,7 @@ import * as bannerController from '../controllers/banner.controller.js';
 import * as rewardController from '../controllers/reward.controller.js';
 import * as systemConfigController from '../controllers/systemConfig.controller.js';
 import * as staffAssignmentController from '../controllers/staffAssignment.controller.js';
+import * as redemptionController from '../controllers/redemption.controller.js';
 import { verifyJWT } from '../middlewares/auth.middleware.js';
 import { requireRoles } from '../middlewares/rbac.middleware.js';
 import { validateRequest } from '../middlewares/validateRequest.js';
@@ -21,6 +22,7 @@ import { bannerValidation } from '../validation/banner.validation.js';
 import { rewardValidation } from '../validation/reward.validation.js';
 import { systemConfigValidation } from '../validation/systemConfig.validation.js';
 import { staffAssignmentValidation } from '../validation/staffAssignment.validation.js';
+import { redemptionValidation } from '../validation/redemption.validation.js';
 import { ROLES } from '../constants/roles.js';
 import { upload, userUploadFields } from '../utils/multerConfig.js';
 import { uploadToS3 } from '../middlewares/uploadToS3.js';
@@ -311,6 +313,28 @@ router.delete(
   verifyJWT,
   requireRoles([ROLES.ADMIN]),
   staffAssignmentController.removeStaffFromPump
+);
+
+// Redemptions: admin direct redeem, approve/reject (manager/staff redemptions go to admin for approval)
+router.post(
+  '/redemptions/direct',
+  verifyJWT,
+  requireRoles([ROLES.ADMIN]),
+  validateRequest(redemptionValidation.directRedemption),
+  redemptionController.createDirectRedemption
+);
+router.post(
+  '/redemptions/:id/approve',
+  verifyJWT,
+  requireRoles([ROLES.ADMIN]),
+  redemptionController.approveRedemption
+);
+router.post(
+  '/redemptions/:id/reject',
+  verifyJWT,
+  requireRoles([ROLES.ADMIN]),
+  validateRequest(redemptionValidation.reject, 'body'),
+  redemptionController.rejectRedemption
 );
 
 export default router;

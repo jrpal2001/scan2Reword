@@ -1,7 +1,7 @@
 import { userRepository } from '../repositories/user.repository.js';
 import { vehicleRepository } from '../repositories/vehicle.repository.js';
 import { vehicleService } from './vehicle.service.js';
-import { ROLES } from '../constants/roles.js';
+import { USER_TYPES } from '../models/User.model.js';
 import ApiError from '../utils/ApiError.js';
 import { HTTP_STATUS } from '../constants/errorCodes.js';
 
@@ -29,6 +29,7 @@ export const ownerService = {
       mobile: owner.mobile,
       email: owner.email,
       address: owner.address,
+      loyaltyId: owner.loyaltyId || null,
     };
   },
 
@@ -58,6 +59,7 @@ export const ownerService = {
       fullName: userData.fullName,
       mobile: userData.mobile,
       email: userData.email || null,
+      userType: USER_TYPES.DRIVER,
       walletSummary: { totalEarned: 0, availablePoints: 0, redeemedPoints: 0, expiredPoints: 0 },
       status: 'active',
       mobileVerified: true,

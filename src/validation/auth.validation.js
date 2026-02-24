@@ -69,9 +69,11 @@ export const authValidation = {
 
   register: Joi.object({
     accountType: Joi.string().valid('individual', 'organization').required(),
-    // Individual registration
-    mobile: mobileSchema,
-    fullName: Joi.string().trim().min(2).max(100).required(),
+    /** When true, create only fleet owner (no driver, no vehicle). Requires organization + non-registered owner. */
+    ownerOnly: Joi.boolean().optional(),
+    // Individual registration (optional when ownerOnly)
+    mobile: Joi.when('ownerOnly', { is: true, then: Joi.optional(), otherwise: mobileSchema }),
+    fullName: Joi.when('ownerOnly', { is: true, then: Joi.optional(), otherwise: Joi.string().trim().min(2).max(100).required() }),
     email: Joi.string().email().trim().lowercase().allow('').optional(),
     referralCode: Joi.string().trim().allow('').optional(),
     address: Joi.object({
@@ -80,7 +82,7 @@ export const authValidation = {
       state: Joi.string().trim().allow('').optional(),
       pincode: Joi.string().trim().allow('').optional(),
     }).optional(),
-    vehicle: vehicleSchema.required(),
+    vehicle: Joi.when('ownerOnly', { is: true, then: Joi.forbidden(), otherwise: vehicleSchema.required() }),
     // Organization (Fleet) registration
     ownerType: Joi.when('accountType', {
       is: 'organization',

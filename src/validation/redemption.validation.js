@@ -18,4 +18,10 @@ export const redemptionValidation = {
   reject: Joi.object({
     reason: Joi.string().trim().min(1).required(),
   }),
+
+  /** Admin direct redeem: deduct user points immediately without approval flow */
+  directRedemption: Joi.object({
+    userId: Joi.string().hex().length(24).required(),
+    pointsToDeduct: Joi.number().integer().min(1).required(),
+  }),
 };

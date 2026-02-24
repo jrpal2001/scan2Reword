@@ -120,34 +120,23 @@ export const redemptionService = {
     // Calculate expiry date (30 days from now)
     const expiryDate = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
 
-    // Create redemption record (no rewardId for at-pump redemption)
+    // Create redemption record as PENDING - admin must approve before points are deducted
     const redemption = await redemptionRepository.create({
       userId: user._id,
-      rewardId: null, // At-pump redemption doesn't require a reward
+      rewardId: null,
       pointsUsed: pointsToDeduct,
       redemptionCode,
-      status: REDEMPTION_STATUS.APPROVED, // Auto-approved for at-pump
-      approvedBy: operatorId,
+      status: REDEMPTION_STATUS.PENDING,
+      approvedBy: null,
       usedAtPump: pumpId,
       expiryDate,
     });
 
-    // Deduct points from user
-    await pointsService.debitPoints({
-      userId: user._id,
-      points: pointsToDeduct,
-      type: 'debit',
-      reason: `At-pump redemption at pump ${pumpId}`,
-      redemptionId: redemption._id,
-      createdBy: operatorId,
-    });
-
-    // Get updated wallet balance to show to staff/manager
-    const updatedWallet = await pointsService.getWallet(user._id, { page: 1, limit: 1 });
+    // Do NOT deduct points here - points deducted when admin approves
 
     return {
       redemption,
-      wallet: updatedWallet.walletSummary,
+      wallet: wallet.walletSummary,
       user: {
         _id: user._id,
         fullName: user.fullName,
@@ -157,9 +146,9 @@ export const redemptionService = {
   },
 
   /**
-   * Approve redemption (manager)
+   * Approve redemption (admin). Deducts points from user when approving.
    */
-  async approveRedemption(redemptionId, managerId) {
+  async approveRedemption(redemptionId, approverId) {
     const redemption = await redemptionRepository.findById(redemptionId);
     if (!redemption) {
       throw new ApiError(HTTP_STATUS.NOT_FOUND, 'Redemption not found');
@@ -169,12 +158,67 @@ export const redemptionService = {
       throw new ApiError(HTTP_STATUS.BAD_REQUEST, 'Redemption is not pending');
     }
 
+    // Deduct points on approval (manager/staff create PENDING; admin approves and points are deducted here)
+    await pointsService.debitPoints({
+      userId: redemption.userId,
+      ownerType: 'UserLoyalty',
+      points: redemption.pointsUsed,
+      type: 'debit',
+      reason: `Redemption approved (was pending)`,
+      redemptionId: redemption._id,
+      createdBy: approverId,
+    });
+
     const updated = await redemptionRepository.update(redemptionId, {
       status: REDEMPTION_STATUS.APPROVED,
-      approvedBy: managerId,
+      approvedBy: approverId,
     });
 
     return updated;
+  },
+
+  /**
+   * Admin direct redeem: create redemption and deduct points immediately (no approval needed).
+   */
+  async createDirectRedemption({ userId, pointsToDeduct, adminId }) {
+    const user = await pointsService.getWallet(userId, { page: 1, limit: 1 });
+    const availablePoints = user.walletSummary?.availablePoints || 0;
+    if (availablePoints < pointsToDeduct) {
+      throw new ApiError(HTTP_STATUS.BAD_REQUEST, 'Insufficient points balance');
+    }
+
+    let redemptionCode;
+    let exists = true;
+    while (exists) {
+      redemptionCode = generateRedemptionCode();
+      const existing = await redemptionRepository.findByRedemptionCode(redemptionCode);
+      exists = !!existing;
+    }
+
+    const expiryDate = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
+
+    const redemption = await redemptionRepository.create({
+      userId,
+      rewardId: null,
+      pointsUsed: pointsToDeduct,
+      redemptionCode,
+      status: REDEMPTION_STATUS.APPROVED,
+      approvedBy: adminId,
+      usedAtPump: null,
+      expiryDate,
+    });
+
+    await pointsService.debitPoints({
+      userId,
+      ownerType: 'UserLoyalty',
+      points: pointsToDeduct,
+      type: 'debit',
+      reason: 'Direct redemption by admin',
+      redemptionId: redemption._id,
+      createdBy: adminId,
+    });
+
+    return redemption;
   },
 
   /**

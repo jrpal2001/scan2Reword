@@ -111,13 +111,8 @@ export const pointsService = {
     const currentBalance = user.walletSummary?.availablePoints || 0;
     const balanceAfter = currentBalance + points;
 
-    let expiryMonths = POINTS_EXPIRY_MONTHS;
-    try {
-      const config = await systemConfigService.getConfig();
-      expiryMonths = config.pointsExpiry?.durationMonths || 12;
-    } catch (error) {}
-
-    const expiryDate = type === 'credit' ? new Date(Date.now() + expiryMonths * 30 * 24 * 60 * 60 * 1000) : null;
+    // No points expiry: expiryDate always null
+    const expiryDate = null;
 
     const ledgerEntry = await pointsLedgerRepository.create({
       userId,

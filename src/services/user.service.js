@@ -8,7 +8,9 @@ import { systemConfigService } from './systemConfig.service.js';
 import { staffAssignmentService } from './staffAssignment.service.js';
 import { pumpRepository } from '../repositories/pump.repository.js';
 import { staffAssignmentRepository } from '../repositories/staffAssignment.repository.js';
+import { vehicleRepository } from '../repositories/vehicle.repository.js';
 import { ROLES } from '../constants/roles.js';
+import { USER_TYPES } from '../models/User.model.js';
 import ApiError from '../utils/ApiError.js';
 import { HTTP_STATUS } from '../constants/errorCodes.js';
 
@@ -76,6 +78,21 @@ async function findReferrerByCode(referralCode) {
   return null;
 }
 
+/** Generate unique loyalty ID for fleet owner (LOY + 8 digits). Must be unique across Vehicle and User. */
+async function generateOwnerLoyaltyId() {
+  let loyaltyId;
+  let exists = true;
+  while (exists) {
+    loyaltyId = `LOY${Math.floor(10000000 + Math.random() * 90000000).toString()}`;
+    const [inVehicle, inUser] = await Promise.all([
+      vehicleRepository.findByLoyaltyId(loyaltyId),
+      userRepository.findByLoyaltyId(loyaltyId),
+    ]);
+    exists = !!(inVehicle || inUser);
+  }
+  return loyaltyId;
+}
+
 export const userService = {
   /**
    * Register user (self-registration with OTP verified)
@@ -124,6 +141,36 @@ export const userService = {
 
     let ownerId = null;
 
+    // Owner-only registration: create only fleet owner (no driver, no vehicle)
+    if (registrationData.ownerOnly && accountType === 'organization' && ownerType === 'non-registered' && owner) {
+      const ownerMobile = owner.mobile;
+      const existingOwner = await userRepository.findByMobile(ownerMobile);
+      if (existingOwner) {
+        throw new ApiError(HTTP_STATUS.CONFLICT, 'Owner with this mobile number already exists');
+      }
+      const newOwner = await userRepository.create({
+        fullName: owner.fullName,
+        mobile: ownerMobile,
+        email: owner.email || null,
+        userType: USER_TYPES.OWNER,
+        walletSummary: { totalEarned: 0, availablePoints: 0, redeemedPoints: 0, expiredPoints: 0 },
+        status: 'active',
+        mobileVerified: true,
+        address: owner.address || null,
+        ownerId: null,
+        loyaltyId: await generateOwnerLoyaltyId(),
+        profilePhoto: ownerPhoto || null,
+      });
+      return {
+        userId: newOwner._id,
+        vehicleId: null,
+        loyaltyId: newOwner.loyaltyId,
+        user: await userRepository.findById(newOwner._id),
+        vehicle: null,
+        ownerId: newOwner._id,
+      };
+    }
+
     // Handle Organization (Fleet) registration
     if (accountType === 'organization') {
       if (ownerType === 'registered') {
@@ -149,11 +196,13 @@ export const userService = {
           fullName: owner.fullName,
           mobile: ownerMobile,
           email: owner.email || null,
+          userType: USER_TYPES.OWNER,
           walletSummary: { totalEarned: 0, availablePoints: 0, redeemedPoints: 0, expiredPoints: 0 },
           status: 'active',
           mobileVerified: true,
           address: owner.address || null,
           ownerId: null,
+          loyaltyId: await generateOwnerLoyaltyId(),
           profilePhoto: ownerPhoto || null,
         });
         ownerId = newOwner._id;
@@ -165,6 +214,7 @@ export const userService = {
       fullName,
       mobile,
       email: email || null,
+      userType: ownerId ? USER_TYPES.DRIVER : USER_TYPES.INDIVIDUAL,
       walletSummary: { totalEarned: 0, availablePoints: 0, redeemedPoints: 0, expiredPoints: 0 },
       status: 'active',
       mobileVerified: true,
@@ -222,14 +272,43 @@ export const userService = {
    * Supports Individual and Organization (Fleet) account types
    */
   async createUserByAdmin(userData, vehicleData, adminId) {
+    const role = (userData.role || '').toLowerCase();
+    const accountType = role === ROLES.USER ? (userData.accountType || 'individual') : 'individual';
+
+    // Owner-only: create only fleet owner (no driver, no vehicle)
+    if (userData.ownerOnly && role === ROLES.USER && accountType === 'organization' && userData.ownerType === 'non-registered' && userData.owner) {
+      const ownerMobile = userData.owner.mobile;
+      const existingOwner = await userRepository.findByMobile(ownerMobile);
+      if (existingOwner) {
+        throw new ApiError(HTTP_STATUS.CONFLICT, 'Owner with this mobile number already exists');
+      }
+      const newOwner = await userRepository.create({
+        fullName: userData.owner.fullName,
+        mobile: ownerMobile,
+        email: userData.owner.email || null,
+        userType: USER_TYPES.OWNER,
+        walletSummary: { totalEarned: 0, availablePoints: 0, redeemedPoints: 0, expiredPoints: 0 },
+        status: 'active',
+        mobileVerified: false,
+        address: userData.owner.address || null,
+        ownerId: null,
+        loyaltyId: await generateOwnerLoyaltyId(),
+        profilePhoto: userData.ownerPhoto || null,
+        createdBy: adminId,
+        createdByModel: 'Admin',
+      });
+      return {
+        user: await userRepository.findById(newOwner._id),
+        vehicle: null,
+        assignment: null,
+        ownerId: newOwner._id,
+      };
+    }
+
     const existing = await userRepository.findByMobile(userData.mobile);
     if (existing) {
       throw new ApiError(HTTP_STATUS.CONFLICT, 'User with this mobile number already exists');
     }
-
-    const role = (userData.role || '').toLowerCase();
-    // Only use accountType for USER role, ignore for manager/staff
-    const accountType = role === ROLES.USER ? (userData.accountType || 'individual') : 'individual';
     
     // Organization accounts only supported for USER role
     if (accountType === 'organization' && role !== ROLES.USER) {
@@ -263,11 +342,13 @@ export const userService = {
           fullName: userData.owner.fullName,
           mobile: ownerMobile,
           email: userData.owner.email || null,
+          userType: USER_TYPES.OWNER,
           walletSummary: { totalEarned: 0, availablePoints: 0, redeemedPoints: 0, expiredPoints: 0 },
           status: 'active',
           mobileVerified: false,
           address: userData.owner.address || null,
           ownerId: null,
+          loyaltyId: await generateOwnerLoyaltyId(),
           profilePhoto: userData.ownerPhoto || null,
           createdBy: adminId,
           createdByModel: 'Admin',
@@ -384,6 +465,7 @@ export const userService = {
       ...userDataWithoutPassword,
       passwordHash: passwordHash || null,
       referralCode: referrer ? (referralCode || '').trim() || null : null,
+      userType: ownerId ? USER_TYPES.DRIVER : USER_TYPES.INDIVIDUAL,
       address: userData.address || null,
       profilePhoto: userData.profilePhoto || null,
       ownerId,
@@ -439,14 +521,44 @@ export const userService = {
    * Auto-generates referral code for staff created by manager
    */
   async createUserByManagerOrStaff(userData, vehicleData, operatorId, operatorRole) {
+    const userRole = (userData.role || ROLES.USER).toLowerCase();
+    const accountType = userRole === ROLES.USER ? (userData.accountType || 'individual') : 'individual';
+
+    // Owner-only: create only fleet owner (no driver, no vehicle)
+    if (userData.ownerOnly && userRole === ROLES.USER && accountType === 'organization' && userData.ownerType === 'non-registered' && userData.owner) {
+      const ownerMobile = userData.owner.mobile;
+      const existingOwner = await userRepository.findByMobile(ownerMobile);
+      if (existingOwner) {
+        throw new ApiError(HTTP_STATUS.CONFLICT, 'Owner with this mobile number already exists');
+      }
+      const operatorType = operatorRole === ROLES.MANAGER ? 'Manager' : 'Staff';
+      const newOwner = await userRepository.create({
+        fullName: userData.owner.fullName,
+        mobile: ownerMobile,
+        email: userData.owner.email || null,
+        userType: USER_TYPES.OWNER,
+        walletSummary: { totalEarned: 0, availablePoints: 0, redeemedPoints: 0, expiredPoints: 0 },
+        status: 'active',
+        mobileVerified: false,
+        address: userData.owner.address || null,
+        ownerId: null,
+        loyaltyId: await generateOwnerLoyaltyId(),
+        profilePhoto: userData.ownerPhoto || null,
+        createdBy: operatorId,
+        createdByModel: operatorType,
+      });
+      return {
+        user: await userRepository.findById(newOwner._id),
+        vehicle: null,
+        assignment: null,
+        ownerId: newOwner._id,
+      };
+    }
+
     const existing = await userRepository.findByMobile(userData.mobile);
     if (existing) {
       throw new ApiError(HTTP_STATUS.CONFLICT, 'User with this mobile number already exists');
     }
-
-    const userRole = (userData.role || ROLES.USER).toLowerCase();
-    // Only use accountType for USER role, ignore for staff
-    const accountType = userRole === ROLES.USER ? (userData.accountType || 'individual') : 'individual';
     
     // Organization accounts only supported for USER role
     if (accountType === 'organization' && userRole !== ROLES.USER) {
@@ -485,11 +597,13 @@ export const userService = {
           fullName: userData.owner.fullName,
           mobile: ownerMobile,
           email: userData.owner.email || null,
+          userType: USER_TYPES.OWNER,
           walletSummary: { totalEarned: 0, availablePoints: 0, redeemedPoints: 0, expiredPoints: 0 },
           status: 'active',
           mobileVerified: false,
           address: userData.owner.address || null,
           ownerId: null,
+          loyaltyId: await generateOwnerLoyaltyId(),
           profilePhoto: userData.ownerPhoto || null,
           createdBy: operatorId,
           createdByModel: operatorRole === ROLES.MANAGER ? 'Manager' : 'Staff',
@@ -599,6 +713,7 @@ export const userService = {
       ...userDataWithoutPassword,
       passwordHash: passwordHash || null,
       referralCode: null,
+      userType: ownerId ? USER_TYPES.DRIVER : USER_TYPES.INDIVIDUAL,
       address: userData.address || null,
       profilePhoto: userData.profilePhoto || null,
       ownerId,
