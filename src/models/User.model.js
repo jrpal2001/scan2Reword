@@ -22,7 +22,7 @@ const userSchema = new mongoose.Schema(
       redeemedPoints: { type: Number, default: 0 },
       expiredPoints: { type: Number, default: 0 },
     },
-    referralCode: { type: String, sparse: true },
+    referralCode: { type: String, sparse: true, unique: true },
     /** Owner loyalty ID (LOYxxx) - only for fleet owners (ownerId null). Used when vehicle QR is not available. */
     loyaltyId: { type: String, trim: true, sparse: true, unique: true },
     FcmTokens: [{ type: String }],
@@ -46,8 +46,6 @@ const userSchema = new mongoose.Schema(
 );
 
 userSchema.index({ mobile: 1 }, { unique: true });
-userSchema.index({ referralCode: 1 }, { unique: true, sparse: true });
-userSchema.index({ loyaltyId: 1 }, { unique: true, sparse: true });
 userSchema.index({ ownerId: 1 });
 userSchema.index({ status: 1 });
 userSchema.index({ userType: 1 });

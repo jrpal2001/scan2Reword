@@ -8,7 +8,7 @@ const staffSchema = new mongoose.Schema(
     email: { type: String, trim: true, lowercase: true, sparse: true },
     passwordHash: { type: String, required: true },
     staffCode: { type: String, trim: true, sparse: true, unique: true },
-    referralCode: { type: String, sparse: true },
+    referralCode: { type: String, sparse: true, unique: true },
     walletSummary: {
       totalEarned: { type: Number, default: 0 },
       availablePoints: { type: Number, default: 0 },
@@ -31,9 +31,6 @@ const staffSchema = new mongoose.Schema(
   { timestamps: true }
 );
 
-staffSchema.index({ mobile: 1 }, { unique: true });
-staffSchema.index({ staffCode: 1 }, { unique: true, sparse: true });
-staffSchema.index({ referralCode: 1 }, { unique: true, sparse: true });
 staffSchema.index({ assignedManagerId: 1 });
 staffSchema.index({ status: 1 });
 

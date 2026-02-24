@@ -8,7 +8,7 @@ const managerSchema = new mongoose.Schema(
     email: { type: String, trim: true, lowercase: true, sparse: true },
     passwordHash: { type: String, required: true },
     managerCode: { type: String, trim: true, sparse: true, unique: true },
-    referralCode: { type: String, sparse: true },
+    referralCode: { type: String, sparse: true, unique: true },
     walletSummary: {
       totalEarned: { type: Number, default: 0 },
       availablePoints: { type: Number, default: 0 },
@@ -30,9 +30,6 @@ const managerSchema = new mongoose.Schema(
   { timestamps: true }
 );
 
-managerSchema.index({ mobile: 1 }, { unique: true });
-managerSchema.index({ managerCode: 1 }, { unique: true, sparse: true });
-managerSchema.index({ referralCode: 1 }, { unique: true, sparse: true });
 managerSchema.index({ status: 1 });
 
 const Manager = mongoose.models.Manager || mongoose.model('Manager', managerSchema);
