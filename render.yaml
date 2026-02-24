@@ -1,0 +1,6 @@
+services:
+  - type: web
+    name: scan2reword-backend
+    runtime: node
+    startCommand: node server.js
+    buildCommand: npm install
