@@ -2,5 +2,6 @@ services:
   - type: web
     name: scan2reword-backend
     runtime: node
+    rootDir: .
     startCommand: node server.js
     buildCommand: npm install
