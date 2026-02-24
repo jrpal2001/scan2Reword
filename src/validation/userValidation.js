@@ -47,13 +47,32 @@ const addressSchema = Joi.alternatives()
 
 const objectIdSchema = Joi.string().trim().pattern(/^[0-9a-fA-F]{24}$/).allow('', null);
 
+/**
+ * Parse JSON string; if it fails (e.g. unquoted keys like address:), try quoting keys and parse again.
+ * Form-data often has unquoted keys (e.g. address:{"street":"..."}).
+ */
+function parseJsonRelaxed(str) {
+  if (typeof str !== 'string' || !str.trim()) return undefined;
+  try {
+    return JSON.parse(str);
+  } catch (e) {
+    // Try repairing unquoted keys: ,key: or {key: -> ,"key": or {"key":
+    const repaired = str.replace(/([,{])\s*([a-zA-Z_][a-zA-Z0-9_]*)\s*:/g, '$1"$2":');
+    try {
+      return JSON.parse(repaired);
+    } catch (e2) {
+      throw e;
+    }
+  }
+}
+
 /** Vehicle: object or JSON string (form-data sends as string) */
 const vehicleSchemaOrString = Joi.alternatives().try(
   vehicleSchema,
   Joi.string().trim().custom((value, helpers) => {
     if (!value) return undefined;
     try {
-      const parsed = typeof value === 'string' ? JSON.parse(value) : value;
+      const parsed = typeof value === 'string' ? parseJsonRelaxed(value) : value;
       const { error, value: out } = vehicleSchema.validate(parsed);
       if (error) return helpers.error('any.invalid');
       return out;
@@ -75,7 +94,7 @@ const ownerSchemaOrString = Joi.alternatives().try(
   Joi.string().trim().custom((value, helpers) => {
     if (!value) return undefined;
     try {
-      const parsed = typeof value === 'string' ? JSON.parse(value) : value;
+      const parsed = typeof value === 'string' ? parseJsonRelaxed(value) : value;
       const { error, value: out } = ownerObjectSchema.validate(parsed);
       if (error) return helpers.error('any.invalid');
       return out;

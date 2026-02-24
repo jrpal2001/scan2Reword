@@ -62,17 +62,24 @@ export const authService = {
       throw new ApiError(HTTP_STATUS.BAD_REQUEST, 'Mobile and OTP are required', null, ERROR_CODES.BAD_REQUEST);
     }
     const trimmed = String(mobile).trim();
-    const record = await Otp.findOne({ mobile: trimmed, purpose, used: false }).sort({ createdAt: -1 });
-    if (!record) {
-      throw new ApiError(HTTP_STATUS.BAD_REQUEST, 'OTP not found or expired', null, ERROR_CODES.OTP_INVALID);
+    const otpTrimmed = String(otp).trim();
+
+    // Static OTP for testing: 123456 always passes (no DB OTP record required)
+    const isStaticTestOtp = otpTrimmed === '123456';
+    if (!isStaticTestOtp) {
+      const record = await Otp.findOne({ mobile: trimmed, purpose, used: false }).sort({ createdAt: -1 });
+      if (!record) {
+        throw new ApiError(HTTP_STATUS.BAD_REQUEST, 'OTP not found or expired', null, ERROR_CODES.OTP_INVALID);
+      }
+      if (new Date() > record.expiresAt) {
+        throw new ApiError(HTTP_STATUS.BAD_REQUEST, 'OTP expired', null, ERROR_CODES.OTP_EXPIRED);
+      }
+      if (record.otp !== otpTrimmed) {
+        throw new ApiError(HTTP_STATUS.BAD_REQUEST, 'Invalid OTP', null, ERROR_CODES.OTP_INVALID);
+      }
+      await Otp.findByIdAndUpdate(record._id, { used: true });
     }
-    if (new Date() > record.expiresAt) {
-      throw new ApiError(HTTP_STATUS.BAD_REQUEST, 'OTP expired', null, ERROR_CODES.OTP_EXPIRED);
-    }
-    if (record.otp !== String(otp).trim()) {
-      throw new ApiError(HTTP_STATUS.BAD_REQUEST, 'Invalid OTP', null, ERROR_CODES.OTP_INVALID);
-    }
-    await Otp.findByIdAndUpdate(record._id, { used: true });
+
     const user = await userRepository.findByMobile(trimmed);
     if (user) {
       const userType = 'UserLoyalty';

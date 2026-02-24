@@ -154,12 +154,13 @@ export const userService = {
           mobileVerified: true,
           address: owner.address || null,
           ownerId: null,
+          profilePhoto: ownerPhoto || null,
         });
         ownerId = newOwner._id;
       }
     }
 
-    // Create user (customer/driver)
+    // Create user (customer/driver) - owner photo is on owner only, not on driver
     const user = await userRepository.create({
       fullName,
       mobile,
@@ -170,7 +171,7 @@ export const userService = {
       address: address || null,
       profilePhoto: profilePhoto || null,
       driverPhoto: driverPhoto || null,
-      ownerPhoto: ownerPhoto || null,
+      ownerPhoto: null,
       ownerId: ownerId,
     });
 
@@ -267,6 +268,7 @@ export const userService = {
           mobileVerified: false,
           address: userData.owner.address || null,
           ownerId: null,
+          profilePhoto: userData.ownerPhoto || null,
           createdBy: adminId,
           createdByModel: 'Admin',
         });
@@ -306,6 +308,18 @@ export const userService = {
     }
 
     const { password, ownerType, ownerIdentifier, owner, accountType: _, role: __, ...userDataWithoutPassword } = userData;
+
+    // Resolve referrer for customer (USER) when referral code provided - same as register flow
+    let referrer = null;
+    if (role === ROLES.USER && referralCode) {
+      referrer = await findReferrerByCode(referralCode);
+      if (!referrer) {
+        throw new ApiError(HTTP_STATUS.BAD_REQUEST, 'Invalid referral code');
+      }
+      if (referrer._ownerType !== 'Manager' && referrer._ownerType !== 'Staff') {
+        throw new ApiError(HTTP_STATUS.BAD_REQUEST, 'Referral code must belong to a manager or staff');
+      }
+    }
 
     let created = null;
     let vehicle = null;
@@ -365,11 +379,11 @@ export const userService = {
       };
     }
 
-    // role === ROLES.USER (customer)
+    // role === ROLES.USER (customer/driver) - owner photo is saved on owner only, not on driver
     created = await userRepository.create({
       ...userDataWithoutPassword,
       passwordHash: passwordHash || null,
-      referralCode: null,
+      referralCode: referrer ? (referralCode || '').trim() || null : null,
       address: userData.address || null,
       profilePhoto: userData.profilePhoto || null,
       ownerId,
@@ -378,7 +392,7 @@ export const userService = {
       createdBy: adminId,
       createdByModel: 'Admin',
       driverPhoto: userData.driverPhoto || null,
-      ownerPhoto: userData.ownerPhoto || null,
+      ownerPhoto: null,
       mobileVerified: false,
     });
 
@@ -387,6 +401,26 @@ export const userService = {
         ...vehicleData,
         userId: created._id,
       });
+    }
+
+    // Credit referral points to referrer (Manager or Staff) when user created with referral code - same as register
+    if (referrer && referrer._id && (referrer._ownerType === 'Manager' || referrer._ownerType === 'Staff')) {
+      try {
+        const systemConfig = await systemConfigService.getConfig();
+        const referralPoints = systemConfig.points?.referral || 0;
+        if (referralPoints > 0) {
+          await pointsService.creditPoints({
+            userId: referrer._id,
+            ownerType: referrer._ownerType,
+            points: referralPoints,
+            type: 'credit',
+            reason: `Referral bonus - User ${created._id} registered with referral code (admin)`,
+            createdBy: created._id,
+          });
+        }
+      } catch (error) {
+        console.error('Failed to credit referral points:', error.message);
+      }
     }
 
     return {
@@ -456,6 +490,7 @@ export const userService = {
           mobileVerified: false,
           address: userData.owner.address || null,
           ownerId: null,
+          profilePhoto: userData.ownerPhoto || null,
           createdBy: operatorId,
           createdByModel: operatorRole === ROLES.MANAGER ? 'Manager' : 'Staff',
         });
@@ -572,7 +607,7 @@ export const userService = {
       createdBy: operatorId,
       createdByModel: operatorType,
       driverPhoto: userData.driverPhoto || null,
-      ownerPhoto: userData.ownerPhoto || null,
+      ownerPhoto: null,
       mobileVerified: false,
     });
 
