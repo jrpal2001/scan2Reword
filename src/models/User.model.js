@@ -41,6 +41,8 @@ const userSchema = new mongoose.Schema(
     ownerPhoto: { type: String, default: null },
     createdBy: { type: mongoose.Schema.Types.ObjectId, refPath: 'createdByModel', default: null },
     createdByModel: { type: String, enum: ['Admin', 'Manager', 'Staff'], default: null },
+    /** Pump (Mongo _id) where this user registered; from registration payload (pumpId or pump code). */
+    registeredPumpId: { type: mongoose.Schema.Types.ObjectId, ref: 'Pump', default: null },
   },
   { timestamps: true }
 );

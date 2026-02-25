@@ -146,6 +146,8 @@ export const register = asyncHandler(async (req, res) => {
     fullName: value.fullName,
     email: value.email,
     referralCode: value.referralCode,
+    registeredPumpId: value.registeredPumpId || null,
+    registeredPumpCode: value.registeredPumpCode || null,
     address: value.address || null,
     vehicle: value.vehicle,
     profilePhoto: s3Uploads.profilePhoto || null,
@@ -175,8 +177,9 @@ export const register = asyncHandler(async (req, res) => {
         user: result.user,
         vehicle: result.vehicle,
         ownerId: result.ownerId || null,
+        ...(result.registeredPump && { registeredPump: result.registeredPump }),
       },
-      'Registration successful. Frontend can generate QR from loyaltyId.'
+      result.message || 'Registration successful. Frontend can generate QR from loyaltyId.'
     )
   );
 });

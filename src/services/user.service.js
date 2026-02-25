@@ -106,6 +106,8 @@ export const userService = {
       fullName,
       email,
       referralCode,
+      registeredPumpId: registeredPumpIdInput,
+      registeredPumpCode,
       address,
       vehicle,
       ownerType,
@@ -120,6 +122,21 @@ export const userService = {
       pollutionPhoto,
       vehiclePhoto,
     } = registrationData;
+
+    // Resolve pump to Mongo _id (store as registeredPumpId on user); keep pump doc for thank-you message
+    let resolvedRegisteredPumpId = null;
+    let resolvedPump = null;
+    if (registeredPumpIdInput && String(registeredPumpIdInput).trim()) {
+      const pump = await pumpRepository.findById(registeredPumpIdInput);
+      if (!pump) throw new ApiError(HTTP_STATUS.BAD_REQUEST, 'Invalid registeredPumpId');
+      resolvedRegisteredPumpId = pump._id;
+      resolvedPump = pump;
+    } else if (registeredPumpCode && String(registeredPumpCode).trim()) {
+      const pump = await pumpRepository.findByCode(registeredPumpCode);
+      if (!pump) throw new ApiError(HTTP_STATUS.BAD_REQUEST, 'Invalid pump code');
+      resolvedRegisteredPumpId = pump._id;
+      resolvedPump = pump;
+    }
 
     // Check if mobile already exists
     const existing = await userRepository.findByMobile(mobile);
@@ -159,8 +176,10 @@ export const userService = {
         address: owner.address || null,
         ownerId: null,
         loyaltyId: await generateOwnerLoyaltyId(),
-        profilePhoto: ownerPhoto || null,
+        profilePhoto: ownerPhoto || profilePhoto || null,
+        registeredPumpId: resolvedRegisteredPumpId,
       });
+      const pumpName = resolvedPump?.name || 'our';
       return {
         userId: newOwner._id,
         vehicleId: null,
@@ -168,6 +187,8 @@ export const userService = {
         user: await userRepository.findById(newOwner._id),
         vehicle: null,
         ownerId: newOwner._id,
+        message: `Thank you for registering at ${pumpName} for the loyalty program scheme.`,
+        registeredPump: resolvedPump ? { _id: resolvedPump._id, name: resolvedPump.name, code: resolvedPump.code } : null,
       };
     }
 
@@ -204,6 +225,7 @@ export const userService = {
           ownerId: null,
           loyaltyId: await generateOwnerLoyaltyId(),
           profilePhoto: ownerPhoto || null,
+          registeredPumpId: resolvedRegisteredPumpId,
         });
         ownerId = newOwner._id;
       }
@@ -223,6 +245,7 @@ export const userService = {
       driverPhoto: driverPhoto || null,
       ownerPhoto: null,
       ownerId: ownerId,
+      registeredPumpId: resolvedRegisteredPumpId,
     });
 
     // Create vehicle with loyaltyId
@@ -257,12 +280,15 @@ export const userService = {
       }
     }
 
+    const pumpName = resolvedPump?.name || 'our';
     return {
       userId: user._id,
       vehicleId: vehicleCreated._id,
       loyaltyId: vehicleCreated.loyaltyId,
       user: await userRepository.findById(user._id),
       vehicle: vehicleCreated,
+      message: `Thank you for registering at ${pumpName} for the loyalty program scheme.`,
+      registeredPump: resolvedPump ? { _id: resolvedPump._id, name: resolvedPump.name, code: resolvedPump.code } : null,
       ownerId: ownerId, // Return ownerId if organization
     };
   },
@@ -792,12 +818,18 @@ export const userService = {
   },
 
   /**
-   * Get user by ID
+   * Get user by ID. Attaches registeredPump { _id, name, code } when user has registeredPumpId.
    */
   async getUserById(userId) {
     const user = await userRepository.findById(userId);
     if (!user) {
       throw new ApiError(HTTP_STATUS.NOT_FOUND, 'User not found');
+    }
+    if (user.registeredPumpId) {
+      const pump = await pumpRepository.findById(user.registeredPumpId);
+      user.registeredPump = pump ? { _id: pump._id, name: pump.name, code: pump.code } : null;
+    } else {
+      user.registeredPump = null;
     }
     return user;
   },
@@ -817,10 +849,27 @@ export const userService = {
   },
 
   /**
-   * List users with filters (admin)
+   * List users with filters. When allowedPumpIds is provided (manager), only users who registered at those pumps are returned.
+   * Each user is enriched with registeredPump { _id, name, code } when they have registeredPumpId.
    */
-  async listUsers(filter = {}, options = {}) {
-    return userRepository.list(filter, options);
+  async listUsers(filter = {}, options = {}, allowedPumpIds = null) {
+    if (allowedPumpIds && Array.isArray(allowedPumpIds) && allowedPumpIds.length > 0) {
+      filter.registeredPumpId = { $in: allowedPumpIds.map((id) => String(id)) };
+    }
+    const result = await userRepository.list(filter, options);
+    if (!result.list || result.list.length === 0) {
+      return result;
+    }
+    const pumpIds = [...new Set(result.list.map((u) => u.registeredPumpId).filter(Boolean))];
+    const pumps = pumpIds.length
+      ? await Promise.all(pumpIds.map((id) => pumpRepository.findById(id)))
+      : [];
+    const pumpMap = Object.fromEntries(pumps.filter(Boolean).map((p) => [String(p._id), { _id: p._id, name: p.name, code: p.code }]));
+    result.list = result.list.map((u) => ({
+      ...u,
+      registeredPump: u.registeredPumpId ? pumpMap[String(u.registeredPumpId)] || null : null,
+    }));
+    return result;
   },
 
   /**

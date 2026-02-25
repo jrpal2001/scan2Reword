@@ -41,6 +41,23 @@ router.post(
   adminController.createUserByOperator
 );
 
+// List users who registered at this manager's pump(s)
+router.get(
+  '/users',
+  verifyJWT,
+  requireRoles([ROLES.MANAGER]),
+  attachPumpScope,
+  adminController.listUsers
+);
+
+router.get(
+  '/users/:userId',
+  verifyJWT,
+  requireRoles([ROLES.MANAGER]),
+  attachPumpScope,
+  adminController.getUserById
+);
+
 // Wallet adjustment (pump-scoped)
 router.post(
   '/wallet/adjust',

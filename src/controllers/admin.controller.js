@@ -1,5 +1,6 @@
 import { asyncHandler } from '../utils/asyncHandler.js';
 import { ApiResponse } from '../utils/ApiResponse.js';
+import ApiError from '../utils/ApiError.js';
 import { userService } from '../services/user.service.js';
 import { auditLogService } from '../services/auditLog.service.js';
 import { HTTP_STATUS } from '../constants/errorCodes.js';
@@ -187,10 +188,11 @@ export const listUsers = asyncHandler(async (req, res) => {
       { email: { $regex: search, $options: 'i' } },
     ];
   }
-  const result = await userService.listUsers(filter, {
-    page: parseInt(page),
-    limit: parseInt(limit),
-  });
+  const result = await userService.listUsers(
+    filter,
+    { page: parseInt(page), limit: parseInt(limit) },
+    req.allowedPumpIds || null
+  );
 
   return res.status(HTTP_STATUS.OK).json(
     ApiResponse.success(result, 'Users retrieved successfully')
@@ -199,11 +201,17 @@ export const listUsers = asyncHandler(async (req, res) => {
 
 /**
  * GET /api/admin/users/:userId
- * Get user by ID
+ * Get user by ID. Admin: any user. Manager (GET /api/manager/users/:userId): only if user registered at manager's pump.
  */
 export const getUserById = asyncHandler(async (req, res) => {
   const { userId } = req.params;
   const user = await userService.getUserById(userId);
+  const allowedPumpIds = req.allowedPumpIds;
+  if (allowedPumpIds != null && Array.isArray(allowedPumpIds) && allowedPumpIds.length > 0) {
+    if (!user.registeredPumpId || !allowedPumpIds.map((id) => String(id)).includes(String(user.registeredPumpId))) {
+      throw new ApiError(HTTP_STATUS.FORBIDDEN, 'You can only view users who registered at your pump(s)');
+    }
+  }
   return res.status(HTTP_STATUS.OK).json(
     ApiResponse.success(user, 'User retrieved successfully')
   );

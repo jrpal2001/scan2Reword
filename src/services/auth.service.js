@@ -87,7 +87,14 @@ export const authService = {
       const refreshToken = this.issueRefreshToken(user, userType);
       await this.storeRefreshToken(user._id, userType, refreshToken, fcmToken, deviceInfo, ipAddress, userAgent);
       return {
-        user: { _id: user._id, fullName: user.fullName, mobile: user.mobile, role: ROLES.USER },
+        user: {
+          _id: user._id,
+          fullName: user.fullName,
+          mobile: user.mobile,
+          role: ROLES.USER,
+          userType: user.userType || 'individual',
+          ownerId: user.ownerId || null,
+        },
         token: accessToken,
         refreshToken,
         requiresPasswordSet: false,
