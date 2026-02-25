@@ -6,7 +6,7 @@ const managerSchema = new mongoose.Schema(
     fullName: { type: String, required: true, trim: true, minlength: 2, maxlength: 100 },
     mobile: { type: String, required: true, trim: true, match: /^[6-9]\d{9}$/, unique: true },
     email: { type: String, trim: true, lowercase: true, sparse: true },
-    passwordHash: { type: String, required: true },
+    passwordHash: { type: String, required: false, default: null },
     managerCode: { type: String, trim: true, sparse: true, unique: true },
     referralCode: { type: String, sparse: true, unique: true },
     walletSummary: {

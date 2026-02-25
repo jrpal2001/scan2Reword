@@ -32,6 +32,17 @@ export const authValidation = {
 
   login: Joi.object({
     identifier: Joi.string().trim().min(1).required(),
+    fcmToken: Joi.string().trim().allow('', null).optional(),
+    deviceInfo: Joi.object({
+      deviceId: Joi.string().trim().allow('', null).optional(),
+      deviceName: Joi.string().trim().allow('', null).optional(),
+      platform: Joi.string().valid('ios', 'android', 'web').allow('', null).optional(),
+      appVersion: Joi.string().trim().allow('', null).optional(),
+    }).optional(),
+  }),
+
+  verifyPassword: Joi.object({
+    identifier: Joi.string().trim().min(1).required(),
     password: Joi.string().min(1).required(),
     fcmToken: Joi.string().trim().allow('', null).optional(),
     deviceInfo: Joi.object({
@@ -44,6 +55,12 @@ export const authValidation = {
 
   refresh: Joi.object({
     refreshToken: Joi.string().trim().required(),
+  }),
+
+  setPassword: Joi.object({
+    password: Joi.string().min(6).required().messages({
+      'string.min': 'Password must be at least 6 characters',
+    }),
   }),
 
   logout: Joi.object({

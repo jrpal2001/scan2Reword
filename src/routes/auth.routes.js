@@ -24,7 +24,9 @@ router.post(
 
 // Rate limiting commented out for debugging
 router.post('/login', /* strictRateLimiter, */ validateRequest(authValidation.login), authController.login);
+router.post('/verify-password', /* strictRateLimiter, */ validateRequest(authValidation.verifyPassword), authController.verifyPassword);
 router.post('/refresh', validateRequest(authValidation.refresh), authController.refresh);
+router.post('/set-password', verifyJWT, validateRequest(authValidation.setPassword), authController.setPassword);
 router.post('/logout', verifyJWT, validateRequest(authValidation.logout), authController.logout);
 
 export default router;

@@ -119,11 +119,8 @@ export const userValidation = {
     fullName: Joi.when('ownerOnly', { is: true, then: Joi.optional(), otherwise: Joi.string().trim().min(2).max(100).required() }),
     email: Joi.string().email().trim().lowercase().allow('').optional(),
     role: Joi.string().trim().lowercase().valid(ROLES.USER, ROLES.MANAGER, ROLES.STAFF).default(ROLES.USER),
-    password: Joi.string().min(6).when('role', {
-      is: Joi.string().valid(ROLES.MANAGER, ROLES.STAFF),
-      then: Joi.required(),
-      otherwise: Joi.optional(),
-    }).messages({
+    // Optional for all: Manager/Staff set password on first OTP login; User (customer) has no password login
+    password: Joi.string().min(6).optional().allow('', null).messages({
       'string.min': 'Password must be at least 6 characters long',
     }),
     address: addressSchema,
@@ -171,7 +168,7 @@ export const userValidation = {
     referralCode: Joi.string().trim().allow('', null).optional(),
   }),
 
-  /** Manager/Staff create user — Manager can create staff or user, Staff can only create user */
+  /** Manager/Staff create user — Manager can create staff or user, Staff can only create user. No password required for staff; they set it on first OTP login. */
   createUserByOperator: Joi.object({
     ownerOnly: Joi.boolean().optional(),
     accountType: Joi.when('role', {
@@ -183,11 +180,8 @@ export const userValidation = {
     fullName: Joi.when('ownerOnly', { is: true, then: Joi.optional(), otherwise: Joi.string().trim().min(2).max(100).required() }),
     email: Joi.string().email().trim().lowercase().allow('').optional(),
     role: Joi.string().valid(ROLES.USER, ROLES.STAFF).default(ROLES.USER),
-    password: Joi.string().min(6).when('role', {
-      is: ROLES.STAFF,
-      then: Joi.required(),
-      otherwise: Joi.optional(),
-    }).messages({
+    // Optional for staff (manager creates staff without password; staff set it on first OTP login)
+    password: Joi.string().min(6).optional().allow('', null).messages({
       'string.min': 'Password must be at least 6 characters long',
     }),
     address: addressSchema,

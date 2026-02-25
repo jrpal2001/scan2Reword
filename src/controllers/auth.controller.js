@@ -32,24 +32,59 @@ export const verifyOtp = asyncHandler(async (req, res) => {
     req.get('user-agent')
   );
   if (result.token) {
+    const payload = {
+      user: result.user,
+      token: result.token,
+      refreshToken: result.refreshToken,
+      requiresPasswordSet: result.requiresPasswordSet ?? false,
+      isManager: result.isManager ?? false,
+      isStaff: result.isStaff ?? false,
+      isIndividualUser: result.isIndividualUser ?? false,
+      isFleetOwner: result.isFleetOwner ?? false,
+      isFleetDriver: result.isFleetDriver ?? false,
+    };
     return res.status(HTTP_STATUS.OK).json(
-      ApiResponse.success(
-        { user: result.user, token: result.token, refreshToken: result.refreshToken },
-        'Login successful'
-      )
+      ApiResponse.success(payload, result.requiresPasswordSet ? 'Login successful. Please set your password.' : 'Login successful')
     );
   }
   return res.status(HTTP_STATUS.OK).json(
-    ApiResponse.success({ user: null, token: null, refreshToken: null }, 'OTP verified. Proceed to register.')
+    ApiResponse.success(
+      {
+        user: null,
+        token: null,
+        refreshToken: null,
+        requiresPasswordSet: false,
+        isManager: false,
+        isStaff: false,
+        isIndividualUser: false,
+        isFleetOwner: false,
+        isFleetDriver: false,
+      },
+      'OTP verified. Proceed to register.'
+    )
   );
 });
 
 /**
  * POST /api/auth/login
- * Body: { identifier, password, fcmToken?, deviceInfo? }
- * For Admin / Manager / Staff only.
+ * Body: { identifier } — no password. Returns who the user is so frontend can decide next step.
+ * - If isAdmin: true → frontend calls POST /api/auth/verify-password every time.
+ * - If isAdmin: false → returns isManager, isStaff, isIndividualUser, isFleetOwner, isFleetDriver, requiresPasswordSet.
+ *   - If requiresPasswordSet: true → frontend calls send-otp, then verify-otp, then setPassword if manager/staff.
+ *   - If requiresPasswordSet: false and (isManager or isStaff) → frontend calls verify-password.
  */
 export const login = asyncHandler(async (req, res) => {
+  const value = req.validated;
+  const result = await authService.checkLogin(value.identifier);
+  return res.status(HTTP_STATUS.OK).json(ApiResponse.success(result, 'Login check successful'));
+});
+
+/**
+ * POST /api/auth/verify-password
+ * Body: { identifier, password, fcmToken?, deviceInfo? }
+ * For Admin (every time after login), Manager, Staff (when requiresPasswordSet was false). Returns token + user.
+ */
+export const verifyPassword = asyncHandler(async (req, res) => {
   const value = req.validated;
   const result = await authService.loginWithPassword(
     value.identifier,
@@ -144,6 +179,21 @@ export const register = asyncHandler(async (req, res) => {
       'Registration successful. Frontend can generate QR from loyaltyId.'
     )
   );
+});
+
+/**
+ * POST /api/auth/set-password
+ * Body: { password }
+ * Requires: Authorization (Manager or Staff only). Use after first-time OTP login when requiresPasswordSet is true.
+ */
+export const setPassword = asyncHandler(async (req, res) => {
+  const value = req.validated;
+  const userType = req.userType || req.user?.role;
+  if (userType !== 'manager' && userType !== 'staff') {
+    throw new ApiError(HTTP_STATUS.FORBIDDEN, 'Only Manager or Staff can set password');
+  }
+  const result = await authService.setPassword(req.user._id, userType === 'manager' ? 'Manager' : 'Staff', value.password);
+  return res.status(HTTP_STATUS.OK).json(ApiResponse.success(result, result.message));
 });
 
 /**

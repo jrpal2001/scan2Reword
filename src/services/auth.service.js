@@ -90,9 +90,127 @@ export const authService = {
         user: { _id: user._id, fullName: user.fullName, mobile: user.mobile, role: ROLES.USER },
         token: accessToken,
         refreshToken,
+        requiresPasswordSet: false,
+        isManager: false,
+        isStaff: false,
+        isIndividualUser: user.userType === 'individual',
+        isFleetOwner: user.userType === 'owner',
+        isFleetDriver: user.userType === 'driver',
       };
     }
-    return { user: null, token: null, refreshToken: null };
+
+    // Manager/Staff: first-time login via OTP (no password set); later they use password
+    const manager = await managerRepository.findByMobile(trimmed);
+    if (manager) {
+      const userType = 'Manager';
+      const accessToken = this.issueJwt(manager, userType);
+      const refreshToken = this.issueRefreshToken(manager, userType);
+      await this.storeRefreshToken(manager._id, userType, refreshToken, fcmToken, deviceInfo, ipAddress, userAgent);
+      const userSafe = await managerRepository.findById(manager._id);
+      return {
+        user: { ...userSafe, role: ROLES.MANAGER },
+        token: accessToken,
+        refreshToken,
+        requiresPasswordSet: !manager.passwordHash,
+        isManager: true,
+        isStaff: false,
+        isIndividualUser: false,
+        isFleetOwner: false,
+        isFleetDriver: false,
+      };
+    }
+
+    const staff = await staffRepository.findByMobile(trimmed);
+    if (staff) {
+      const userType = 'Staff';
+      const accessToken = this.issueJwt(staff, userType);
+      const refreshToken = this.issueRefreshToken(staff, userType);
+      await this.storeRefreshToken(staff._id, userType, refreshToken, fcmToken, deviceInfo, ipAddress, userAgent);
+      const userSafe = await staffRepository.findById(staff._id);
+      return {
+        user: { ...userSafe, role: ROLES.STAFF },
+        token: accessToken,
+        refreshToken,
+        requiresPasswordSet: !staff.passwordHash,
+        isManager: false,
+        isStaff: true,
+        isIndividualUser: false,
+        isFleetOwner: false,
+        isFleetDriver: false,
+      };
+    }
+
+    return {
+      user: null,
+      token: null,
+      refreshToken: null,
+      requiresPasswordSet: false,
+      isManager: false,
+      isStaff: false,
+      isIndividualUser: false,
+      isFleetOwner: false,
+      isFleetDriver: false,
+    };
+  },
+
+  /**
+   * Check login by identifier only (no password). Used for first step of login flow.
+   * Returns isAdmin (true => frontend calls verify-password every time), or
+   * isAdmin: false with isManager, isStaff, isIndividualUser, isFleetOwner, isFleetDriver, requiresPasswordSet.
+   */
+  async checkLogin(identifier) {
+    if (!identifier || typeof identifier !== 'string' || !identifier.trim()) {
+      throw new ApiError(HTTP_STATUS.BAD_REQUEST, 'Identifier is required', null, ERROR_CODES.BAD_REQUEST);
+    }
+    const trimmed = identifier.trim();
+
+    const admin = await Admin.findOne({
+      $or: [{ email: trimmed.toLowerCase() }, { phone: trimmed }],
+    });
+    if (admin) {
+      return { isAdmin: true };
+    }
+
+    const manager = await managerRepository.findByIdentifier(identifier);
+    if (manager) {
+      return {
+        isAdmin: false,
+        isManager: true,
+        isStaff: false,
+        isIndividualUser: false,
+        isFleetOwner: false,
+        isFleetDriver: false,
+        requiresPasswordSet: !manager.passwordHash,
+      };
+    }
+
+    const staff = await staffRepository.findByIdentifier(identifier);
+    if (staff) {
+      return {
+        isAdmin: false,
+        isManager: false,
+        isStaff: true,
+        isIndividualUser: false,
+        isFleetOwner: false,
+        isFleetDriver: false,
+        requiresPasswordSet: !staff.passwordHash,
+      };
+    }
+
+    const user = await userRepository.findByIdentifier(identifier);
+    if (user) {
+      return {
+        isAdmin: false,
+        isManager: false,
+        isStaff: false,
+        isIndividualUser: user.userType === 'individual',
+        isFleetOwner: user.userType === 'owner',
+        isFleetDriver: user.userType === 'driver',
+        requiresPasswordSet: false,
+      };
+    }
+
+    throw new ApiError(HTTP_STATUS.NOT_FOUND, 'Identifier not found', null, ERROR_CODES.NOT_FOUND);
   },
 
   async loginWithPassword(identifier, password, fcmToken = null, deviceInfo = null, ipAddress = null, userAgent = null) {
@@ -141,7 +259,7 @@ export const authService = {
     // Password check (Admin already checked above)
     if (userType !== 'Admin') {
       if (!entity.passwordHash) {
-        throw new ApiError(HTTP_STATUS.UNAUTHORIZED, 'Password not set for this account', null, ERROR_CODES.INVALID_CREDENTIALS);
+        throw new ApiError(HTTP_STATUS.UNAUTHORIZED, 'Password not set. Please login with OTP first and set your password.', null, ERROR_CODES.INVALID_CREDENTIALS);
       }
       const match = await bcrypt.compare(password, entity.passwordHash);
       if (!match) {
@@ -391,5 +509,29 @@ export const authService = {
 
   async hashPassword(plain) {
     return bcrypt.hash(plain, SALT_ROUNDS);
+  },
+
+  /**
+   * Set password for Manager/Staff (e.g. after first-time OTP login).
+   * Allowed only when user is Manager or Staff.
+   */
+  async setPassword(userId, userType, newPassword) {
+    if (!userId || !newPassword || typeof newPassword !== 'string' || newPassword.length < 6) {
+      throw new ApiError(HTTP_STATUS.BAD_REQUEST, 'Password must be at least 6 characters', null, ERROR_CODES.BAD_REQUEST);
+    }
+    if (userType !== 'Manager' && userType !== 'Staff') {
+      throw new ApiError(HTTP_STATUS.FORBIDDEN, 'Only Manager or Staff can set password via this endpoint', null, ERROR_CODES.FORBIDDEN);
+    }
+    const passwordHash = await this.hashPassword(newPassword);
+    if (userType === 'Manager') {
+      const manager = await managerRepository.findByIdWithPassword(userId);
+      if (!manager) throw new ApiError(HTTP_STATUS.NOT_FOUND, 'Manager not found', null, ERROR_CODES.NOT_FOUND);
+      await managerRepository.update(userId, { passwordHash });
+    } else {
+      const staff = await staffRepository.findByIdWithPassword(userId);
+      if (!staff) throw new ApiError(HTTP_STATUS.NOT_FOUND, 'Staff not found', null, ERROR_CODES.NOT_FOUND);
+      await staffRepository.update(userId, { passwordHash });
+    }
+    return { message: 'Password set successfully' };
   },
 };

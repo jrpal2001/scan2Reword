@@ -17,17 +17,11 @@ export const pumpService = {
       data.managerId = null;
     }
 
-    // Validate managerId if provided (Manager model, not User)
+    // Validate managerId if provided (Manager model, not User). A manager can be assigned to multiple pumps.
     if (data.managerId) {
       const manager = await managerRepository.findById(data.managerId);
       if (!manager) {
         throw new ApiError(HTTP_STATUS.NOT_FOUND, 'Manager not found');
-      }
-
-      // RESTRICTION: Check if manager is already assigned to another pump
-      const existingPump = await pumpRepository.list({ managerId: data.managerId, status: 'active' });
-      if (existingPump.list && existingPump.list.length > 0) {
-        throw new ApiError(HTTP_STATUS.CONFLICT, 'Manager can only be assigned to one pump. Please remove existing assignment first.');
       }
     }
 
@@ -58,20 +52,11 @@ export const pumpService = {
       data.managerId = null;
     }
 
-    // Validate managerId if provided (Manager model, not User)
+    // Validate managerId if provided (Manager model, not User). A manager can be assigned to multiple pumps.
     if (data.managerId !== undefined && data.managerId !== null) {
       const manager = await managerRepository.findById(data.managerId);
       if (!manager) {
         throw new ApiError(HTTP_STATUS.NOT_FOUND, 'Manager not found');
-      }
-
-      // RESTRICTION: Check if manager is already assigned to another pump (excluding current pump)
-      const existingPump = await pumpRepository.list({ managerId: data.managerId, status: 'active' });
-      if (existingPump.list && existingPump.list.length > 0) {
-        const otherPump = existingPump.list.find(p => p._id.toString() !== pumpId.toString());
-        if (otherPump) {
-          throw new ApiError(HTTP_STATUS.CONFLICT, 'Manager can only be assigned to one pump. Please remove existing assignment first.');
-        }
       }
     }
 
