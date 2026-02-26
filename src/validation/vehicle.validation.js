@@ -6,8 +6,8 @@ const fuelTypeSchema = Joi.string().valid('Petrol', 'Diesel', 'CNG', 'Electric')
 export const vehicleValidation = {
   create: Joi.object({
     vehicleNumber: Joi.string().trim().required(),
-    vehicleType: vehicleTypeSchema.required(),
-    fuelType: fuelTypeSchema.required(),
+    vehicleType: vehicleTypeSchema.optional().allow('', null),
+    fuelType: fuelTypeSchema.optional().allow('', null),
     brand: Joi.string().trim().allow('').optional(),
     model: Joi.string().trim().allow('').optional(),
     yearOfManufacture: Joi.number().integer().min(1900).max(new Date().getFullYear() + 1).optional(),

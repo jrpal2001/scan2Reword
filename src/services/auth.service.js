@@ -14,6 +14,11 @@ import { smsService } from './sms.service.js';
 
 const SALT_ROUNDS = 10;
 
+/** True if entity has a non-empty password set (Manager/Staff). Use for requiresPasswordSet = !hasPasswordSet(entity). */
+function hasPasswordSet(entity) {
+  return !!(entity && entity.passwordHash && String(entity.passwordHash).trim());
+}
+
 /** Generate numeric OTP of given length */
 function generateOtp(length = config.otp?.length || 6) {
   const digits = '0123456789';
@@ -118,7 +123,7 @@ export const authService = {
         user: { ...userSafe, role: ROLES.MANAGER },
         token: accessToken,
         refreshToken,
-        requiresPasswordSet: !manager.passwordHash,
+        requiresPasswordSet: !hasPasswordSet(manager),
         isManager: true,
         isStaff: false,
         isIndividualUser: false,
@@ -138,7 +143,7 @@ export const authService = {
         user: { ...userSafe, role: ROLES.STAFF },
         token: accessToken,
         refreshToken,
-        requiresPasswordSet: !staff.passwordHash,
+        requiresPasswordSet: !hasPasswordSet(staff),
         isManager: false,
         isStaff: true,
         isIndividualUser: false,
@@ -187,7 +192,7 @@ export const authService = {
         isIndividualUser: false,
         isFleetOwner: false,
         isFleetDriver: false,
-        requiresPasswordSet: !manager.passwordHash,
+        requiresPasswordSet: !hasPasswordSet(manager),
       };
     }
 
@@ -200,7 +205,7 @@ export const authService = {
         isIndividualUser: false,
         isFleetOwner: false,
         isFleetDriver: false,
-        requiresPasswordSet: !staff.passwordHash,
+        requiresPasswordSet: !hasPasswordSet(staff),
       };
     }
 

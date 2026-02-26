@@ -34,7 +34,7 @@ export const staffRepository = {
     return Staff.find({ assignedManagerId: managerId }).select('-passwordHash').lean();
   },
 
-  /** Resolve identifier (email, phone, or _id) for login */
+  /** Resolve identifier (email, phone, staffCode, or _id) for login. Returns full document (incl. passwordHash) for auth. */
   async findByIdentifier(identifier) {
     if (!identifier || typeof identifier !== 'string') return null;
     const trimmed = identifier.trim();
@@ -45,7 +45,9 @@ export const staffRepository = {
     const byMobile = await Staff.findOne({ mobile: trimmed });
     if (byMobile) return byMobile;
     const byEmail = await Staff.findOne({ email: trimmed.toLowerCase() });
-    return byEmail || null;
+    if (byEmail) return byEmail;
+    const byStaffCode = await Staff.findOne({ staffCode: trimmed });
+    return byStaffCode || null;
   },
 
   async update(id, data) {

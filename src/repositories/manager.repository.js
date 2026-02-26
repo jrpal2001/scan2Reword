@@ -30,7 +30,7 @@ export const managerRepository = {
     return Manager.findOne({ referralCode: code?.trim() }).lean();
   },
 
-  /** Resolve identifier (email, phone, or _id) for login */
+  /** Resolve identifier (email, phone, managerCode, or _id) for login. Returns full document (incl. passwordHash) for auth. */
   async findByIdentifier(identifier) {
     if (!identifier || typeof identifier !== 'string') return null;
     const trimmed = identifier.trim();
@@ -41,7 +41,9 @@ export const managerRepository = {
     const byMobile = await Manager.findOne({ mobile: trimmed });
     if (byMobile) return byMobile;
     const byEmail = await Manager.findOne({ email: trimmed.toLowerCase() });
-    return byEmail || null;
+    if (byEmail) return byEmail;
+    const byManagerCode = await Manager.findOne({ managerCode: trimmed });
+    return byManagerCode || null;
   },
 
   async update(id, data) {

@@ -19,11 +19,13 @@ const vehicleSchema = Joi.object({
   vehicleNumber: Joi.string().trim().required(),
   vehicleType: Joi.string()
     .valid(...VEHICLE_TYPES)
-    .required()
+    .optional()
+    .allow('', null)
     .messages({ 'any.only': `vehicleType must be one of: ${VEHICLE_TYPES.join(', ')}` }),
   fuelType: Joi.string()
     .valid(...FUEL_TYPES)
-    .required()
+    .optional()
+    .allow('', null)
     .messages({ 'any.only': `fuelType must be one of: ${FUEL_TYPES.join(', ')}` }),
   brand: Joi.string().trim().allow('').optional(),
   model: Joi.string().trim().allow('').optional(),
@@ -50,7 +52,7 @@ function parseJsonRelaxed(str) {
   }
 }
 
-const VEHICLE_ERR = `vehicle must include vehicleNumber, vehicleType (${VEHICLE_TYPES.join(', ')}), fuelType (${FUEL_TYPES.join(', ')})`;
+const VEHICLE_ERR = `vehicle must include vehicleNumber (vehicleType and fuelType are optional)`;
 
 /** Vehicle: object or JSON string (form-data). Normalizes vehicleType (e.g. "Four Wheeler" -> "Four-Wheeler"). */
 function validateAndNormalizeVehicle(value, helpers) {
@@ -60,7 +62,7 @@ function validateAndNormalizeVehicle(value, helpers) {
     try {
       parsed = parseJsonRelaxed(value);
     } catch (e) {
-      return helpers.error('any.custom', { message: 'vehicle must be valid JSON with vehicleNumber, vehicleType, fuelType' });
+      return helpers.error('any.custom', { message: 'vehicle must be valid JSON with at least vehicleNumber' });
     }
   }
   if (!parsed || typeof parsed !== 'object') return helpers.error('any.custom', { message: 'vehicle must be an object or JSON string' });
@@ -246,11 +248,11 @@ export const authValidation = {
   }).custom((value, helpers) => {
     if (value.ownerOnly) return value;
     if (value.vehicle) return value;
-    if (value.vehicleNumber && value.vehicleType && value.fuelType) {
+    if (value.vehicleNumber) {
       value.vehicle = {
         vehicleNumber: value.vehicleNumber,
-        vehicleType: value.vehicleType,
-        fuelType: value.fuelType,
+        vehicleType: value.vehicleType || undefined,
+        fuelType: value.fuelType || undefined,
         brand: value.brand || '',
         model: value.model || '',
         yearOfManufacture: value.yearOfManufacture,
@@ -264,6 +266,6 @@ export const authValidation = {
       if (error) return helpers.error('any.invalid');
       return value;
     }
-    return helpers.error('any.custom', { message: 'vehicle is required: send vehicle (object or JSON string) or vehicleNumber, vehicleType, fuelType' });
+    return helpers.error('any.custom', { message: 'vehicle is required: send vehicle (object or JSON string) or at least vehicleNumber (vehicleType and fuelType are optional)' });
   }),
 };

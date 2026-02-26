@@ -6,8 +6,8 @@ const mobileSchema = Joi.string().trim().pattern(/^[6-9]\d{9}$/).required().mess
 
 const vehicleSchema = Joi.object({
   vehicleNumber: Joi.string().trim().required(),
-  vehicleType: Joi.string().valid('Two-Wheeler', 'Three-Wheeler', 'Four-Wheeler', 'Commercial').required(),
-  fuelType: Joi.string().valid('Petrol', 'Diesel', 'CNG', 'Electric').required(),
+  vehicleType: Joi.string().valid('Two-Wheeler', 'Three-Wheeler', 'Four-Wheeler', 'Commercial').optional().allow('', null),
+  fuelType: Joi.string().valid('Petrol', 'Diesel', 'CNG', 'Electric').optional().allow('', null),
   brand: Joi.string().trim().allow('').optional(),
   model: Joi.string().trim().allow('').optional(),
   yearOfManufacture: Joi.number().integer().min(1900).max(new Date().getFullYear() + 1).optional(),

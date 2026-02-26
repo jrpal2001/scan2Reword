@@ -9,12 +9,12 @@ const vehicleSchema = new mongoose.Schema(
     vehicleType: {
       type: String,
       enum: ['Two-Wheeler', 'Three-Wheeler', 'Four-Wheeler', 'Commercial'],
-      required: true,
+      required: false,
     },
     fuelType: {
       type: String,
       enum: ['Petrol', 'Diesel', 'CNG', 'Electric'],
-      required: true,
+      required: false,
     },
     brand: { type: String, trim: true },
     model: { type: String, trim: true },
