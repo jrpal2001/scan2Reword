@@ -35,7 +35,7 @@ export const userRepository = {
     return User.findOne({ loyaltyId: loyaltyId?.trim() }).lean();
   },
 
-  /** Resolve identifier (email, phone, or _id) - for customer lookup / owner search */
+  /** Resolve identifier (email, phone, or _id) - for customer lookup / owner search (exact match) */
   async findByIdentifier(identifier) {
     if (!identifier || typeof identifier !== 'string') return null;
     const trimmed = identifier.trim();
@@ -49,6 +49,34 @@ export const userRepository = {
     const byEmail = await User.findOne({ email: trimmed.toLowerCase() });
     if (byEmail) return byEmail;
     return User.findOne({ referralCode: trimmed }) || null;
+  },
+
+  /**
+   * Search registered owners by partial match on mobile, fullName, or loyaltyId (for public owner search).
+   * Only returns users who are owners (ownerId null). Paginated.
+   * e.g. query "678" matches mobile 9876543678, 6789123456, etc.
+   */
+  async searchOwnersByQuery(queryString, options = {}) {
+    const { page = 1, limit = 20, sort = { createdAt: -1 } } = options;
+    if (!queryString || typeof queryString !== 'string' || !queryString.trim()) {
+      return { list: [], total: 0, page, limit, totalPages: 0 };
+    }
+    const trimmed = queryString.trim().replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    const regex = new RegExp(trimmed, 'i');
+    const filter = {
+      ownerId: null,
+      $or: [
+        { mobile: regex },
+        { fullName: regex },
+        { loyaltyId: regex },
+      ],
+    };
+    const skip = (page - 1) * limit;
+    const [list, total] = await Promise.all([
+      User.find(filter).sort(sort).skip(skip).limit(limit).select('-passwordHash').lean(),
+      User.countDocuments(filter),
+    ]);
+    return { list, total, page, limit, totalPages: Math.ceil(total / limit) };
   },
 
   async update(id, data) {

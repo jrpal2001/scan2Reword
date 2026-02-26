@@ -21,6 +21,8 @@ const vehicleSchema = Joi.object({
 export const ownerValidation = {
   searchOwner: Joi.object({
     identifier: Joi.string().trim().min(1).required(),
+    page: Joi.number().integer().min(1).optional(),
+    limit: Joi.number().integer().min(1).max(100).optional(),
   }),
 
   addVehicle: Joi.object({

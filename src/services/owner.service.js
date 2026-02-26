@@ -7,23 +7,15 @@ import { HTTP_STATUS } from '../constants/errorCodes.js';
 
 export const ownerService = {
   /**
-   * Search for owner by ID or phone number
-   * @param {string} identifier - Owner ID or phone number
-   * @returns {Promise<Object|null>} Owner details or null
+   * Search registered owners by partial match (e.g. "678" matches phones containing 678).
+   * Searches mobile, fullName, loyaltyId. Paginated.
+   * @param {string} query - Search term (min 1 char)
+   * @param {Object} options - { page, limit }
+   * @returns {Promise<{ list, total, page, limit, totalPages }>}
    */
-  async searchOwner(identifier) {
-    const owner = await userRepository.findByIdentifier(identifier);
-    if (!owner) {
-      return null;
-    }
-
-    // Verify it's an owner (not a driver)
-    if (owner.ownerId) {
-      // This is a driver, not an owner
-      return null;
-    }
-
-    return {
+  async searchOwner(query, options = {}) {
+    const result = await userRepository.searchOwnersByQuery(query, options);
+    const list = result.list.map((owner) => ({
       _id: owner._id,
       fullName: owner.fullName,
       mobile: owner.mobile,
@@ -31,7 +23,8 @@ export const ownerService = {
       address: owner.address,
       loyaltyId: owner.loyaltyId || null,
       profilePhoto: owner.profilePhoto || null,
-    };
+    }));
+    return { ...result, list };
   },
 
   /**
