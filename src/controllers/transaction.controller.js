@@ -9,10 +9,10 @@ import { HTTP_STATUS } from '../constants/errorCodes.js';
  * Manager/Staff only (with pump scope).
  */
 export const createTransaction = asyncHandler(async (req, res) => {
-  // Merge validated data with uploaded file URLs from S3
+  // req.s3Uploads.attachments is always an array of URLs
   const data = {
     ...req.validated,
-    attachments: req.s3Uploads || req.validated.attachments || [],
+    attachments: Array.isArray(req.s3Uploads?.attachments) ? req.s3Uploads.attachments : (req.validated?.attachments || []),
   };
   
   const transaction = await transactionService.createTransaction(

@@ -25,6 +25,8 @@ import { staffAssignmentValidation } from '../validation/staffAssignment.validat
 import { redemptionValidation } from '../validation/redemption.validation.js';
 import { ROLES } from '../constants/roles.js';
 import { uploadToS3 } from '../middlewares/uploadToS3.js';
+import { parseBodyJson } from '../middlewares/parseBodyJson.js';
+import { upload, userUploadFields } from '../utils/multerConfig.js';
 
 const router = Router();
 
@@ -50,11 +52,13 @@ router.get(
   dashboardController.getAdminDashboard
 );
 
-// Users (optional: profilePhoto, driverPhoto, ownerPhoto, rcPhoto — see multerConfig.userUploadFields)
+// Users: one multer per route, allowed fields from multerConfig
 router.post(
   '/users',
   verifyJWT,
   requireRoles([ROLES.ADMIN]),
+  upload.fields(userUploadFields),
+  parseBodyJson,
   uploadToS3('users'),
   validateRequest(userValidation.createUser),
   adminController.createUser

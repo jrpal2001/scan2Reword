@@ -6,6 +6,8 @@ import { requireRoles } from '../middlewares/rbac.middleware.js';
 import { validateRequest } from '../middlewares/validateRequest.js';
 import { ownerValidation } from '../validation/owner.validation.js';
 import { uploadToS3 } from '../middlewares/uploadToS3.js';
+import { parseBodyJson } from '../middlewares/parseBodyJson.js';
+import { upload, userUploadFields } from '../utils/multerConfig.js';
 import { ROLES } from '../constants/roles.js';
 
 const router = Router();
@@ -25,10 +27,12 @@ router.get(
   ownerController.searchOwner
 );
 
-// Owner endpoints (authenticated)
+// Owner endpoints (authenticated): one multer per route
 router.post(
   '/vehicles',
   verifyJWT,
+  upload.fields(userUploadFields),
+  parseBodyJson,
   uploadToS3('owners/fleet'),
   validateRequest(ownerValidation.addVehicle),
   ownerController.addVehicle

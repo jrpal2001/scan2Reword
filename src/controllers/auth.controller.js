@@ -137,8 +137,7 @@ export const refresh = asyncHandler(async (req, res) => {
 export const register = asyncHandler(async (req, res) => {
   const value = req.validated;
   const s3Uploads = req.s3Uploads || {};
-  
-  // Extract photo URLs from S3 uploads
+  // req.s3Uploads values are always arrays; take first URL for single-photo fields
   const registrationData = {
     accountType: value.accountType,
     ownerOnly: !!value.ownerOnly,
@@ -150,14 +149,14 @@ export const register = asyncHandler(async (req, res) => {
     registeredPumpCode: value.registeredPumpCode || null,
     address: value.address || null,
     vehicle: value.vehicle,
-    profilePhoto: s3Uploads.profilePhoto || null,
-    driverPhoto: s3Uploads.driverPhoto || null,
-    ownerPhoto: s3Uploads.ownerPhoto || null,
-    rcPhoto: s3Uploads.rcPhoto || null,
-    insurancePhoto: s3Uploads.insurancePhoto || null,
-    fitnessPhoto: s3Uploads.fitnessPhoto || null,
-    pollutionPhoto: s3Uploads.pollutionPhoto || null,
-    vehiclePhoto: Array.isArray(s3Uploads.vehiclePhoto) ? s3Uploads.vehiclePhoto : (s3Uploads.vehiclePhoto ? [s3Uploads.vehiclePhoto] : null),
+    profilePhoto: s3Uploads.profilePhoto?.[0] ?? null,
+    driverPhoto: s3Uploads.driverPhoto?.[0] ?? null,
+    ownerPhoto: s3Uploads.ownerPhoto?.[0] ?? null,
+    rcPhoto: s3Uploads.rcPhoto?.[0] ?? null,
+    insurancePhoto: s3Uploads.insurancePhoto?.[0] ?? null,
+    fitnessPhoto: s3Uploads.fitnessPhoto?.[0] ?? null,
+    pollutionPhoto: s3Uploads.pollutionPhoto?.[0] ?? null,
+    vehiclePhoto: Array.isArray(s3Uploads.vehiclePhoto) ? s3Uploads.vehiclePhoto : [],
     // Organization fields
     ownerType: value.ownerType,
     ownerIdentifier: value.ownerIdentifier,

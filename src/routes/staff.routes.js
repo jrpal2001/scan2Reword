@@ -8,6 +8,8 @@ import { userValidation } from '../validation/userValidation.js';
 import { redemptionValidation } from '../validation/redemption.validation.js';
 import { ROLES } from '../constants/roles.js';
 import { uploadToS3 } from '../middlewares/uploadToS3.js';
+import { parseBodyJson } from '../middlewares/parseBodyJson.js';
+import { upload, userUploadFields } from '../utils/multerConfig.js';
 
 const router = Router();
 
@@ -16,6 +18,8 @@ router.post(
   verifyJWT,
   requireRoles([ROLES.STAFF]),
   attachPumpScope,
+  upload.fields(userUploadFields),
+  parseBodyJson,
   uploadToS3('users'),
   validateRequest(userValidation.createUserByOperator),
   adminController.createUserByOperator

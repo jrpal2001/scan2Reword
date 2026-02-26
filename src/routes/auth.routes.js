@@ -5,6 +5,8 @@ import { validateRequest } from '../middlewares/validateRequest.js';
 import { strictRateLimiter } from '../middlewares/rateLimiter.middleware.js';
 import { verifyJWT } from '../middlewares/auth.middleware.js';
 import { uploadToS3 } from '../middlewares/uploadToS3.js';
+import { parseBodyJson } from '../middlewares/parseBodyJson.js';
+import { upload, userUploadFields } from '../utils/multerConfig.js';
 
 const router = Router();
 
@@ -12,9 +14,11 @@ const router = Router();
 router.post('/send-otp', /* strictRateLimiter, */ validateRequest(authValidation.sendOtp), authController.sendOtp);
 router.post('/verify-otp', /* strictRateLimiter, */ validateRequest(authValidation.verifyOtp), authController.verifyOtp);
 
-// Registration with optional file uploads (multipart parsed by formDataParser; uploadToS3 builds req.s3Uploads)
+// Registration: one multer per route, allowed fields from multerConfig
 router.post(
   '/register',
+  upload.fields(userUploadFields),
+  parseBodyJson,
   uploadToS3('users/registration'),
   validateRequest(authValidation.register),
   authController.register

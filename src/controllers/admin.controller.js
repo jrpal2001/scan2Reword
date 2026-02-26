@@ -15,6 +15,7 @@ import { USER_STATUS } from '../constants/status.js';
 export const createUser = asyncHandler(async (req, res) => {
   const v = req.validated;
   const s3Uploads = req.s3Uploads || {};
+  // req.s3Uploads values are always arrays; take first URL for single-photo fields
   const userData = {
     ownerOnly: !!v.ownerOnly,
     accountType: v.accountType || 'individual',
@@ -24,9 +25,9 @@ export const createUser = asyncHandler(async (req, res) => {
     role: v.role,
     password: v.password || undefined,
     address: v.address || undefined,
-    profilePhoto: s3Uploads.profilePhoto || undefined,
-    driverPhoto: s3Uploads.driverPhoto || undefined,
-    ownerPhoto: s3Uploads.ownerPhoto || undefined,
+    profilePhoto: s3Uploads.profilePhoto?.[0] ?? undefined,
+    driverPhoto: s3Uploads.driverPhoto?.[0] ?? undefined,
+    ownerPhoto: s3Uploads.ownerPhoto?.[0] ?? undefined,
     managerCode: v.managerCode || undefined,
     staffCode: v.staffCode || undefined,
     assignedManagerId: v.assignedManagerId && v.assignedManagerId.trim() ? v.assignedManagerId : undefined,
@@ -43,11 +44,11 @@ export const createUser = asyncHandler(async (req, res) => {
   // Prepare vehicle data with optional photos
   const vehicleData = v.vehicle ? {
     ...v.vehicle,
-    rcPhoto: s3Uploads.rcPhoto || null,
-    insurancePhoto: s3Uploads.insurancePhoto || null,
-    fitnessPhoto: s3Uploads.fitnessPhoto || null,
-    pollutionPhoto: s3Uploads.pollutionPhoto || null,
-    vehiclePhoto: Array.isArray(s3Uploads.vehiclePhoto) ? s3Uploads.vehiclePhoto : (s3Uploads.vehiclePhoto ? [s3Uploads.vehiclePhoto] : []),
+    rcPhoto: s3Uploads.rcPhoto?.[0] ?? null,
+    insurancePhoto: s3Uploads.insurancePhoto?.[0] ?? null,
+    fitnessPhoto: s3Uploads.fitnessPhoto?.[0] ?? null,
+    pollutionPhoto: s3Uploads.pollutionPhoto?.[0] ?? null,
+    vehiclePhoto: Array.isArray(s3Uploads.vehiclePhoto) ? s3Uploads.vehiclePhoto : [],
   } : null;
 
   const result = await userService.createUserByAdmin(userData, vehicleData, req.user._id);
@@ -123,9 +124,9 @@ export const createUserByOperator = asyncHandler(async (req, res) => {
     role: v.role || ROLES.USER,
     password: v.password || undefined,
     address: v.address || undefined,
-    profilePhoto: s3Uploads.profilePhoto || undefined,
-    driverPhoto: s3Uploads.driverPhoto || undefined,
-    ownerPhoto: s3Uploads.ownerPhoto || undefined,
+    profilePhoto: s3Uploads.profilePhoto?.[0] ?? undefined,
+    driverPhoto: s3Uploads.driverPhoto?.[0] ?? undefined,
+    ownerPhoto: s3Uploads.ownerPhoto?.[0] ?? undefined,
     staffCode: v.staffCode || undefined,
     assignedManagerId,
     pumpId: v.pumpId && v.pumpId.trim() ? v.pumpId : undefined, // For staff - assign to pump during creation
@@ -138,14 +139,14 @@ export const createUserByOperator = asyncHandler(async (req, res) => {
     owner: v.owner || undefined,
   };
   
-  // Prepare vehicle data with optional photos
+  // Prepare vehicle data with optional photos (s3Uploads values are arrays)
   const vehicleData = v.vehicle ? {
     ...v.vehicle,
-    rcPhoto: s3Uploads.rcPhoto || null,
-    insurancePhoto: s3Uploads.insurancePhoto || null,
-    fitnessPhoto: s3Uploads.fitnessPhoto || null,
-    pollutionPhoto: s3Uploads.pollutionPhoto || null,
-    vehiclePhoto: Array.isArray(s3Uploads.vehiclePhoto) ? s3Uploads.vehiclePhoto : (s3Uploads.vehiclePhoto ? [s3Uploads.vehiclePhoto] : []),
+    rcPhoto: s3Uploads.rcPhoto?.[0] ?? null,
+    insurancePhoto: s3Uploads.insurancePhoto?.[0] ?? null,
+    fitnessPhoto: s3Uploads.fitnessPhoto?.[0] ?? null,
+    pollutionPhoto: s3Uploads.pollutionPhoto?.[0] ?? null,
+    vehiclePhoto: Array.isArray(s3Uploads.vehiclePhoto) ? s3Uploads.vehiclePhoto : [],
   } : null;
 
   const result = await userService.createUserByManagerOrStaff(

@@ -39,15 +39,16 @@ export const addVehicle = asyncHandler(async (req, res) => {
   const s3Uploads = req.s3Uploads || {};
   const ownerId = req.user._id; // Owner is authenticated
 
+  // req.s3Uploads values are always arrays; take first URL for single-photo fields
   const result = await ownerService.addVehicle(ownerId, {
     ...value,
-    profilePhoto: s3Uploads.profilePhoto || null,
-    driverPhoto: s3Uploads.driverPhoto || null,
-    rcPhoto: s3Uploads.rcPhoto || null,
-    insurancePhoto: s3Uploads.insurancePhoto || null,
-    fitnessPhoto: s3Uploads.fitnessPhoto || null,
-    pollutionPhoto: s3Uploads.pollutionPhoto || null,
-    vehiclePhoto: Array.isArray(s3Uploads.vehiclePhoto) ? s3Uploads.vehiclePhoto : (s3Uploads.vehiclePhoto ? [s3Uploads.vehiclePhoto] : []),
+    profilePhoto: s3Uploads.profilePhoto?.[0] ?? null,
+    driverPhoto: s3Uploads.driverPhoto?.[0] ?? null,
+    rcPhoto: s3Uploads.rcPhoto?.[0] ?? null,
+    insurancePhoto: s3Uploads.insurancePhoto?.[0] ?? null,
+    fitnessPhoto: s3Uploads.fitnessPhoto?.[0] ?? null,
+    pollutionPhoto: s3Uploads.pollutionPhoto?.[0] ?? null,
+    vehiclePhoto: Array.isArray(s3Uploads.vehiclePhoto) ? s3Uploads.vehiclePhoto : [],
   });
 
   return res.status(HTTP_STATUS.CREATED).json(

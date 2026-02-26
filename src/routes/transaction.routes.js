@@ -5,20 +5,22 @@ import { requireRoles, attachPumpScope } from '../middlewares/rbac.middleware.js
 import { validateRequest } from '../middlewares/validateRequest.js';
 import { idempotencyMiddleware } from '../middlewares/idempotency.middleware.js';
 import { uploadToS3 } from '../middlewares/uploadToS3.js';
+import { parseBodyJson } from '../middlewares/parseBodyJson.js';
 import { transactionValidation } from '../validation/transaction.validation.js';
-import { upload } from '../utils/multerConfig.js';
+import { upload, transactionUploadFields } from '../utils/multerConfig.js';
 import { ROLES } from '../constants/roles.js';
 
 const router = Router();
 
-// Create transaction (with file upload to AWS S3)
+// Create transaction: one multer per route, attachments only
 router.post(
   '/',
   verifyJWT,
   requireRoles([ROLES.ADMIN, ROLES.MANAGER, ROLES.STAFF]),
   attachPumpScope,
-  idempotencyMiddleware(), // Optional idempotency support
-  upload.array('attachments', 5), // Max 5 files
+  idempotencyMiddleware(),
+  upload.fields(transactionUploadFields),
+  parseBodyJson,
   uploadToS3('transactions'),
   validateRequest(transactionValidation.create),
   transactionController.createTransaction

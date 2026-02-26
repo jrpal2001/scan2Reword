@@ -49,7 +49,7 @@ export const uploadToS3 = (folder = 'uploads') =>
           const { url } = await putObject(compressedFile, s3Key);
           fieldUploads.push(url);
         }
-        uploadsObj[fieldName] = fieldUploads.length === 1 ? fieldUploads[0] : fieldUploads;
+        uploadsObj[fieldName] = fieldUploads; // Always array for consistent API
       }
       req.s3Uploads = uploadsObj;
       next();
