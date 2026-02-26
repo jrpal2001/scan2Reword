@@ -66,7 +66,13 @@ function validateAndNormalizeVehicle(value, helpers) {
     }
   }
   if (!parsed || typeof parsed !== 'object') return helpers.error('any.custom', { message: 'vehicle must be an object or JSON string' });
-  const normalized = { ...parsed, vehicleType: normalizeVehicleType(parsed.vehicleType || '') };
+  const normalized = { ...parsed };
+  if (parsed.vehicleType != null && String(parsed.vehicleType).trim()) {
+    normalized.vehicleType = normalizeVehicleType(parsed.vehicleType);
+  }
+  if (parsed.fuelType != null && String(parsed.fuelType).trim()) {
+    normalized.fuelType = parsed.fuelType.trim();
+  }
   const { error, value: out } = vehicleSchema.validate(normalized);
   if (error) {
     const firstMsg = error.details?.[0]?.message;

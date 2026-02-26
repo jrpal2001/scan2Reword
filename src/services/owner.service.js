@@ -54,6 +54,13 @@ export const ownerService = {
       throw new ApiError(HTTP_STATUS.CONFLICT, 'User with this mobile number already exists');
     }
 
+    if (vehicleData?.vehicleNumber) {
+      const existingVehicle = await vehicleRepository.findByVehicleNumber(vehicleData.vehicleNumber);
+      if (existingVehicle) {
+        throw new ApiError(HTTP_STATUS.CONFLICT, 'Duplicate value for vehicleNumber');
+      }
+    }
+
     // Create driver user linked to owner
     const driver = await userRepository.create({
       fullName: userData.fullName,
@@ -69,16 +76,21 @@ export const ownerService = {
       ownerId: ownerId, // Link to owner
     });
 
-    // Create vehicle for driver
-    const vehicle = await vehicleService.createVehicle({
-      ...vehicleData,
-      userId: driver._id,
-      rcPhoto: rcPhoto || null,
-      insurancePhoto: insurancePhoto || null,
-      fitnessPhoto: fitnessPhoto || null,
-      pollutionPhoto: pollutionPhoto || null,
-      vehiclePhoto: vehiclePhoto || [],
-    });
+    let vehicle;
+    try {
+      vehicle = await vehicleService.createVehicle({
+        ...vehicleData,
+        userId: driver._id,
+        rcPhoto: rcPhoto || null,
+        insurancePhoto: insurancePhoto || null,
+        fitnessPhoto: fitnessPhoto || null,
+        pollutionPhoto: pollutionPhoto || null,
+        vehiclePhoto: vehiclePhoto || [],
+      });
+    } catch (vehicleError) {
+      await userRepository.delete(driver._id);
+      throw vehicleError;
+    }
 
     return {
       userId: driver._id,

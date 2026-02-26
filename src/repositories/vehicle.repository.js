@@ -1,11 +1,27 @@
 import Vehicle from '../models/Vehicle.model.js';
 
+const VEHICLE_TYPES = ['Two-Wheeler', 'Three-Wheeler', 'Four-Wheeler', 'Commercial'];
+const FUEL_TYPES = ['Petrol', 'Diesel', 'CNG', 'Electric'];
+
+/** Omit vehicleType/fuelType if empty or invalid so Mongoose optional enum does not reject. */
+function sanitizeVehicleForCreate(data) {
+  const out = { ...data };
+  if (out.vehicleType == null || out.vehicleType === '' || !VEHICLE_TYPES.includes(out.vehicleType)) {
+    delete out.vehicleType;
+  }
+  if (out.fuelType == null || out.fuelType === '' || !FUEL_TYPES.includes(out.fuelType)) {
+    delete out.fuelType;
+  }
+  return out;
+}
+
 /**
  * Vehicle repository - data access only. No business logic.
  */
 export const vehicleRepository = {
   async create(data) {
-    const vehicle = await Vehicle.create(data);
+    const sanitized = sanitizeVehicleForCreate(data);
+    const vehicle = await Vehicle.create(sanitized);
     return vehicle;
   },
 
@@ -26,7 +42,8 @@ export const vehicleRepository = {
   },
 
   async update(id, data) {
-    const vehicle = await Vehicle.findByIdAndUpdate(id, { $set: data }, { new: true }).lean();
+    const sanitized = sanitizeVehicleForCreate(data);
+    const vehicle = await Vehicle.findByIdAndUpdate(id, { $set: sanitized }, { new: true }).lean();
     return vehicle;
   },
 

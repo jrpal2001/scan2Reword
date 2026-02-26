@@ -231,6 +231,14 @@ export const userService = {
       }
     }
 
+    // Check duplicate vehicleNumber before creating user so we don't leave orphan users on vehicle failure
+    if (vehicle?.vehicleNumber) {
+      const existingVehicle = await vehicleRepository.findByVehicleNumber(vehicle.vehicleNumber);
+      if (existingVehicle) {
+        throw new ApiError(HTTP_STATUS.CONFLICT, 'Duplicate value for vehicleNumber');
+      }
+    }
+
     // Create user (customer/driver) - owner photo is on owner only, not on driver
     const user = await userRepository.create({
       fullName,
@@ -248,17 +256,22 @@ export const userService = {
       registeredPumpId: resolvedRegisteredPumpId,
     });
 
-    // Create vehicle with loyaltyId
-    const vehicleData = {
-      ...vehicle,
-      userId: user._id,
-      rcPhoto: rcPhoto || null,
-      insurancePhoto: registrationData.insurancePhoto || null,
-      fitnessPhoto: registrationData.fitnessPhoto || null,
-      pollutionPhoto: registrationData.pollutionPhoto || null,
-      vehiclePhoto: registrationData.vehiclePhoto || [],
-    };
-    const vehicleCreated = await vehicleService.createVehicle(vehicleData);
+    let vehicleCreated;
+    try {
+      const vehicleData = {
+        ...vehicle,
+        userId: user._id,
+        rcPhoto: rcPhoto || null,
+        insurancePhoto: registrationData.insurancePhoto || null,
+        fitnessPhoto: registrationData.fitnessPhoto || null,
+        pollutionPhoto: registrationData.pollutionPhoto || null,
+        vehiclePhoto: registrationData.vehiclePhoto || [],
+      };
+      vehicleCreated = await vehicleService.createVehicle(vehicleData);
+    } catch (vehicleError) {
+      await userRepository.delete(user._id);
+      throw vehicleError;
+    }
 
     // Credit referral points to referrer (Manager or Staff) if referralCode provided
     if (referrer && referrer._id && (referrer._ownerType === 'Manager' || referrer._ownerType === 'Staff')) {
@@ -301,6 +314,21 @@ export const userService = {
     const role = (userData.role || '').toLowerCase();
     const accountType = role === ROLES.USER ? (userData.accountType || 'individual') : 'individual';
 
+    let resolvedRegisteredPumpId = null;
+    if (role === ROLES.USER && (userData.registeredPumpId || userData.registeredPumpCode)) {
+      const registeredPumpIdInput = userData.registeredPumpId?.trim();
+      const registeredPumpCode = userData.registeredPumpCode?.trim();
+      if (registeredPumpIdInput) {
+        const pump = await pumpRepository.findById(registeredPumpIdInput);
+        if (!pump) throw new ApiError(HTTP_STATUS.BAD_REQUEST, 'Invalid registeredPumpId');
+        resolvedRegisteredPumpId = pump._id;
+      } else if (registeredPumpCode) {
+        const pump = await pumpRepository.findByCode(registeredPumpCode);
+        if (!pump) throw new ApiError(HTTP_STATUS.BAD_REQUEST, 'Invalid registeredPumpCode');
+        resolvedRegisteredPumpId = pump._id;
+      }
+    }
+
     // Owner-only: create only fleet owner (no driver, no vehicle)
     if (userData.ownerOnly && role === ROLES.USER && accountType === 'organization' && userData.ownerType === 'non-registered' && userData.owner) {
       const ownerMobile = userData.owner.mobile;
@@ -319,9 +347,10 @@ export const userService = {
         address: userData.owner.address || null,
         ownerId: null,
         loyaltyId: await generateOwnerLoyaltyId(),
-        profilePhoto: userData.ownerPhoto || null,
+        profilePhoto: userData.profilePhoto || userData.ownerPhoto || null,
         createdBy: adminId,
         createdByModel: 'Admin',
+        registeredPumpId: resolvedRegisteredPumpId,
       });
       return {
         user: await userRepository.findById(newOwner._id),
@@ -378,6 +407,7 @@ export const userService = {
           profilePhoto: userData.ownerPhoto || null,
           createdBy: adminId,
           createdByModel: 'Admin',
+          registeredPumpId: resolvedRegisteredPumpId,
         });
         ownerId = newOwner._id;
       }
@@ -486,7 +516,14 @@ export const userService = {
       };
     }
 
-    // role === ROLES.USER (customer/driver) - owner photo is saved on owner only, not on driver
+    // role === ROLES.USER (customer/driver) - check duplicate vehicleNumber before creating user
+    if (vehicleData?.vehicleNumber) {
+      const existingVehicle = await vehicleRepository.findByVehicleNumber(vehicleData.vehicleNumber);
+      if (existingVehicle) {
+        throw new ApiError(HTTP_STATUS.CONFLICT, 'Duplicate value for vehicleNumber');
+      }
+    }
+
     created = await userRepository.create({
       ...userDataWithoutPassword,
       passwordHash: passwordHash || null,
@@ -502,13 +539,19 @@ export const userService = {
       driverPhoto: userData.driverPhoto || null,
       ownerPhoto: null,
       mobileVerified: false,
+      registeredPumpId: role === ROLES.USER ? resolvedRegisteredPumpId : null,
     });
 
     if (vehicleData) {
-      vehicle = await vehicleService.createVehicle({
-        ...vehicleData,
-        userId: created._id,
-      });
+      try {
+        vehicle = await vehicleService.createVehicle({
+          ...vehicleData,
+          userId: created._id,
+        });
+      } catch (vehicleError) {
+        await userRepository.delete(created._id);
+        throw vehicleError;
+      }
     }
 
     // Credit referral points to referrer (Manager or Staff) when user created with referral code - same as register
@@ -734,7 +777,14 @@ export const userService = {
       };
     }
 
-    // userRole === ROLES.USER (customer)
+    // userRole === ROLES.USER (customer) - check duplicate vehicleNumber before creating user
+    if (vehicleData?.vehicleNumber) {
+      const existingVehicle = await vehicleRepository.findByVehicleNumber(vehicleData.vehicleNumber);
+      if (existingVehicle) {
+        throw new ApiError(HTTP_STATUS.CONFLICT, 'Duplicate value for vehicleNumber');
+      }
+    }
+
     created = await userRepository.create({
       ...userDataWithoutPassword,
       passwordHash: passwordHash || null,
@@ -753,10 +803,15 @@ export const userService = {
     });
 
     if (vehicleData) {
-      vehicle = await vehicleService.createVehicle({
-        ...vehicleData,
-        userId: created._id,
-      });
+      try {
+        vehicle = await vehicleService.createVehicle({
+          ...vehicleData,
+          userId: created._id,
+        });
+      } catch (vehicleError) {
+        await userRepository.delete(created._id);
+        throw vehicleError;
+      }
     }
 
     if (userRole === ROLES.USER) {

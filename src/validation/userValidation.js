@@ -166,6 +166,9 @@ export const userValidation = {
       otherwise: Joi.optional(),
     }),
     referralCode: Joi.string().trim().allow('', null).optional(),
+    /** Pump where user is registering (admin create user). Stored as registeredPumpId. */
+    registeredPumpId: objectIdSchema.optional(),
+    registeredPumpCode: Joi.string().trim().allow('', null).optional(),
   }),
 
   /** Manager/Staff create user — Manager can create staff or user, Staff can only create user. No password required for staff; they set it on first OTP login. */

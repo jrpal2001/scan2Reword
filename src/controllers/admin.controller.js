@@ -32,6 +32,8 @@ export const createUser = asyncHandler(async (req, res) => {
     assignedManagerId: v.assignedManagerId && v.assignedManagerId.trim() ? v.assignedManagerId : undefined,
     pumpId: v.pumpId && v.pumpId.trim() ? v.pumpId : undefined, // For staff - assign to pump during creation
     referralCode: v.referralCode && v.referralCode.trim() ? v.referralCode.trim() : undefined,
+    registeredPumpId: v.registeredPumpId && v.registeredPumpId.trim() ? v.registeredPumpId : undefined,
+    registeredPumpCode: v.registeredPumpCode && v.registeredPumpCode.trim() ? v.registeredPumpCode.trim() : undefined,
     // Organization fields
     ownerType: v.ownerType || undefined,
     ownerIdentifier: v.ownerIdentifier || undefined,
