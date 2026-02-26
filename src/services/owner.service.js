@@ -30,6 +30,7 @@ export const ownerService = {
       email: owner.email,
       address: owner.address,
       loyaltyId: owner.loyaltyId || null,
+      profilePhoto: owner.profilePhoto || null,
     };
   },
 
