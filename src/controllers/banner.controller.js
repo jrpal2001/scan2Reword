@@ -108,7 +108,5 @@ export const listBanners = asyncHandler(async (req, res) => {
     role,
     req.allowedPumpIds
   );
-  return res.status(HTTP_STATUS.OK).json(
-    ApiResponse.success(result, 'Banners retrieved')
-  );
+  return res.sendPaginated(result, 'Banners retrieved', HTTP_STATUS.OK);
 });

@@ -51,9 +51,7 @@ export const listTransactions = asyncHandler(async (req, res) => {
     },
     req.allowedPumpIds
   );
-  return res.status(HTTP_STATUS.OK).json(
-    ApiResponse.success(result, 'Transactions retrieved')
-  );
+  return res.sendPaginated(result, 'Transactions retrieved', HTTP_STATUS.OK);
 });
 
 /**

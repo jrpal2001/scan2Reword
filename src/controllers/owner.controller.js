@@ -77,7 +77,5 @@ export const getFleetVehicles = asyncHandler(async (req, res) => {
     limit: parseInt(limit),
   });
 
-  return res.status(HTTP_STATUS.OK).json(
-    ApiResponse.success(result, 'Fleet vehicles retrieved')
-  );
+  return res.sendPaginated(result, 'Fleet vehicles retrieved', HTTP_STATUS.OK);
 });

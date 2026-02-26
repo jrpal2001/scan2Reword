@@ -27,9 +27,7 @@ export const getMyNotifications = asyncHandler(async (req, res) => {
     page: parseInt(page),
     limit: parseInt(limit),
   });
-  return res.status(HTTP_STATUS.OK).json(
-    ApiResponse.success(result, 'Notifications retrieved')
-  );
+  return res.sendPaginated(result, 'Notifications retrieved', HTTP_STATUS.OK);
 });
 
 /**

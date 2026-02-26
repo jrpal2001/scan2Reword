@@ -19,6 +19,7 @@ import notificationRoutes from './routes/notification.routes.js';
 import ownerRoutes from './routes/owner.routes.js';
 import { errorHandler } from './middlewares/errorHandler.js';
 import { formDataParser } from './middlewares/formDataParser.js';
+import { paginationResponse } from './middlewares/paginationResponse.js';
 import { rateLimiter } from './middlewares/rateLimiter.middleware.js';
 import { config } from './config/index.js';
 
@@ -90,6 +91,9 @@ app.use((req, res, next) => {
 
 // Form-data parser (for POST/PATCH requests with multipart/form-data)
 app.use(formDataParser);
+
+// Pagination response helper: adds res.sendPaginated(result, message, statusCode) for list APIs
+app.use(paginationResponse);
 
 // Rate limiting (global - applies to all routes) - COMMENTED OUT FOR DEBUGGING
 // app.use(rateLimiter({ windowMs: 15 * 60 * 1000, maxRequests: 100 })); // 100 requests per 15 minutes per IP

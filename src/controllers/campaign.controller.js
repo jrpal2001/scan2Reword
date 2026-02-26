@@ -110,7 +110,5 @@ export const listCampaigns = asyncHandler(async (req, res) => {
     role,
     req.allowedPumpIds
   );
-  return res.status(HTTP_STATUS.OK).json(
-    ApiResponse.success(result, 'Campaigns retrieved')
-  );
+  return res.sendPaginated(result, 'Campaigns retrieved', HTTP_STATUS.OK);
 });

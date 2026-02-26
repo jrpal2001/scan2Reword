@@ -194,9 +194,7 @@ export const listUsers = asyncHandler(async (req, res) => {
     req.allowedPumpIds || null
   );
 
-  return res.status(HTTP_STATUS.OK).json(
-    ApiResponse.success(result, 'Users retrieved successfully')
-  );
+  return res.sendPaginated(result, 'Users retrieved successfully', HTTP_STATUS.OK);
 });
 
 /**

@@ -43,9 +43,7 @@ export const listAssignments = asyncHandler(async (req, res) => {
     limit: parseInt(limit) || 20,
   });
 
-  return res.status(HTTP_STATUS.OK).json(
-    ApiResponse.success(result, 'Assignments retrieved successfully')
-  );
+  return res.sendPaginated(result, 'Assignments retrieved successfully', HTTP_STATUS.OK);
 });
 
 /**

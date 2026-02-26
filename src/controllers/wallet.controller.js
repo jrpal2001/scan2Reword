@@ -47,9 +47,12 @@ export const getWallet = asyncHandler(async (req, res) => {
     result.fleetSummary = fleetSummary;
   }
 
-  return res.status(HTTP_STATUS.OK).json(
-    ApiResponse.success(result, 'Wallet retrieved')
-  );
+  const data = {
+    walletSummary: result.walletSummary,
+    ledger: result.ledger?.list ?? [],
+    ...(result.fleetSummary != null && { fleetSummary: result.fleetSummary }),
+  };
+  return res.sendPaginatedMeta(data, result.ledger, 'Wallet retrieved', HTTP_STATUS.OK);
 });
 
 /**

@@ -138,9 +138,7 @@ export const listRedemptions = asyncHandler(async (req, res) => {
     page: parseInt(page),
     limit: parseInt(limit),
   });
-  return res.status(HTTP_STATUS.OK).json(
-    ApiResponse.success(result, 'Redemptions retrieved')
-  );
+  return res.sendPaginated(result, 'Redemptions retrieved', HTTP_STATUS.OK);
 });
 
 /**
