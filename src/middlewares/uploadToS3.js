@@ -13,56 +13,45 @@ import path from 'path';
 export const uploadToS3 = (folder = 'uploads') =>
   asyncHandler(async (req, res, next) => {
     if (!req.files || (Array.isArray(req.files) && req.files.length === 0)) {
-      req.s3Uploads = [];
+      req.s3Uploads = {};
       return next();
     }
 
     try {
-      const uploads = [];
-
-      // Handle multer.array() - array of files
+      // req.files can be: array (from upload.any() in formDataParser) or object (from upload.fields() in route)
+      let filesByField = {};
       if (Array.isArray(req.files)) {
         for (const file of req.files) {
-          // Compress image before uploading
-          const compressedFile = await compressMulterFile(file);
-          
-          const ext = path.extname(compressedFile.originalname) || '';
-          const timestamp = Date.now();
-          const random = Math.random().toString(36).substring(7);
-          const s3Key = `${folder}/${timestamp}-${random}${ext}`;
-          
-          const { url } = await putObject(compressedFile, s3Key);
-          uploads.push(url);
+          const name = file.fieldname || 'file';
+          if (!filesByField[name]) filesByField[name] = [];
+          filesByField[name].push(file);
         }
-      } 
-      // Handle multer.fields() - object with field names
-      else if (req.files && typeof req.files === 'object') {
-        const uploadsObj = {};
+      } else if (req.files && typeof req.files === 'object') {
         for (const [fieldName, fileArray] of Object.entries(req.files)) {
-          if (!Array.isArray(fileArray)) continue;
-          
-          const fieldUploads = [];
-          for (const file of fileArray) {
-            // Compress image before uploading
-            const compressedFile = await compressMulterFile(file);
-            
-            const ext = path.extname(compressedFile.originalname) || '';
-            const timestamp = Date.now();
-            const random = Math.random().toString(36).substring(7);
-            const s3Key = `${folder}/${fieldName}-${timestamp}-${random}${ext}`;
-            
-            const { url } = await putObject(compressedFile, s3Key);
-            fieldUploads.push(url);
-          }
-          
-          // If single file, store as string; if multiple, store as array
-          uploadsObj[fieldName] = fieldUploads.length === 1 ? fieldUploads[0] : fieldUploads;
+          if (Array.isArray(fileArray)) filesByField[fieldName] = fileArray;
         }
-        req.s3Uploads = uploadsObj;
+      }
+
+      if (Object.keys(filesByField).length === 0) {
+        req.s3Uploads = {};
         return next();
       }
 
-      req.s3Uploads = uploads;
+      const uploadsObj = {};
+      for (const [fieldName, fileArray] of Object.entries(filesByField)) {
+        const fieldUploads = [];
+        for (const file of fileArray) {
+          const compressedFile = await compressMulterFile(file);
+          const ext = path.extname(compressedFile.originalname) || '';
+          const timestamp = Date.now();
+          const random = Math.random().toString(36).substring(7);
+          const s3Key = `${folder}/${fieldName}-${timestamp}-${random}${ext}`;
+          const { url } = await putObject(compressedFile, s3Key);
+          fieldUploads.push(url);
+        }
+        uploadsObj[fieldName] = fieldUploads.length === 1 ? fieldUploads[0] : fieldUploads;
+      }
+      req.s3Uploads = uploadsObj;
       next();
     } catch (error) {
       throw new ApiError(HTTP_STATUS.INTERNAL_SERVER_ERROR, 'File upload failed', error.message);

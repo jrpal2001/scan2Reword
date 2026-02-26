@@ -106,7 +106,10 @@ export const createUserByOperator = asyncHandler(async (req, res) => {
     );
   }
 
-  const s3Uploads = req.s3Uploads || {};
+  // Same as admin createUser: s3Uploads from uploadToS3 (object keyed by field name)
+  const rawUploads = req.s3Uploads;
+  const s3Uploads =
+    rawUploads && typeof rawUploads === 'object' && !Array.isArray(rawUploads) ? rawUploads : {};
   let assignedManagerId = v.assignedManagerId && v.assignedManagerId.trim() ? v.assignedManagerId : undefined;
   if (v.role === ROLES.STAFF && !assignedManagerId && operatorRole === ROLES.MANAGER) {
     assignedManagerId = req.user._id; // Default to current manager when manager creates staff
@@ -126,6 +129,9 @@ export const createUserByOperator = asyncHandler(async (req, res) => {
     staffCode: v.staffCode || undefined,
     assignedManagerId,
     pumpId: v.pumpId && v.pumpId.trim() ? v.pumpId : undefined, // For staff - assign to pump during creation
+    referralCode: v.referralCode && v.referralCode.trim() ? v.referralCode.trim() : undefined,
+    registeredPumpId: v.registeredPumpId && v.registeredPumpId.trim() ? v.registeredPumpId : undefined,
+    registeredPumpCode: v.registeredPumpCode && v.registeredPumpCode.trim() ? v.registeredPumpCode.trim() : undefined,
     // Organization fields
     ownerType: v.ownerType || undefined,
     ownerIdentifier: v.ownerIdentifier || undefined,

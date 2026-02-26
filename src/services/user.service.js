@@ -593,6 +593,21 @@ export const userService = {
     const userRole = (userData.role || ROLES.USER).toLowerCase();
     const accountType = userRole === ROLES.USER ? (userData.accountType || 'individual') : 'individual';
 
+    let resolvedRegisteredPumpId = null;
+    if (userRole === ROLES.USER && (userData.registeredPumpId || userData.registeredPumpCode)) {
+      const registeredPumpIdInput = userData.registeredPumpId?.trim();
+      const registeredPumpCodeVal = userData.registeredPumpCode?.trim();
+      if (registeredPumpIdInput) {
+        const pump = await pumpRepository.findById(registeredPumpIdInput);
+        if (!pump) throw new ApiError(HTTP_STATUS.BAD_REQUEST, 'Invalid registeredPumpId');
+        resolvedRegisteredPumpId = pump._id;
+      } else if (registeredPumpCodeVal) {
+        const pump = await pumpRepository.findByCode(registeredPumpCodeVal);
+        if (!pump) throw new ApiError(HTTP_STATUS.BAD_REQUEST, 'Invalid registeredPumpCode');
+        resolvedRegisteredPumpId = pump._id;
+      }
+    }
+
     // Owner-only: create only fleet owner (no driver, no vehicle)
     if (userData.ownerOnly && userRole === ROLES.USER && accountType === 'organization' && userData.ownerType === 'non-registered' && userData.owner) {
       const ownerMobile = userData.owner.mobile;
@@ -612,9 +627,10 @@ export const userService = {
         address: userData.owner.address || null,
         ownerId: null,
         loyaltyId: await generateOwnerLoyaltyId(),
-        profilePhoto: userData.ownerPhoto || null,
+        profilePhoto: userData.profilePhoto || userData.ownerPhoto || null,
         createdBy: operatorId,
         createdByModel: operatorType,
+        registeredPumpId: resolvedRegisteredPumpId,
       });
       return {
         user: await userRepository.findById(newOwner._id),
@@ -673,9 +689,10 @@ export const userService = {
           address: userData.owner.address || null,
           ownerId: null,
           loyaltyId: await generateOwnerLoyaltyId(),
-          profilePhoto: userData.ownerPhoto || null,
+          profilePhoto: userData.profilePhoto || userData.ownerPhoto || null,
           createdBy: operatorId,
           createdByModel: operatorRole === ROLES.MANAGER ? 'Manager' : 'Staff',
+          registeredPumpId: resolvedRegisteredPumpId,
         });
         ownerId = newOwner._id;
       }
@@ -698,6 +715,18 @@ export const userService = {
       let code;
       while (await isReferralCodeTaken(code = generateReferralCode())) {}
       referralCode = code;
+    }
+
+    // Resolve referrer for USER when referralCode provided; referrer must be Manager or Staff to credit points
+    let referrer = null;
+    if (userRole === ROLES.USER && referralCode && String(referralCode).trim()) {
+      referrer = await findReferrerByCode(referralCode.trim());
+      if (!referrer) {
+        throw new ApiError(HTTP_STATUS.BAD_REQUEST, 'Invalid referral code');
+      }
+      if (referrer._ownerType !== 'Manager' && referrer._ownerType !== 'Staff') {
+        throw new ApiError(HTTP_STATUS.BAD_REQUEST, 'Referral code must belong to a manager or staff');
+      }
     }
 
     let staffCode = userRole === ROLES.STAFF ? (userData.staffCode?.trim() || null) : null;
@@ -788,7 +817,7 @@ export const userService = {
     created = await userRepository.create({
       ...userDataWithoutPassword,
       passwordHash: passwordHash || null,
-      referralCode: null,
+      referralCode: userRole === ROLES.USER ? (referralCode && referralCode.trim() ? referralCode.trim() : null) : null,
       userType: ownerId ? USER_TYPES.DRIVER : USER_TYPES.INDIVIDUAL,
       address: userData.address || null,
       profilePhoto: userData.profilePhoto || null,
@@ -800,6 +829,7 @@ export const userService = {
       driverPhoto: userData.driverPhoto || null,
       ownerPhoto: null,
       mobileVerified: false,
+      registeredPumpId: userRole === ROLES.USER ? resolvedRegisteredPumpId : null,
     });
 
     if (vehicleData) {
@@ -830,6 +860,26 @@ export const userService = {
         }
       } catch (error) {
         console.error('Failed to credit registration points:', error.message);
+      }
+
+      // Credit referral points to referrer (Manager or Staff) when referralCode was provided
+      if (referrer && referrer._id && (referrer._ownerType === 'Manager' || referrer._ownerType === 'Staff')) {
+        try {
+          const systemConfig = await systemConfigService.getConfig();
+          const referralPoints = systemConfig.points?.referral || 0;
+          if (referralPoints > 0) {
+            await pointsService.creditPoints({
+              userId: referrer._id,
+              ownerType: referrer._ownerType,
+              points: referralPoints,
+              type: 'credit',
+              reason: `Referral bonus - User ${created._id} created with referral code (${operatorType})`,
+              createdBy: created._id,
+            });
+          }
+        } catch (error) {
+          console.error('Failed to credit referral points:', error.message);
+        }
       }
     }
 

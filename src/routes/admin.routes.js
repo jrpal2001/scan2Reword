@@ -24,7 +24,6 @@ import { systemConfigValidation } from '../validation/systemConfig.validation.js
 import { staffAssignmentValidation } from '../validation/staffAssignment.validation.js';
 import { redemptionValidation } from '../validation/redemption.validation.js';
 import { ROLES } from '../constants/roles.js';
-import { upload, userUploadFields } from '../utils/multerConfig.js';
 import { uploadToS3 } from '../middlewares/uploadToS3.js';
 
 const router = Router();
@@ -56,7 +55,6 @@ router.post(
   '/users',
   verifyJWT,
   requireRoles([ROLES.ADMIN]),
-  upload.fields(userUploadFields),
   uploadToS3('users'),
   validateRequest(userValidation.createUser),
   adminController.createUser

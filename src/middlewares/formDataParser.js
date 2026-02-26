@@ -15,23 +15,10 @@ const upload = multer({
 });
 
 /**
- * Paths that use route-specific multer (upload.fields etc).
- * We must NOT parse multipart here so the stream is left for those routes.
- */
-const MULTIPART_SKIP_PATHS = [
-  '/api/auth/register',
-  '/api/admin/users',
-  '/api/manager/users',
-  '/api/staff/users',
-  '/api/owner/vehicles',
-  '/api/transactions', // POST with attachments
-];
-
-/**
  * Form-data parser middleware
- * Parses multipart/form-data and converts text fields to req.body
- * File fields remain in req.files (handled by multer)
- * Skips parsing for paths that have their own multer to avoid "Unexpected end of form"
+ * Parses multipart/form-data for ALL multipart requests (including paths that use uploadToS3).
+ * Populates req.body (text) and req.files (array of { fieldname, originalname, buffer, ... }).
+ * Routes then use req.body + req.files; uploadToS3 builds req.s3Uploads from req.files by fieldname.
  */
 export const formDataParser = (req, res, next) => {
   // Only process POST, PUT, PATCH requests
@@ -45,14 +32,7 @@ export const formDataParser = (req, res, next) => {
     return next(); // Not form-data, let express.json handle it
   }
 
-  // Skip parsing for routes that use their own multer (they consume the stream)
-  const path = (req.originalUrl || req.url || req.path || '').split('?')[0];
-  if (MULTIPART_SKIP_PATHS.some((p) => path === p || path.startsWith(p + '/'))) {
-    return next();
-  }
-
-  // Use multer to parse form-data
-  // Accept any field names (both files and text)
+  // Parse multipart once so req.body and req.files are available to all routes (including staff/users, manager/users, admin/users)
   upload.any()(req, res, (err) => {
     if (err) {
       return next(err);

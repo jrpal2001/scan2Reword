@@ -203,7 +203,10 @@ export const userValidation = {
       then: Joi.optional(),
       otherwise: Joi.forbidden(),
     }),
-    vehicle: Joi.when('ownerOnly', { is: true, then: Joi.forbidden(), otherwise: vehicleSchema.optional() }),
+    vehicle: Joi.when('ownerOnly', { is: true, then: Joi.forbidden(), otherwise: vehicleSchemaOrString.optional() }),
+    referralCode: Joi.string().trim().allow('', null).optional(),
+    registeredPumpId: objectIdSchema.optional(),
+    registeredPumpCode: Joi.string().trim().allow('', null).optional(),
     // Organization (Fleet) fields - only for role=USER and accountType=organization
     ownerType: Joi.when('role', {
       is: ROLES.USER,
@@ -221,12 +224,7 @@ export const userValidation = {
     }),
     owner: Joi.when('ownerType', {
       is: 'non-registered',
-      then: Joi.object({
-        fullName: Joi.string().trim().min(2).max(100).required(),
-        mobile: mobileSchema,
-        email: Joi.string().email().trim().lowercase().allow('').optional(),
-        address: addressSchema.optional(),
-      }).required(),
+      then: ownerSchemaOrString.required(),
       otherwise: Joi.optional(),
     }),
   }),

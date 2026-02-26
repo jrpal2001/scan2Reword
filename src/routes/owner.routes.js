@@ -5,7 +5,6 @@ import { verifyJWT } from '../middlewares/auth.middleware.js';
 import { requireRoles } from '../middlewares/rbac.middleware.js';
 import { validateRequest } from '../middlewares/validateRequest.js';
 import { ownerValidation } from '../validation/owner.validation.js';
-import { upload, userUploadFields } from '../utils/multerConfig.js';
 import { uploadToS3 } from '../middlewares/uploadToS3.js';
 import { ROLES } from '../constants/roles.js';
 
@@ -30,7 +29,6 @@ router.get(
 router.post(
   '/vehicles',
   verifyJWT,
-  upload.fields(userUploadFields),
   uploadToS3('owners/fleet'),
   validateRequest(ownerValidation.addVehicle),
   ownerController.addVehicle
