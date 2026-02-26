@@ -4,10 +4,36 @@ import ApiError from '../utils/ApiError.js';
 import { HTTP_STATUS } from '../constants/errorCodes.js';
 import { PUMP_STATUS } from '../constants/status.js';
 
+/** Prefix for auto-generated pump codes (e.g. PUMP00001) */
+const PUMP_CODE_PREFIX = 'PUMP';
+/** Number of digits for the numeric part (4–6 digit padded) */
+const PUMP_CODE_DIGITS = 5;
+
+/**
+ * Generate next pump code: PREFIX + padded number (e.g. PUMP00001, PUMP00002).
+ * Uses the highest existing code number with this prefix and increments.
+ */
+async function generateNextPumpCode() {
+  const pumps = await pumpRepository.findCodesByPrefix(PUMP_CODE_PREFIX);
+  let maxNum = 0;
+  for (const p of pumps) {
+    const numPart = p.code.slice(PUMP_CODE_PREFIX.length);
+    const n = parseInt(numPart, 10);
+    if (!Number.isNaN(n) && n > maxNum) maxNum = n;
+  }
+  const nextNum = maxNum + 1;
+  const maxAllowed = Math.pow(10, PUMP_CODE_DIGITS) - 1;
+  if (nextNum > maxAllowed) {
+    throw new Error(`Pump code range exhausted (max ${maxAllowed} for ${PUMP_CODE_DIGITS} digits)`);
+  }
+  return PUMP_CODE_PREFIX + String(nextNum).padStart(PUMP_CODE_DIGITS, '0');
+}
+
 export const pumpService = {
   async createPump(data, adminId) {
-    // Check if code already exists
-    const existing = await pumpRepository.findByCode(data.code);
+    // Auto-generate code on create (ignore client-sent code)
+    const code = await generateNextPumpCode();
+    const existing = await pumpRepository.findByCode(code);
     if (existing) {
       throw new ApiError(HTTP_STATUS.CONFLICT, 'Pump code already exists');
     }
@@ -27,6 +53,7 @@ export const pumpService = {
 
     const pump = await pumpRepository.create({
       ...data,
+      code,
       managerId: data.managerId || null, // Ensure null if empty
       status: data.status || PUMP_STATUS.ACTIVE,
     });

@@ -18,6 +18,7 @@ const pumpSchema = new mongoose.Schema(
     settings: { type: mongoose.Schema.Types.Mixed, default: {} },
     timezone: { type: String, default: 'Asia/Kolkata' },
     currency: { type: String, default: 'INR' },
+    pumpImages: [{ type: String, default: '' }],
   },
   { timestamps: true }
 );

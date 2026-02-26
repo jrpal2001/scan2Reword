@@ -5,24 +5,42 @@ import { HTTP_STATUS } from '../constants/errorCodes.js';
 
 /**
  * POST /api/admin/pumps
- * Body: req.validated (name, code, managerId?, location?, status?, ...)
+ * Body: req.validated (name, code, managerId?, location?, status?, pumpImages?).
+ * Files: pumpImages (multiple) via multipart; URLs in req.s3Uploads.pumpImages (array).
  * Admin only.
  */
 export const createPump = asyncHandler(async (req, res) => {
-  const pump = await pumpService.createPump(req.validated, req.user._id);
+  const data = { ...req.validated };
+  const uploaded = req.s3Uploads?.pumpImages;
+  if (Array.isArray(uploaded) && uploaded.length > 0) {
+    data.pumpImages = uploaded.filter(Boolean);
+  } else if (Array.isArray(req.validated?.pumpImages)) {
+    data.pumpImages = req.validated.pumpImages.filter(Boolean);
+  } else {
+    data.pumpImages = [];
+  }
+  const pump = await pumpService.createPump(data, req.user._id);
   return res.status(HTTP_STATUS.CREATED).json(
     ApiResponse.success(pump, 'Pump created successfully')
   );
 });
 
 /**
- * PUT /api/admin/pumps/:pumpId
- * Body: req.validated (partial pump fields)
+ * PATCH /api/admin/pumps/:pumpId
+ * Body: req.validated (partial pump fields). Files: pumpImages (multiple) via multipart.
+ * If pumpImages uploaded, req.s3Uploads.pumpImages (array) overrides; else validated.pumpImages if provided.
  * Admin only.
  */
 export const updatePump = asyncHandler(async (req, res) => {
   const { pumpId } = req.params;
-  const pump = await pumpService.updatePump(pumpId, req.validated, req.user._id);
+  const data = { ...req.validated };
+  const uploaded = req.s3Uploads?.pumpImages;
+  if (Array.isArray(uploaded)) {
+    data.pumpImages = uploaded.filter(Boolean);
+  } else if (req.validated?.pumpImages !== undefined) {
+    data.pumpImages = Array.isArray(req.validated.pumpImages) ? req.validated.pumpImages.filter(Boolean) : [];
+  }
+  const pump = await pumpService.updatePump(pumpId, data, req.user._id);
   return res.status(HTTP_STATUS.OK).json(
     ApiResponse.success(pump, 'Pump updated successfully')
   );

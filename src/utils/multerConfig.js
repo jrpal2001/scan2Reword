@@ -38,3 +38,6 @@ export const userUploadFields = [
 
 /** Transaction attachments only */
 export const transactionUploadFields = [{ name: 'attachments', maxCount: 5 }];
+
+/** Pump images (multiple) */
+export const pumpUploadFields = [{ name: 'pumpImages', maxCount: 10 }];

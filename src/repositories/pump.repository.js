@@ -55,6 +55,20 @@ export const pumpRepository = {
     return Pump.findOne({ code: code?.trim() }).lean();
   },
 
+  /**
+   * Find all pumps whose code matches prefix + digits (e.g. PUMP00001).
+   * Used to compute the next auto-generated code number.
+   * @param {string} prefix - e.g. 'PUMP'
+   * @returns {{ code: string }[]}
+   */
+  async findCodesByPrefix(prefix) {
+    const safePrefix = String(prefix).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    const pumps = await Pump.find({ code: new RegExp(`^${safePrefix}\\d+$`) })
+      .select('code')
+      .lean();
+    return pumps;
+  },
+
   async list(filter = {}, options = {}) {
     const { page = 1, limit = 20, sort = { createdAt: -1 } } = options;
     const skip = (page - 1) * limit;

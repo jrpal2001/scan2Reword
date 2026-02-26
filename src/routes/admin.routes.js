@@ -26,7 +26,7 @@ import { redemptionValidation } from '../validation/redemption.validation.js';
 import { ROLES } from '../constants/roles.js';
 import { uploadToS3 } from '../middlewares/uploadToS3.js';
 import { parseBodyJson } from '../middlewares/parseBodyJson.js';
-import { upload, userUploadFields } from '../utils/multerConfig.js';
+import { upload, userUploadFields, pumpUploadFields } from '../utils/multerConfig.js';
 
 const router = Router();
 
@@ -102,11 +102,14 @@ router.delete(
   adminController.deleteUser
 );
 
-// Pumps CRUD
+// Pumps CRUD (create/update support multipart with pumpImages)
 router.post(
   '/pumps',
   verifyJWT,
   requireRoles([ROLES.ADMIN]),
+  upload.fields(pumpUploadFields),
+  parseBodyJson,
+  uploadToS3('pumps'),
   validateRequest(pumpValidation.create),
   pumpController.createPump
 );
@@ -129,6 +132,9 @@ router.patch(
   '/pumps/:pumpId',
   verifyJWT,
   requireRoles([ROLES.ADMIN]),
+  upload.fields(pumpUploadFields),
+  parseBodyJson,
+  uploadToS3('pumps'),
   validateRequest(pumpValidation.update),
   pumpController.updatePump
 );

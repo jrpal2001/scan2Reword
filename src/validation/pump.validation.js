@@ -13,7 +13,7 @@ const locationSchema = Joi.object({
 export const pumpValidation = {
   create: Joi.object({
     name: Joi.string().trim().min(2).max(100).required(),
-    code: Joi.string().trim().min(2).max(20).uppercase().required(),
+    code: Joi.string().trim().min(2).max(20).uppercase().optional(), // Auto-generated if omitted (PREFIX + padded number)
     managerId: Joi.string()
       .trim()
       .allow('', null)
@@ -34,6 +34,7 @@ export const pumpValidation = {
     settings: Joi.object().optional(),
     timezone: Joi.string().trim().default('Asia/Kolkata'),
     currency: Joi.string().trim().length(3).uppercase().default('INR'),
+    pumpImages: Joi.array().items(Joi.string().trim().allow('')).optional(),
   }),
 
   update: Joi.object({
@@ -59,5 +60,6 @@ export const pumpValidation = {
     settings: Joi.object().optional(),
     timezone: Joi.string().trim().optional(),
     currency: Joi.string().trim().length(3).uppercase().optional(),
+    pumpImages: Joi.array().items(Joi.string().trim().allow('')).optional(),
   }).min(1),
 };
