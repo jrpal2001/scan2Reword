@@ -1,13 +1,26 @@
 import Joi from 'joi';
 import { PUMP_STATUS } from '../constants/status.js';
 
+// Coerce numeric strings/arrays from form-data (e.g. location[lat], location[lng]) to number
+// Some parsers send lat/lng as arrays: { lat: ["17.5677"] }
+const coerceNumber = (min, max) =>
+  Joi.any().custom((value, helpers) => {
+    const raw = Array.isArray(value) ? value[0] : value;
+    if (raw === undefined || raw === null || raw === '') return undefined;
+    const n = Number(raw);
+    if (Number.isNaN(n)) return helpers.error('any.invalid');
+    if (min != null && n < min) return helpers.error('number.min');
+    if (max != null && n > max) return helpers.error('number.max');
+    return n;
+  }).optional();
+
 const locationSchema = Joi.object({
   address: Joi.string().trim().allow('').optional(),
   city: Joi.string().trim().allow('').optional(),
   state: Joi.string().trim().allow('').optional(),
   pincode: Joi.string().trim().pattern(/^\d{6}$/).allow('').optional(),
-  lat: Joi.number().min(-90).max(90).optional(),
-  lng: Joi.number().min(-180).max(180).optional(),
+  lat: coerceNumber(-90, 90),
+  lng: coerceNumber(-180, 180),
 });
 
 export const pumpValidation = {

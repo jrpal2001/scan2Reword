@@ -28,17 +28,25 @@ export const createPump = asyncHandler(async (req, res) => {
 /**
  * PATCH /api/admin/pumps/:pumpId
  * Body: req.validated (partial pump fields). Files: pumpImages (multiple) via multipart.
- * If pumpImages uploaded, req.s3Uploads.pumpImages (array) overrides; else validated.pumpImages if provided.
+ * pumpImages behavior:
+ * - New files only → replace with new upload URLs.
+ * - pumpImages in body only → set to that array (use [] to delete all).
+ * - New files + pumpImages in body → merge: existing URLs from body + new file URLs (add new photos).
+ * - Neither → leave pumpImages unchanged.
  * Admin only.
  */
 export const updatePump = asyncHandler(async (req, res) => {
   const { pumpId } = req.params;
   const data = { ...req.validated };
   const uploaded = req.s3Uploads?.pumpImages;
-  if (Array.isArray(uploaded)) {
-    data.pumpImages = uploaded.filter(Boolean);
+  const bodyUrls = Array.isArray(req.validated?.pumpImages) ? req.validated.pumpImages.filter(Boolean) : [];
+
+  if (Array.isArray(uploaded) && uploaded.length > 0) {
+    // New uploads: merge with existing from body (add), or replace if body had no pumpImages
+    data.pumpImages = [...bodyUrls, ...uploaded.filter(Boolean)];
   } else if (req.validated?.pumpImages !== undefined) {
-    data.pumpImages = Array.isArray(req.validated.pumpImages) ? req.validated.pumpImages.filter(Boolean) : [];
+    // No new files: set to body array (replace or delete all with [])
+    data.pumpImages = bodyUrls;
   }
   const pump = await pumpService.updatePump(pumpId, data, req.user._id);
   return res.status(HTTP_STATUS.OK).json(
