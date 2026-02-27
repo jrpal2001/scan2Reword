@@ -11,7 +11,7 @@ import * as systemConfigController from '../controllers/systemConfig.controller.
 import * as staffAssignmentController from '../controllers/staffAssignment.controller.js';
 import * as redemptionController from '../controllers/redemption.controller.js';
 import { verifyJWT } from '../middlewares/auth.middleware.js';
-import { requireRoles } from '../middlewares/rbac.middleware.js';
+import { requireRoles, attachPumpScope, requirePumpAccess } from '../middlewares/rbac.middleware.js';
 import { validateRequest } from '../middlewares/validateRequest.js';
 import { userValidation } from '../validation/userValidation.js';
 import { adminValidation } from '../validation/admin.validation.js';
@@ -285,11 +285,12 @@ router.patch(
   systemConfigController.updateConfig
 );
 
-// Staff Assignments
+// Staff Assignments (Admin + Manager; Manager can only assign to their pumps)
 router.post(
   '/staff-assignments',
   verifyJWT,
-  requireRoles([ROLES.ADMIN]),
+  requireRoles([ROLES.ADMIN, ROLES.MANAGER]),
+  attachPumpScope,
   validateRequest(staffAssignmentValidation.assign),
   staffAssignmentController.assignStaffToPump
 );
@@ -297,7 +298,8 @@ router.post(
 router.get(
   '/staff-assignments',
   verifyJWT,
-  requireRoles([ROLES.ADMIN]),
+  requireRoles([ROLES.ADMIN, ROLES.MANAGER]),
+  attachPumpScope,
   validateRequest(staffAssignmentValidation.list, 'query'),
   staffAssignmentController.listAssignments
 );
@@ -305,21 +307,25 @@ router.get(
 router.get(
   '/staff-assignments/staff/:staffId',
   verifyJWT,
-  requireRoles([ROLES.ADMIN]),
+  requireRoles([ROLES.ADMIN, ROLES.MANAGER]),
+  attachPumpScope,
   staffAssignmentController.getAssignmentsByStaff
 );
 
 router.get(
   '/staff-assignments/pump/:pumpId',
   verifyJWT,
-  requireRoles([ROLES.ADMIN]),
+  requireRoles([ROLES.ADMIN, ROLES.MANAGER]),
+  attachPumpScope,
+  requirePumpAccess,
   staffAssignmentController.getStaffByPump
 );
 
 router.delete(
   '/staff-assignments/:assignmentId',
   verifyJWT,
-  requireRoles([ROLES.ADMIN]),
+  requireRoles([ROLES.ADMIN, ROLES.MANAGER]),
+  attachPumpScope,
   staffAssignmentController.removeStaffFromPump
 );
 

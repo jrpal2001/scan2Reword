@@ -1,20 +1,33 @@
 import { asyncHandler } from '../utils/asyncHandler.js';
 import { ApiResponse } from '../utils/ApiResponse.js';
 import { transactionService } from '../services/transaction.service.js';
+import { ROLES } from '../constants/roles.js';
+import ApiError from '../utils/ApiError.js';
 import { HTTP_STATUS } from '../constants/errorCodes.js';
 
 /**
  * POST /api/transactions
- * Body: req.validated + req.uploadedFiles (from file upload middleware)
- * Manager/Staff only (with pump scope).
+ * Body: identifier, amount, liters?, category, billNumber, paymentMode, ... pumpId optional for Staff.
+ * Staff is assigned to a single pump: pumpId is taken from their assignment, not from body.
+ * Admin/Manager must send pumpId.
  */
 export const createTransaction = asyncHandler(async (req, res) => {
-  // req.s3Uploads.attachments is always an array of URLs
   const data = {
     ...req.validated,
     attachments: Array.isArray(req.s3Uploads?.attachments) ? req.s3Uploads.attachments : (req.validated?.attachments || []),
   };
-  
+
+  if (req.userType === ROLES.STAFF) {
+    if (!req.allowedPumpIds || req.allowedPumpIds.length !== 1) {
+      throw new ApiError(HTTP_STATUS.BAD_REQUEST, 'Staff must be assigned to exactly one pump to create transactions');
+    }
+    data.pumpId = req.allowedPumpIds[0];
+  } else {
+    if (!data.pumpId) {
+      throw new ApiError(HTTP_STATUS.BAD_REQUEST, 'pumpId is required for Admin/Manager');
+    }
+  }
+
   const transaction = await transactionService.createTransaction(
     data,
     req.user._id,

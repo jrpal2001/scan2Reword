@@ -250,4 +250,12 @@ export const userValidation = {
   deleteUser: Joi.object({
     type: Joi.string().valid('manager', 'staff', 'user').optional(),
   }),
+
+  /** PATCH /api/user/profile - current user (individual/owner/driver). All optional (can send only profilePhoto file). */
+  updateProfile: Joi.object({
+    fullName: Joi.string().trim().min(2).max(100).optional(),
+    email: Joi.string().email().trim().lowercase().allow('', null).optional(),
+    address: addressSchema,
+    profilePhoto: Joi.string().trim().allow('', null).optional(),
+  }),
 };

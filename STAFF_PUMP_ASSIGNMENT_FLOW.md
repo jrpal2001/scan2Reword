@@ -572,3 +572,45 @@ Shows stats **only for manager's pump(s)**. Automatically filtered by `req.allow
 ---
 
 **Last Updated:** February 20, 2026
+
+
+
+
+
+
+
+Method	Endpoint	Who	Description
+POST	/api/admin/staff-assignments	Admin, Manager	Assign a staff to a pump. Body: { "staffId": "<Staff _id>", "pumpId": "<Pump _id>" }.
+
+
+
+GET	/api/admin/staff-assignments	Admin, Manager	List assignments (query: page, limit, staffId, pumpId, status).
+GET	/api/admin/staff-assignments/staff/:staffId	Admin, Manager	Assignments for one staff.
+GET	/api/admin/staff-assignments/pump/:pumpId	Admin, Manager	Staff assigned to one pump (Manager only for pumps they manage).
+DELETE	/api/admin/staff-assignments/:assignmentId	Admin, Manager	Remove staff from pump (inactivate assignment).
+
+
+
+
+Rules:
+One pump per staff: A staff can have only one active assignment. Assigning to a second pump returns conflict until the first assignment is removed.
+Manager: Can assign only to pumps they manage. attachPumpScope and a check in assignStaffToPump enforce this; GET by pumpId uses requirePumpAccess.
+Example – assign staff to pump (Admin or Manager):
+/api/admin/staff-assignments
+POST /api/admin/staff-assignmentsAuthorization: Bearer <admin_or_manager_jwt>Content-Type: application/json{  "staffId": "64a1b2c3d4e5f6789012345",  "pumpId": "64a1b2c3d4e5f6789012346"}
+2. POST /transactions – no pumpId for Staff
+Behaviour:
+Staff:
+Do not send pumpId in the body.
+Backend uses the staff’s single pump from their assignment (req.allowedPumpIds[0]).
+If the staff is not assigned to exactly one pump, the API returns 400.
+Admin / Manager:
+Must send pumpId in the body (unchanged).
+Validation:
+pumpId is optional in the request body.
+Controller:
+If caller is Staff: set data.pumpId = req.allowedPumpIds[0]; if allowedPumpIds.length !== 1, return 400.
+If caller is Admin/Manager: require data.pumpId, else 400.
+Example – Staff creating a transaction (no pumpId):
+POST /api/transactionsAuthorization: Bearer <staff_jwt>Content-Type: application/json{  "identifier": "LOY123456",  "amount": 1500,  "liters": 30,  "category": "Fuel",  "billNumber": "INV-001",  "paymentMode": "Cash"}
+Staff’s pump is taken from their assignment; transactions are stored under that pump and segregated by it (list/filter by pump, etc.).

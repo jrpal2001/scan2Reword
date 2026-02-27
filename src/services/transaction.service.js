@@ -26,8 +26,9 @@ export const transactionService = {
   async createTransaction(data, operatorId, allowedPumpIds = null) {
     const { pumpId, identifier, amount, liters, category, billNumber, paymentMode, attachments, campaignId } = data;
 
-    // Validate pump access
-    if (allowedPumpIds !== null && !allowedPumpIds.includes(String(pumpId))) {
+    // Validate pump access (compare as strings; allowedPumpIds may be ObjectIds)
+    const pumpIdStr = String(pumpId);
+    if (allowedPumpIds !== null && !allowedPumpIds.map((id) => String(id)).includes(pumpIdStr)) {
       throw new ApiError(HTTP_STATUS.FORBIDDEN, 'Access denied to this pump');
     }
 
@@ -63,8 +64,8 @@ export const transactionService = {
       amount
     );
 
-    // Calculate base points
-    let basePoints = pointsService.calculatePoints(category, amount, liters, 1);
+    // Calculate base points (uses SystemConfig: points.fuel.pointsPerLiter, etc.)
+    let basePoints = await pointsService.calculatePoints(category, amount, liters, 1);
     let finalPoints = basePoints;
     let appliedCampaignId = null;
 

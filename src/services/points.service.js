@@ -23,23 +23,12 @@ async function getOwnerAndUpdater(ownerId, ownerType) {
   return { entity, updateFn };
 }
 
-/**
- * Points calculation service
- * TODO: Move rates to SystemConfig model
- */
-const POINTS_CONFIG = {
-  Fuel: {
-    pointsPerLiter: 1, // 1 point per liter (configurable)
-  },
-  Lubricant: {
-    pointsPer100Rupees: 5, // 5 points per ₹100 (configurable)
-  },
-  Store: {
-    pointsPer100Rupees: 5, // 5 points per ₹100
-  },
-  Service: {
-    pointsPer100Rupees: 5, // 5 points per ₹100
-  },
+/** Default rates when SystemConfig is unavailable */
+const DEFAULT_POINTS = {
+  fuel: { pointsPerLiter: 1 },
+  lubricant: { pointsPer100Rupees: 5 },
+  store: { pointsPer100Rupees: 5 },
+  service: { pointsPer100Rupees: 5 },
 };
 
 // Points expiry duration - will be fetched from SystemConfig
@@ -57,32 +46,49 @@ let POINTS_EXPIRY_MONTHS = 12;
 
 export const pointsService = {
   /**
-   * Calculate points for a transaction
+   * Calculate points for a transaction using SystemConfig (points.fuel.pointsPerLiter, etc.)
    * @param {string} category - Fuel, Lubricant, Store, Service
    * @param {number} amount - Transaction amount
    * @param {number} liters - Liters (required for Fuel)
    * @param {number} multiplier - Campaign multiplier (default 1)
-   * @returns {number} Points earned
+   * @returns {Promise<number>} Points earned
    */
-  calculatePoints(category, amount, liters = null, multiplier = 1) {
-    const config = POINTS_CONFIG[category];
-    if (!config) {
-      return 0;
+  async calculatePoints(category, amount, liters = null, multiplier = 1) {
+    let pointsConfig = DEFAULT_POINTS;
+    try {
+      const config = await systemConfigService.getConfig();
+      if (config?.points) {
+        pointsConfig = {
+          fuel: config.points.fuel && typeof config.points.fuel === 'object'
+            ? { pointsPerLiter: config.points.fuel.pointsPerLiter ?? 1 }
+            : { pointsPerLiter: 1 },
+          lubricant: config.points.lubricant && typeof config.points.lubricant === 'object'
+            ? { pointsPer100Rupees: config.points.lubricant.pointsPer100Rupees ?? 5 }
+            : { pointsPer100Rupees: 5 },
+          store: config.points.store && typeof config.points.store === 'object'
+            ? { pointsPer100Rupees: config.points.store.pointsPer100Rupees ?? 5 }
+            : { pointsPer100Rupees: 5 },
+          service: config.points.service && typeof config.points.service === 'object'
+            ? { pointsPer100Rupees: config.points.service.pointsPer100Rupees ?? 5 }
+            : { pointsPer100Rupees: 5 },
+        };
+      }
+    } catch (e) {
+      // use DEFAULT_POINTS
     }
 
+    const key = category.toLowerCase();
     let basePoints = 0;
 
     if (category === 'Fuel') {
-      if (!liters || liters <= 0) {
-        return 0;
-      }
-      basePoints = liters * config.pointsPerLiter;
-    } else {
-      // Lubricant, Store, Service: points per ₹100
-      basePoints = Math.floor((amount / 100) * config.pointsPer100Rupees);
+      if (!liters || liters <= 0) return 0;
+      const perLiter = pointsConfig.fuel?.pointsPerLiter ?? 1;
+      basePoints = liters * perLiter;
+    } else if (key === 'lubricant' || key === 'store' || key === 'service') {
+      const per100 = pointsConfig[key]?.pointsPer100Rupees ?? 5;
+      basePoints = Math.floor((amount / 100) * per100);
     }
 
-    // Apply campaign multiplier
     return Math.floor(basePoints * multiplier);
   },
 

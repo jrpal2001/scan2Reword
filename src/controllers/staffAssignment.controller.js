@@ -1,14 +1,20 @@
 import { asyncHandler } from '../utils/asyncHandler.js';
 import { ApiResponse } from '../utils/ApiResponse.js';
 import { staffAssignmentService } from '../services/staffAssignment.service.js';
+import { ROLES } from '../constants/roles.js';
+import ApiError from '../utils/ApiError.js';
 import { HTTP_STATUS } from '../constants/errorCodes.js';
 
 /**
  * POST /api/admin/staff-assignments
- * Assign staff to pump
+ * Assign staff to pump. Admin + Manager. Staff can be assigned to only 1 pump.
+ * Manager can only assign to pumps they manage (allowedPumpIds).
  */
 export const assignStaffToPump = asyncHandler(async (req, res) => {
   const { staffId, pumpId } = req.validated;
+  if (req.userType === ROLES.MANAGER && req.allowedPumpIds?.length && !req.allowedPumpIds.map(String).includes(String(pumpId))) {
+    throw new ApiError(HTTP_STATUS.FORBIDDEN, 'You can only assign staff to pumps you manage');
+  }
   const assignment = await staffAssignmentService.assignStaffToPump(staffId, pumpId, req.user._id);
   return res.status(HTTP_STATUS.CREATED).json(
     ApiResponse.success(assignment, 'Staff assigned to pump successfully')

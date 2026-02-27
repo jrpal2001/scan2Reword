@@ -3,7 +3,7 @@ import { TRANSACTION_STATUS } from '../constants/status.js';
 
 export const transactionValidation = {
   create: Joi.object({
-    pumpId: Joi.string().hex().length(24).required(),
+    pumpId: Joi.string().hex().length(24).optional(), // Optional for Staff (derived from their single pump assignment); required for Admin/Manager
     identifier: Joi.string().trim().min(1).required(),
     amount: Joi.number().positive().required(),
     liters: Joi.number().positive().allow(null).optional(),

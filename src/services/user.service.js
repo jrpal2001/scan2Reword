@@ -6,9 +6,11 @@ import { authService } from './auth.service.js';
 import { pointsService } from './points.service.js';
 import { systemConfigService } from './systemConfig.service.js';
 import { staffAssignmentService } from './staffAssignment.service.js';
+import { dashboardService } from './dashboard.service.js';
 import { pumpRepository } from '../repositories/pump.repository.js';
 import { staffAssignmentRepository } from '../repositories/staffAssignment.repository.js';
 import { vehicleRepository } from '../repositories/vehicle.repository.js';
+import { transactionRepository } from '../repositories/transaction.repository.js';
 import { ROLES } from '../constants/roles.js';
 import { USER_TYPES } from '../models/User.model.js';
 import ApiError from '../utils/ApiError.js';
@@ -1083,4 +1085,126 @@ export const userService = {
 
     throw new ApiError(HTTP_STATUS.NOT_FOUND, 'User not found');
   },
+
+  /**
+   * Get profile for current user (individual, owner, or driver). UserLoyalty only.
+   * Includes vehicles (direct) and for owner also fleetVehicles (all vehicles under their drivers)
+   * and totalFleetPoints (aggregate points for entire fleet).
+   */
+  async getProfile(userId) {
+    const user = await userRepository.findById(userId);
+    if (!user) throw new ApiError(HTTP_STATUS.NOT_FOUND, 'User not found');
+    const vehicles = await vehicleRepository.findByUserId(userId);
+    const result = { ...formatProfile(user), vehicles };
+    if (user.userType === USER_TYPES.OWNER) {
+      result.fleetVehicles = await getFleetVehiclesForOwner(userId);
+      const agg = await dashboardService.getFleetAggregation(userId);
+      result.totalFleetPoints = agg.totalFleetPoints;
+    }
+    return result;
+  },
+
+  /**
+   * Update profile (fullName, email, address, profilePhoto/avatar). UserLoyalty only.
+   * For driver/owner also sets driverPhoto/ownerPhoto from same avatar if provided.
+   */
+  async updateProfile(userId, data) {
+    const user = await userRepository.findById(userId);
+    if (!user) throw new ApiError(HTTP_STATUS.NOT_FOUND, 'User not found');
+    const updateData = {};
+    if (data.fullName !== undefined) updateData.fullName = data.fullName.trim();
+    if (data.email !== undefined) updateData.email = data.email ? data.email.trim().toLowerCase() : null;
+    if (data.address !== undefined) updateData.address = data.address;
+    if (data.profilePhoto !== undefined) {
+      updateData.profilePhoto = data.profilePhoto || null;
+      if (user.userType === USER_TYPES.DRIVER) updateData.driverPhoto = data.profilePhoto || null;
+      if (user.userType === USER_TYPES.OWNER) updateData.ownerPhoto = data.profilePhoto || null;
+    }
+    if (Object.keys(updateData).length === 0) {
+      const vehicles = await vehicleRepository.findByUserId(userId);
+      const result = { ...formatProfile(user), vehicles };
+      if (user.userType === USER_TYPES.OWNER) {
+        result.fleetVehicles = await getFleetVehiclesForOwner(userId);
+        const agg = await dashboardService.getFleetAggregation(userId);
+        result.totalFleetPoints = agg.totalFleetPoints;
+      }
+      return result;
+    }
+    const updated = await userRepository.update(userId, updateData);
+    const vehicles = await vehicleRepository.findByUserId(userId);
+    const result = { ...formatProfile(updated), vehicles };
+    if (updated.userType === USER_TYPES.OWNER) {
+      result.fleetVehicles = await getFleetVehiclesForOwner(userId);
+      const agg = await dashboardService.getFleetAggregation(userId);
+      result.totalFleetPoints = agg.totalFleetPoints;
+    }
+    return result;
+  },
+
+  /**
+   * User dashboard: points summary + recent transactions + vehicle details. UserLoyalty only.
+   * For owner also includes fleetVehicles and totalFleetPoints.
+   */
+  async getUserDashboard(userId) {
+    const user = await userRepository.findById(userId);
+    if (!user) throw new ApiError(HTTP_STATUS.NOT_FOUND, 'User not found');
+    const wallet = await pointsService.getWallet(userId, { page: 1, limit: 1 });
+    const recentTx = await transactionRepository.list({ userId }, { page: 1, limit: 10, sort: { createdAt: -1 } });
+    const vehicles = await vehicleRepository.findByUserId(userId);
+    const profile = { ...formatProfile(user), vehicles };
+    if (user.userType === USER_TYPES.OWNER) {
+      profile.fleetVehicles = await getFleetVehiclesForOwner(userId);
+      const agg = await dashboardService.getFleetAggregation(userId);
+      profile.totalFleetPoints = agg.totalFleetPoints;
+    }
+    return {
+      profile,
+      walletSummary: wallet.walletSummary,
+      recentTransactions: recentTx.list,
+    };
+  },
 };
+
+/** Profile shape for individual, owner, and driver (exclude passwordHash, add avatar) */
+function formatProfile(user) {
+  // const avatar = user.profilePhoto || user.driverPhoto || user.ownerPhoto || null;
+  return {
+    _id: user._id,
+    fullName: user.fullName,
+    mobile: user.mobile,
+    email: user.email,
+    address: user.address,
+    userType: user.userType,
+    walletSummary: user.walletSummary,
+    loyaltyId: user.loyaltyId || null,
+    ownerId: user.ownerId || null,
+    profilePhoto: user.profilePhoto || null,
+    driverPhoto: user.driverPhoto || null,
+    ownerPhoto: user.ownerPhoto || null,
+    // avatar,
+    status: user.status,
+    mobileVerified: user.mobileVerified,
+    emailVerified: user.emailVerified,
+    registeredPumpId: user.registeredPumpId || null,
+    createdAt: user.createdAt,
+    updatedAt: user.updatedAt,
+  };
+}
+
+/** All vehicles under an owner's drivers (for fleet owner). Each vehicle includes driverId and driverFullName. */
+async function getFleetVehiclesForOwner(ownerId) {
+  const drivers = await userRepository.list({ ownerId }, { page: 1, limit: 500 });
+  const fleetVehicles = [];
+  for (const driver of drivers.list) {
+    const vehicles = await vehicleRepository.findByUserId(driver._id);
+    for (const v of vehicles) {
+      fleetVehicles.push({
+        ...v,
+        driverId: driver._id,
+        driverFullName: driver.fullName,
+        driverMobile: driver.mobile,
+      });
+    }
+  }
+  return fleetVehicles;
+}
