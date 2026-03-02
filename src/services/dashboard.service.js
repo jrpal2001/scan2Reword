@@ -10,6 +10,7 @@ import PointsLedger from '../models/PointsLedger.model.js';
 import Manager from '../models/Manager.model.js';
 import Staff from '../models/Staff.model.js';
 import StaffAssignment from '../models/StaffAssignment.model.js';
+import Pump from '../models/Pump.model.js';
 import mongoose from 'mongoose';
 
 const RECENT_TRANSACTIONS_LIMIT = 20;
@@ -190,9 +191,10 @@ export const dashboardService = {
       createdAt: { $gte: thirtyDaysAgo },
     });
 
-    // Manager and Staff counts (system-wide)
+    // Manager, Staff, and Pump counts (system-wide)
     const managerCount = await Manager.countDocuments({ status: 'active' });
     const staffCount = await Staff.countDocuments({ status: 'active' });
+    const pumpCount = await Pump.countDocuments({ status: 'active' });
 
     // Recent 20 transactions with pump details
     const recentTransactions = await getRecentTransactionsWithPump({}, RECENT_TRANSACTIONS_LIMIT);
@@ -206,6 +208,7 @@ export const dashboardService = {
       },
       managers: { total: managerCount },
       staff: { total: staffCount },
+      pumps: { total: pumpCount },
       transactions: {
         total: totalTransactions,
         today: transactionsToday,
