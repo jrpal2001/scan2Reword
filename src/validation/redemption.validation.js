@@ -5,10 +5,11 @@ export const redemptionValidation = {
     rewardId: Joi.string().hex().length(24).required(),
   }),
 
+  /** At-pump: pumpId optional for Staff (derived from their single assignment); required for Manager/Admin */
   atPumpRedemption: Joi.object({
     identifier: Joi.string().trim().min(1).required(),
     pointsToDeduct: Joi.number().integer().min(1).required(),
-    pumpId: Joi.string().hex().length(24).required(),
+    pumpId: Joi.string().hex().length(24).optional(),
   }),
 
   approve: Joi.object({
@@ -19,9 +20,10 @@ export const redemptionValidation = {
     reason: Joi.string().trim().min(1).required(),
   }),
 
-  /** Admin direct redeem: deduct user points immediately without approval flow */
+  /** Admin direct redeem: pumpId required so we can track at which pump redemption was done */
   directRedemption: Joi.object({
     userId: Joi.string().hex().length(24).required(),
     pointsToDeduct: Joi.number().integer().min(1).required(),
+    pumpId: Joi.string().hex().length(24).required(),
   }),
 };

@@ -17,14 +17,19 @@ export const staffAssignmentRepository = {
     const { status } = options;
     const filter = { staffId };
     if (status) filter.status = status;
-    return StaffAssignment.find(filter).populate('pumpId', 'name code').lean();
+    return StaffAssignment.find(filter)
+      .populate('staffId', 'fullName mobile email staffCode profilePhoto')
+      .populate('pumpId', 'name code')
+      .lean();
   },
 
   async findByPumpId(pumpId, options = {}) {
     const { status } = options;
     const filter = { pumpId };
     if (status) filter.status = status;
-    return StaffAssignment.find(filter).populate('staffId', 'fullName mobile email staffCode').lean();
+    return StaffAssignment.find(filter)
+      .populate('staffId', 'fullName mobile email staffCode profilePhoto')
+      .lean();
   },
 
   async findByStaffAndPump(staffId, pumpId) {
@@ -54,7 +59,7 @@ export const staffAssignmentRepository = {
     const skip = (page - 1) * limit;
     const [list, total] = await Promise.all([
       StaffAssignment.find(filter)
-        .populate('staffId', 'fullName mobile email staffCode')
+        .populate('staffId', 'fullName mobile email staffCode profilePhoto')
         .populate('pumpId', 'name code managerId')
         .sort(sort)
         .skip(skip)

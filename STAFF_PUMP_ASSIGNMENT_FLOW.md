@@ -315,7 +315,7 @@ Every transaction **always** stores `pumpId`:
 ### 3. Get Assignments for a Staff
 
 **Endpoint:** `GET /api/admin/staff-assignments/staff/:staffId`  
-**Access:** Admin only
+**Access:** Admin manager
 
 **Response:**
 ```json
@@ -341,7 +341,7 @@ Every transaction **always** stores `pumpId`:
 ### 4. Get Staff for a Pump
 
 **Endpoint:** `GET /api/admin/staff-assignments/pump/:pumpId`  
-**Access:** Admin only
+**Access:** Admin , manager
 
 **Response:**
 ```json
@@ -368,7 +368,7 @@ Every transaction **always** stores `pumpId`:
 ### 5. Remove Staff from Pump
 
 **Endpoint:** `DELETE /api/admin/staff-assignments/:assignmentId`  
-**Access:** Admin only
+**Access:** Admin ,manager
 
 **Response:**
 ```json

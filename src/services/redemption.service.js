@@ -1,5 +1,6 @@
 import { redemptionRepository } from '../repositories/redemption.repository.js';
 import { rewardRepository } from '../repositories/reward.repository.js';
+import { pumpRepository } from '../repositories/pump.repository.js';
 import { pointsService } from './points.service.js';
 import { scanService } from './scan.service.js';
 import ApiError from '../utils/ApiError.js';
@@ -179,8 +180,9 @@ export const redemptionService = {
 
   /**
    * Admin direct redeem: create redemption and deduct points immediately (no approval needed).
+   * pumpId required so we can track at which pump the redemption was done.
    */
-  async createDirectRedemption({ userId, pointsToDeduct, adminId }) {
+  async createDirectRedemption({ userId, pointsToDeduct, pumpId, adminId }) {
     const user = await pointsService.getWallet(userId, { page: 1, limit: 1 });
     const availablePoints = user.walletSummary?.availablePoints || 0;
     if (availablePoints < pointsToDeduct) {
@@ -204,7 +206,7 @@ export const redemptionService = {
       redemptionCode,
       status: REDEMPTION_STATUS.APPROVED,
       approvedBy: adminId,
-      usedAtPump: null,
+      usedAtPump: pumpId || null,
       expiryDate,
     });
 
@@ -218,7 +220,9 @@ export const redemptionService = {
       createdBy: adminId,
     });
 
-    return redemption;
+    const pump = pumpId ? await pumpRepository.findById(pumpId) : null;
+    const pumpName = pump?.name || 'Petrol pump';
+    return { redemption, pumpName };
   },
 
   /**

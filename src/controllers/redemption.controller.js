@@ -2,6 +2,8 @@ import { asyncHandler } from '../utils/asyncHandler.js';
 import { ApiResponse } from '../utils/ApiResponse.js';
 import { redemptionService } from '../services/redemption.service.js';
 import { auditLogService } from '../services/auditLog.service.js';
+import { ROLES } from '../constants/roles.js';
+import ApiError from '../utils/ApiError.js';
 import { HTTP_STATUS } from '../constants/errorCodes.js';
 
 /**
@@ -39,12 +41,16 @@ export const createRedemption = asyncHandler(async (req, res) => {
 
 /**
  * POST /api/redeem/at-pump or POST /api/manager/redeem or POST /api/staff/redeem
- * Body: { identifier, pointsToDeduct, pumpId }
- * At-pump redemption (manager/staff initiated).
- * Simple flow: Scan QR → Enter points → Deduct → Show updated balance
+ * Body: { identifier, pointsToDeduct, pumpId? } — pumpId optional for Staff (derived from single assignment); required for Manager/Admin
  */
 export const createAtPumpRedemption = asyncHandler(async (req, res) => {
-  const { identifier, pointsToDeduct, pumpId } = req.validated;
+  let { identifier, pointsToDeduct, pumpId } = req.validated;
+  if (!pumpId && req.userType === ROLES.STAFF && req.allowedPumpIds?.length === 1) {
+    pumpId = req.allowedPumpIds[0];
+  }
+  if (!pumpId) {
+    throw new ApiError(HTTP_STATUS.BAD_REQUEST, 'pumpId is required for Manager/Admin; Staff must be assigned to exactly one pump');
+  }
   const result = await redemptionService.createAtPumpRedemption({
     identifier,
     pointsToDeduct,
@@ -154,20 +160,25 @@ export const getRedemptionById = asyncHandler(async (req, res) => {
 
 /**
  * POST /api/admin/redemptions/direct
- * Body: { userId, pointsToDeduct }
- * Admin only. Direct redeem: deduct points immediately (no approval flow).
+ * Body: { userId, pointsToDeduct, pumpId }
+ * Admin only. Direct redeem: deduct points immediately. pumpId required to track at which pump redemption was done.
  */
 export const createDirectRedemption = asyncHandler(async (req, res) => {
-  const { userId, pointsToDeduct } = req.validated;
-  const redemption = await redemptionService.createDirectRedemption({
+  const { userId, pointsToDeduct, pumpId } = req.validated;
+  const { redemption, pumpName } = await redemptionService.createDirectRedemption({
     userId,
     pointsToDeduct,
+    pumpId,
     adminId: req.user._id,
   });
+  const n = redemption.pointsUsed;
+  const pointsText = n === 1 ? '1 point' : `${n} points`;
+  const verb = n === 1 ? 'has' : 'have';
+  const message = `Your ${pointsText} ${verb} been Redeemed at ${pumpName}.`;
   return res.status(HTTP_STATUS.CREATED).json(
     ApiResponse.success(
-      { redemption, redemptionCode: redemption.redemptionCode },
-      'Points redeemed successfully (direct by admin)'
+      { redemption, redemptionCode: redemption.redemptionCode, message },
+      message
     )
   );
 });
