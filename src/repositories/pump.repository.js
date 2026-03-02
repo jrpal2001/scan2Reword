@@ -5,6 +5,12 @@ import StaffAssignment from '../models/StaffAssignment.model.js';
  * Pump repository - data access only.
  */
 export const pumpRepository = {
+  /** Get distinct manager IDs that are assigned to at least one pump */
+  async getAssignedManagerIds() {
+    const docs = await Pump.distinct('managerId', { managerId: { $ne: null } });
+    return docs;
+  },
+
   async findPumpIdsByManagerId(managerId) {
     const pumps = await Pump.find({ managerId, status: 'active' }).select('_id').lean();
     return pumps.map((p) => p._id);

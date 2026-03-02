@@ -24,7 +24,12 @@ export const transactionService = {
    * @returns {Object} Created transaction
    */
   async createTransaction(data, operatorId, allowedPumpIds = null) {
-    const { pumpId, identifier, amount, liters, category, billNumber, paymentMode, attachments, campaignId } = data;
+    let { pumpId, identifier, amount, liters, category, billNumber, paymentMode, attachments, campaignId } = data;
+
+    amount = amount ?? 0;
+    category = category ?? 'Fuel';
+    paymentMode = paymentMode ?? 'Other';
+    billNumber = (billNumber && String(billNumber).trim()) || `TXN-${Date.now()}-${Math.random().toString(36).substring(2, 10)}`;
 
     // Validate pump access (compare as strings; allowedPumpIds may be ObjectIds)
     const pumpIdStr = String(pumpId);
@@ -38,7 +43,7 @@ export const transactionService = {
       throw new ApiError(HTTP_STATUS.NOT_FOUND, 'Pump not found');
     }
 
-    // Check duplicate bill number
+    // Check duplicate bill number (only when client provided a bill number; generated ones are unique)
     const existing = await transactionRepository.findByPumpAndBillNumber(pumpId, billNumber);
     if (existing) {
       throw new ApiError(HTTP_STATUS.CONFLICT, 'Bill number already exists for this pump');
@@ -95,7 +100,7 @@ export const transactionService = {
       amount,
       liters: category === 'Fuel' ? liters : null,
       category,
-      billNumber: billNumber.trim(),
+      billNumber: String(billNumber).trim(),
       paymentMode,
       pointsEarned,
       campaignId: campaignId || appliedCampaignId || null,

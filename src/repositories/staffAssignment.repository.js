@@ -54,6 +54,12 @@ export const staffAssignmentRepository = {
     return result.deletedCount;
   },
 
+  /** Get distinct staff IDs that have at least one active assignment */
+  async getAssignedStaffIds() {
+    const docs = await StaffAssignment.distinct('staffId', { status: 'active' });
+    return docs;
+  },
+
   async list(filter = {}, options = {}) {
     const { page = 1, limit = 20, sort = { createdAt: -1 } } = options;
     const skip = (page - 1) * limit;

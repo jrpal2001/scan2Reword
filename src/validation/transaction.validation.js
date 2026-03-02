@@ -5,11 +5,11 @@ export const transactionValidation = {
   create: Joi.object({
     pumpId: Joi.string().hex().length(24).optional(), // Optional for Staff (derived from their single pump assignment); required for Admin/Manager
     identifier: Joi.string().trim().min(1).required(),
-    amount: Joi.number().positive().required(),
+    amount: Joi.number().min(0).optional(),
     liters: Joi.number().positive().allow(null).optional(),
-    category: Joi.string().valid('Fuel', 'Lubricant', 'Store', 'Service').required(),
-    billNumber: Joi.string().trim().min(1).required(),
-    paymentMode: Joi.string().valid('Cash', 'Card', 'UPI', 'Wallet', 'Other').required(),
+    category: Joi.string().valid('Fuel', 'Lubricant', 'Store', 'Service').optional(),
+    billNumber: Joi.string().trim().allow('').optional(),
+    paymentMode: Joi.string().valid('Cash', 'Card', 'UPI', 'Wallet', 'Other').optional(),
     campaignId: Joi.string().hex().length(24).allow(null).optional(),
     attachments: Joi.array().items(Joi.string().uri()).optional(),
   }),

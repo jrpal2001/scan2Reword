@@ -1,8 +1,18 @@
 import { staffAssignmentRepository } from '../repositories/staffAssignment.repository.js';
 import { staffRepository } from '../repositories/staff.repository.js';
+import { managerRepository } from '../repositories/manager.repository.js';
 import { pumpRepository } from '../repositories/pump.repository.js';
 import ApiError from '../utils/ApiError.js';
 import { HTTP_STATUS } from '../constants/errorCodes.js';
+
+function buildSearchFilter(search, fields) {
+  if (!search || typeof search !== 'string' || !search.trim()) return {};
+  const term = search.trim().replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  const re = new RegExp(term, 'i');
+  return {
+    $or: fields.map((f) => ({ [f]: re })),
+  };
+}
 
 export const staffAssignmentService = {
   /**
@@ -98,5 +108,46 @@ export const staffAssignmentService = {
    */
   async listAssignments(filter = {}, options = {}) {
     return await staffAssignmentRepository.list(filter, options);
+  },
+
+  /**
+   * List staff or managers who are not assigned to any pump.
+   * @param {'staff'|'manager'} type - 'staff' = unassigned staff, 'manager' = unassigned managers (or not assigned to given pump)
+   * @param {string} [search] - Optional search term (fullName, mobile, email, staffCode/managerCode)
+   * @param {{ page: number, limit: number, pumpId?: string }} options - Pagination; pumpId only for type=manager (managers not assigned to that pump)
+   */
+  async getUnassignedList(type, search, options = {}) {
+    const page = options.page || 1;
+    const limit = options.limit || 20;
+    const pagination = { page, limit, sort: { createdAt: -1 } };
+
+    if (type === 'staff') {
+      const assignedStaffIds = await staffAssignmentRepository.getAssignedStaffIds();
+      const filter = { _id: { $nin: assignedStaffIds } };
+      const searchFilter = buildSearchFilter(search, ['fullName', 'mobile', 'email', 'staffCode']);
+      const combined = Object.keys(searchFilter).length ? { $and: [filter, searchFilter] } : filter;
+      return await staffRepository.list(combined, pagination);
+    }
+
+    if (type === 'manager') {
+      let filter;
+      if (options.pumpId) {
+        const pump = await pumpRepository.findById(options.pumpId);
+        if (!pump) {
+          throw new ApiError(HTTP_STATUS.NOT_FOUND, 'Pump not found');
+        }
+        // Exclude only the manager assigned to THIS pump. Show all others (including managers assigned to other pumps, since a manager can be assigned to multiple pumps).
+        const currentManagerId = pump.managerId;
+        filter = currentManagerId ? { _id: { $ne: currentManagerId } } : {};
+      } else {
+        const assignedManagerIds = await pumpRepository.getAssignedManagerIds();
+        filter = { _id: { $nin: assignedManagerIds } };
+      }
+      const searchFilter = buildSearchFilter(search, ['fullName', 'mobile', 'email', 'managerCode']);
+      const combined = Object.keys(searchFilter).length ? { $and: [filter, searchFilter] } : filter;
+      return await managerRepository.list(combined, pagination);
+    }
+
+    throw new ApiError(HTTP_STATUS.BAD_REQUEST, 'type must be staff or manager');
   },
 };

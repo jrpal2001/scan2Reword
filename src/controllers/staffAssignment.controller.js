@@ -34,13 +34,34 @@ export const removeStaffFromPump = asyncHandler(async (req, res) => {
 });
 
 /**
+ * GET /api/admin/staff-assignments/unassigned
+ * List staff or managers who are not assigned to any pump.
+ * Query: type=staff|manager (required), pumpId= (optional, for type=manager only = managers not assigned to that pump), search=, page, limit
+ */
+export const getUnassignedList = asyncHandler(async (req, res) => {
+  const { type, pumpId, search, page, limit } = req.validated;
+  if (type === 'manager' && pumpId && req.userType === ROLES.MANAGER && req.allowedPumpIds?.length) {
+    if (!req.allowedPumpIds.map(String).includes(String(pumpId))) {
+      throw new ApiError(HTTP_STATUS.FORBIDDEN, 'You can only list unassigned managers for pumps you manage');
+    }
+  }
+  const result = await staffAssignmentService.getUnassignedList(type, search, {
+    page: page || 1,
+    limit: limit || 20,
+    pumpId: type === 'manager' ? pumpId : undefined,
+  });
+  const label = type === 'staff' ? 'Unassigned staff' : 'Unassigned managers';
+  return res.sendPaginated(result, `${label} retrieved successfully`, HTTP_STATUS.OK);
+});
+
+/**
  * GET /api/admin/staff-assignments
  * List all staff assignments
  */
 export const listAssignments = asyncHandler(async (req, res) => {
   const { page, limit, staffId, pumpId, status } = req.query;
   const filter = {};
-  if (staffId) filter.userId = staffId;
+  if (staffId) filter.staffId = staffId;
   if (pumpId) filter.pumpId = pumpId;
   if (status) filter.status = status;
 

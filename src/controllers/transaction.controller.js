@@ -1,6 +1,7 @@
 import { asyncHandler } from '../utils/asyncHandler.js';
 import { ApiResponse } from '../utils/ApiResponse.js';
 import { transactionService } from '../services/transaction.service.js';
+import { notificationService } from '../services/notification.service.js';
 import { pumpRepository } from '../repositories/pump.repository.js';
 import { ROLES } from '../constants/roles.js';
 import ApiError from '../utils/ApiError.js';
@@ -39,10 +40,21 @@ export const createTransaction = asyncHandler(async (req, res) => {
   const pumpName = pump?.name || 'Petrol pump';
   const n = transaction.pointsEarned || 0;
   const pointsText = n === 1 ? '1 point' : `${n} points`;
-  const message = `Thank you for Purchasing fuel at ${pumpName}. You earned ${pointsText}.`;
+  const customerMessage = `Thank you for Purchasing fuel at ${pumpName}. You earned ${pointsText}.`;
+
+  try {
+    await notificationService.sendToUsers(
+      [transaction.userId],
+      'Transaction successful',
+      customerMessage
+    );
+  } catch (err) {
+    console.warn('[Transaction] Push notification to customer failed:', err?.message);
+  }
+
   const responseData = transaction?.toObject ? transaction.toObject() : transaction;
   return res.status(HTTP_STATUS.CREATED).json(
-    ApiResponse.success(responseData, message)
+    ApiResponse.success(responseData, 'Transaction completed successfully')
   );
 });
 

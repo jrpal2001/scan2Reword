@@ -305,6 +305,15 @@ router.get(
 );
 
 router.get(
+  '/employee-list',
+  verifyJWT,
+  requireRoles([ROLES.ADMIN, ROLES.MANAGER]),
+  attachPumpScope,
+  validateRequest(staffAssignmentValidation.unassigned, 'query'),
+  staffAssignmentController.getUnassignedList
+);
+
+router.get(
   '/staff-assignments/staff/:staffId',
   verifyJWT,
   requireRoles([ROLES.ADMIN, ROLES.MANAGER]),
