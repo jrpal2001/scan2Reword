@@ -26,7 +26,7 @@ router.post(
   transactionController.createTransaction
 );
 
-// List transactions
+// List transactions (Admin: all; Manager: assigned pumps; Staff: assigned pump). Filters: pumpId, userId, category, status, startDate, endDate, month, year, startTime, endTime
 router.get(
   '/',
   verifyJWT,
@@ -34,6 +34,16 @@ router.get(
   attachPumpScope,
   validateRequest(transactionValidation.list, 'query'),
   transactionController.listTransactions
+);
+
+// List transactions by pumpId (same filters; Manager/Staff only for their assigned pumps)
+router.get(
+  '/pump/:pumpId',
+  verifyJWT,
+  requireRoles([ROLES.ADMIN, ROLES.MANAGER, ROLES.STAFF]),
+  attachPumpScope,
+  validateRequest(transactionValidation.list, 'query'),
+  transactionController.listTransactionsByPump
 );
 
 // Get transaction by ID

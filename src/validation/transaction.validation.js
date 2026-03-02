@@ -23,5 +23,9 @@ export const transactionValidation = {
     status: Joi.string().valid(...Object.values(TRANSACTION_STATUS)).optional(),
     startDate: Joi.date().optional(),
     endDate: Joi.date().optional(),
+    month: Joi.number().integer().min(1).max(12).optional(),
+    year: Joi.number().integer().min(2000).max(2100).optional(),
+    startTime: Joi.string().trim().pattern(/^([0-1]?[0-9]|2[0-3]):[0-5][0-9](:[0-5][0-9])?$/).optional(),
+    endTime: Joi.string().trim().pattern(/^([0-1]?[0-9]|2[0-3]):[0-5][0-9](:[0-5][0-9])?$/).optional(),
   }),
 };

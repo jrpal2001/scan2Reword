@@ -131,9 +131,18 @@ export const transactionService = {
    * @returns {Object} Paginated transaction list
    */
   async listTransactions(filter = {}, options = {}, allowedPumpIds = null) {
-    // Apply pump scope for manager/staff
+    // Apply pump scope: Admin sees all; Manager/Staff only their assigned pumps. If they request a specific pumpId, allow it only if it's in their scope.
     if (allowedPumpIds !== null) {
-      filter.pumpId = { $in: allowedPumpIds };
+      const allowedStr = allowedPumpIds.map((id) => String(id));
+      if (filter.pumpId) {
+        const requested = String(filter.pumpId);
+        if (!allowedStr.includes(requested)) {
+          filter.pumpId = { $in: allowedPumpIds };
+        }
+        // else keep filter.pumpId as the requested pump
+      } else {
+        filter.pumpId = { $in: allowedPumpIds };
+      }
     }
 
     return transactionRepository.list(filter, options);
