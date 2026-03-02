@@ -24,10 +24,12 @@ export const getManagerDashboard = asyncHandler(async (req, res) => {
     return res.status(HTTP_STATUS.OK).json(
       ApiResponse.success(
         {
+          staff: { total: 0 },
           transactions: { today: 0, thisMonth: 0 },
           revenue: { today: 0, thisMonth: 0 },
           points: { issuedToday: 0, issuedThisMonth: 0 },
           redemptions: { today: 0, thisMonth: 0 },
+          recentTransactions: [],
         },
         'Manager dashboard statistics retrieved'
       )
@@ -37,6 +39,19 @@ export const getManagerDashboard = asyncHandler(async (req, res) => {
   const stats = await dashboardService.getManagerDashboard(pumpIds);
   return res.status(HTTP_STATUS.OK).json(
     ApiResponse.success(stats, 'Manager dashboard statistics retrieved')
+  );
+});
+
+/**
+ * GET /api/staff/dashboard
+ * Staff dashboard: assigned pump(s), transactions, revenue, points issued, recent transactions
+ */
+export const getStaffDashboard = asyncHandler(async (req, res) => {
+  const pumpIds = req.allowedPumpIds || [];
+  const staffId = req.user._id;
+  const stats = await dashboardService.getStaffDashboard(pumpIds, staffId);
+  return res.status(HTTP_STATUS.OK).json(
+    ApiResponse.success(stats, 'Staff dashboard retrieved')
   );
 });
 

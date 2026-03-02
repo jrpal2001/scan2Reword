@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import * as adminController from '../controllers/admin.controller.js';
 import * as redemptionController from '../controllers/redemption.controller.js';
+import * as dashboardController from '../controllers/dashboard.controller.js';
 import { verifyJWT } from '../middlewares/auth.middleware.js';
 import { requireRoles, attachPumpScope } from '../middlewares/rbac.middleware.js';
 import { validateRequest } from '../middlewares/validateRequest.js';
@@ -12,6 +13,15 @@ import { parseBodyJson } from '../middlewares/parseBodyJson.js';
 import { upload, userUploadFields } from '../utils/multerConfig.js';
 
 const router = Router();
+
+// Staff dashboard (assigned pump(s), transactions, revenue, points, recent transactions)
+router.get(
+  '/dashboard',
+  verifyJWT,
+  requireRoles([ROLES.STAFF]),
+  attachPumpScope,
+  dashboardController.getStaffDashboard
+);
 
 router.post(
   '/users',
