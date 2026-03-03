@@ -260,6 +260,22 @@ export const userValidation = {
     profilePhoto: Joi.string().trim().allow('', null).optional(),
   }),
 
+  /** PATCH /api/manager/profile - current manager. All optional. */
+  managerProfileUpdate: Joi.object({
+    fullName: Joi.string().trim().min(2).max(100).optional(),
+    email: Joi.string().email().trim().lowercase().allow('', null).optional(),
+    address: addressSchema,
+    profilePhoto: Joi.string().trim().allow('', null).optional(),
+  }),
+
+  /** PATCH /api/staff/profile - current staff. All optional. */
+  staffProfileUpdate: Joi.object({
+    fullName: Joi.string().trim().min(2).max(100).optional(),
+    email: Joi.string().email().trim().lowercase().allow('', null).optional(),
+    address: addressSchema,
+    profilePhoto: Joi.string().trim().allow('', null).optional(),
+  }),
+
   /** GET /api/user/lookup - look up customer by loyaltyId, vehicleNumber, or mobile (at least one non-empty required). All roles. */
   lookupCustomer: Joi.object({
     loyaltyId: Joi.string().trim().allow('').optional(),

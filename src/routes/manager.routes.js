@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import * as adminController from '../controllers/admin.controller.js';
 import * as dashboardController from '../controllers/dashboard.controller.js';
+import * as managerController from '../controllers/manager.controller.js';
 import * as walletController from '../controllers/wallet.controller.js';
 import * as campaignController from '../controllers/campaign.controller.js';
 import * as bannerController from '../controllers/banner.controller.js';
@@ -18,9 +19,22 @@ import { transactionValidation } from '../validation/transaction.validation.js';
 import { ROLES } from '../constants/roles.js';
 import { uploadToS3 } from '../middlewares/uploadToS3.js';
 import { parseBodyJson } from '../middlewares/parseBodyJson.js';
-import { upload, userUploadFields } from '../utils/multerConfig.js';
+import { upload, userUploadFields, profileUpdateFields } from '../utils/multerConfig.js';
 
 const router = Router();
+
+// Manager profile (must be before /:param routes)
+router.get('/profile', verifyJWT, requireRoles([ROLES.MANAGER]), managerController.getProfile);
+router.patch(
+  '/profile',
+  verifyJWT,
+  requireRoles([ROLES.MANAGER]),
+  upload.fields(profileUpdateFields),
+  parseBodyJson,
+  uploadToS3('managers/profile'),
+  validateRequest(userValidation.managerProfileUpdate),
+  managerController.updateProfile
+);
 
 // Dashboard
 router.get(
