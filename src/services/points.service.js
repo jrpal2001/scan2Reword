@@ -203,6 +203,64 @@ export const pointsService = {
   },
 
   /**
+   * Apply a points correction for a transaction edit (e.g. liters changed 10→5, so deduct 5 points).
+   * Allows balance to go negative; only updates availablePoints (not totalEarned/redeemedPoints).
+   * Used when admin/manager/staff corrects a transaction and the user may have already spent points.
+   */
+  async applyTransactionPointsCorrection({ userId, ownerType = 'UserLoyalty', pointsToDeduct, transactionId, reason = null, createdBy = null }) {
+    if (pointsToDeduct <= 0) return null;
+    const { entity: user, updateFn } = await getOwnerAndUpdater(userId, ownerType);
+    if (!user) throw new ApiError(HTTP_STATUS.NOT_FOUND, 'Owner not found');
+    const currentBalance = user.walletSummary?.availablePoints || 0;
+    const balanceAfter = currentBalance - pointsToDeduct; // can be negative
+    const ledgerEntry = await pointsLedgerRepository.create({
+      userId,
+      ownerType,
+      transactionId,
+      type: 'adjustment',
+      points: -pointsToDeduct,
+      balanceAfter,
+      expiryDate: null,
+      reason: reason || 'Transaction corrected (points reduced)',
+      createdBy,
+    });
+    await updateFn(userId, {
+      walletSummary: {
+        totalEarned: user.walletSummary?.totalEarned || 0,
+        availablePoints: balanceAfter,
+        redeemedPoints: user.walletSummary?.redeemedPoints || 0,
+        expiredPoints: user.walletSummary?.expiredPoints || 0,
+      },
+    });
+    return ledgerEntry;
+  },
+
+  /**
+   * Adjust user points when a transaction is edited (liters/points changed).
+   * Delta > 0: credit extra points (type adjustment). Delta < 0: deduct points (adjustment, balance may go negative).
+   */
+  async adjustPointsForTransactionEdit({ userId, delta, transactionId, reason = null, createdBy = null }) {
+    if (delta === 0) return null;
+    if (delta > 0) {
+      return await this.creditPoints({
+        userId,
+        points: delta,
+        type: 'adjustment',
+        reason: reason || 'Transaction corrected (points increased)',
+        transactionId,
+        createdBy,
+      });
+    }
+    return await this.applyTransactionPointsCorrection({
+      userId,
+      pointsToDeduct: Math.abs(delta),
+      transactionId,
+      reason: reason || 'Transaction corrected (points reduced)',
+      createdBy,
+    });
+  },
+
+  /**
    * Get wallet summary and ledger for owner (User, Manager, or Staff)
    * @param {string} ownerId - Owner ID
    * @param {Object} options - { page, limit, ownerType: 'UserLoyalty' | 'Manager' | 'Staff' }

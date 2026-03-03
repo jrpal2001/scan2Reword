@@ -14,6 +14,14 @@ export const transactionValidation = {
     attachments: Joi.array().items(Joi.string().uri()).optional(),
   }),
 
+  /** PATCH /api/transactions/:transactionId - correct liters/amount; points recalculated, wallet adjusted (balance may go negative if user already spent). */
+  update: Joi.object({
+    liters: Joi.number().min(0).allow(null).optional(),
+    amount: Joi.number().min(0).optional(),
+  }).min(1).messages({
+    'object.min': 'At least one of liters or amount is required to update',
+  }),
+
   list: Joi.object({
     page: Joi.number().integer().min(1).optional(),
     limit: Joi.number().integer().min(1).max(100).optional(),

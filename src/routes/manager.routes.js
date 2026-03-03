@@ -202,4 +202,14 @@ router.get(
   transactionController.getTransactionById
 );
 
+// Update transaction (correct liters/amount; points recalculated, wallet adjusted)
+router.patch(
+  '/transactions/:transactionId',
+  verifyJWT,
+  requireRoles([ROLES.MANAGER]),
+  attachPumpScope,
+  validateRequest(transactionValidation.update),
+  transactionController.updateTransaction
+);
+
 export default router;

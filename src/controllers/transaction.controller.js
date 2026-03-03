@@ -145,3 +145,24 @@ export const getTransactionById = asyncHandler(async (req, res) => {
     ApiResponse.success(transactionWithIST, 'Transaction retrieved')
   );
 });
+
+/**
+ * PATCH /api/transactions/:transactionId
+ * Update transaction (correct liters or amount). Points are recalculated; user wallet is adjusted.
+ * If user already spent points, balance can go negative; next purchase will add points and reduce the deficit.
+ * Admin/Manager/Staff only (pump-scoped).
+ */
+export const updateTransaction = asyncHandler(async (req, res) => {
+  const { transactionId } = req.params;
+  const data = req.validated || req.body;
+  const updated = await transactionService.updateTransaction(
+    transactionId,
+    data,
+    req.allowedPumpIds,
+    req.user._id
+  );
+  const withIST = addISTToDocument(updated);
+  return res.status(HTTP_STATUS.OK).json(
+    ApiResponse.success(withIST, 'Transaction updated successfully')
+  );
+});

@@ -161,10 +161,67 @@ export const transactionService = {
     }
 
     // Check pump access
-    if (allowedPumpIds !== null && !allowedPumpIds.includes(String(transaction.pumpId))) {
+    if (allowedPumpIds !== null && !allowedPumpIds.map((id) => String(id)).includes(String(transaction.pumpId))) {
       throw new ApiError(HTTP_STATUS.FORBIDDEN, 'Access denied to this transaction');
     }
 
     return transaction;
+  },
+
+  /**
+   * Update a transaction (e.g. correct liters/amount). Recalculates points and adjusts user's wallet.
+   * Scenario 1: User has not used points – balance is reduced/increased normally.
+   * Scenario 2: User already used points – balance can go negative; next fuel purchase will add points and bring it back.
+   * @param {string} transactionId - Transaction to update
+   * @param {Object} data - { liters?, amount? } at least one required for points change
+   * @param {string[]} allowedPumpIds - Pump IDs allowed (null = admin, all pumps)
+   * @param {string} operatorId - Admin/Manager/Staff who is making the correction
+   * @returns {Object} Updated transaction
+   */
+  async updateTransaction(transactionId, data, allowedPumpIds, operatorId) {
+    const transaction = await transactionRepository.findById(transactionId);
+    if (!transaction) {
+      throw new ApiError(HTTP_STATUS.NOT_FOUND, 'Transaction not found');
+    }
+    if (allowedPumpIds !== null && !allowedPumpIds.map((id) => String(id)).includes(String(transaction.pumpId))) {
+      throw new ApiError(HTTP_STATUS.FORBIDDEN, 'Access denied to this transaction');
+    }
+
+    const { liters, amount } = data;
+    const updateFields = {};
+    if (liters !== undefined) {
+      if (transaction.category === 'Fuel' && (liters < 0 || (typeof liters !== 'number' && isNaN(Number(liters))))) {
+        throw new ApiError(HTTP_STATUS.BAD_REQUEST, 'Liters must be a non-negative number');
+      }
+      updateFields.liters = transaction.category === 'Fuel' ? Number(liters) : null;
+    }
+    if (amount !== undefined) {
+      const num = Number(amount);
+      if (num < 0 || isNaN(num)) throw new ApiError(HTTP_STATUS.BAD_REQUEST, 'Amount must be a non-negative number');
+      updateFields.amount = num;
+    }
+    if (Object.keys(updateFields).length === 0) {
+      return transaction;
+    }
+
+    const newLiters = updateFields.liters !== undefined ? updateFields.liters : transaction.liters;
+    const newAmount = updateFields.amount !== undefined ? updateFields.amount : transaction.amount;
+    const category = transaction.category;
+    const newPointsEarned = await pointsService.calculatePoints(category, newAmount, newLiters);
+    const oldPointsEarned = transaction.pointsEarned ?? 0;
+    updateFields.pointsEarned = Math.max(0, newPointsEarned);
+
+    const updated = await transactionRepository.update(transactionId, updateFields);
+    const delta = updated.pointsEarned - oldPointsEarned;
+    if (delta !== 0) {
+      await pointsService.adjustPointsForTransactionEdit({
+        userId: transaction.userId,
+        delta,
+        transactionId: transaction._id,
+        reason: 'Transaction corrected (liters/points updated by operator)',
+        createdBy: operatorId,
+      });
+    }
+    return updated;
   },
 };
