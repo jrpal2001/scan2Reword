@@ -4,7 +4,7 @@ const otpSchema = new mongoose.Schema(
   {
     mobile: { type: String, required: true },
     otp: { type: String, required: true },
-    purpose: { type: String, enum: ['login', 'register'], default: 'register' },
+    purpose: { type: String, enum: ['login', 'register', 'change-password'], default: 'register' },
     expiresAt: { type: Date, required: true },
     used: { type: Boolean, default: false },
   },

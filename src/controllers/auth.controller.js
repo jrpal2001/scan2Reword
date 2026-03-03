@@ -199,6 +199,35 @@ export const setPassword = asyncHandler(async (req, res) => {
 });
 
 /**
+ * POST /api/auth/change-password
+ * Body: { newPassword }
+ * Requires: Valid Bearer token. No old password or OTP needed when authenticated (Admin, Manager, Staff, User).
+ */
+export const changePassword = asyncHandler(async (req, res) => {
+  const value = req.validated;
+  const userType = req.userType || req.user?.role;
+  const result = await authService.changePassword(req.user._id, userType, value.newPassword);
+  return res.status(HTTP_STATUS.OK).json(ApiResponse.success(result, result.message));
+});
+
+/**
+ * POST /api/auth/change-password-with-verification
+ * No Bearer token. Body: either (identifier + oldPassword + newPassword) or (mobile + otp + newPassword).
+ * For OTP path: request OTP first with POST /api/auth/send-otp with purpose: 'change-password'.
+ */
+export const changePasswordWithVerification = asyncHandler(async (req, res) => {
+  const value = req.validated;
+  const result = await authService.changePasswordWithVerification({
+    identifier: value.identifier,
+    oldPassword: value.oldPassword,
+    mobile: value.mobile,
+    otp: value.otp,
+    newPassword: value.newPassword,
+  });
+  return res.status(HTTP_STATUS.OK).json(ApiResponse.success(result, result.message));
+});
+
+/**
  * POST /api/auth/logout
  * Body: { fcmToken?, refreshToken? }
  * Requires: Authorization header with access token

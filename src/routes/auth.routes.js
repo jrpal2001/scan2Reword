@@ -29,6 +29,8 @@ router.post('/login', /* strictRateLimiter, */ validateRequest(authValidation.lo
 router.post('/verify-password', /* strictRateLimiter, */ validateRequest(authValidation.verifyPassword), authController.verifyPassword);
 router.post('/refresh', validateRequest(authValidation.refresh), authController.refresh);
 router.post('/set-password', verifyJWT, validateRequest(authValidation.setPassword), authController.setPassword);
+router.post('/change-password', verifyJWT, validateRequest(authValidation.changePassword), authController.changePassword);
+router.post('/change-password-with-verification', validateRequest(authValidation.changePasswordWithVerification), authController.changePasswordWithVerification);
 router.post('/logout', verifyJWT, validateRequest(authValidation.logout), authController.logout);
 
 export default router;

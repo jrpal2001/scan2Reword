@@ -137,13 +137,13 @@ const ownerSchemaOrString = Joi.alternatives().try(
 export const authValidation = {
   sendOtp: Joi.object({
     mobile: mobileSchema,
-    purpose: Joi.string().valid('login', 'register').default('register'),
+    purpose: Joi.string().valid('login', 'register', 'change-password').default('register'),
   }),
 
   verifyOtp: Joi.object({
     mobile: mobileSchema,
     otp: Joi.string().trim().min(4).max(8).required(),
-    purpose: Joi.string().valid('login', 'register').default('register'),
+    purpose: Joi.string().valid('login', 'register', 'change-password').default('register'),
   }),
 
   login: Joi.object({
@@ -177,6 +177,33 @@ export const authValidation = {
     password: Joi.string().min(6).required().messages({
       'string.min': 'Password must be at least 6 characters',
     }),
+  }),
+
+  /** Change password when authenticated (Bearer token). Body: { newPassword } */
+  changePassword: Joi.object({
+    newPassword: Joi.string().min(6).required().messages({
+      'string.min': 'Password must be at least 6 characters',
+    }),
+  }),
+
+  /**
+   * Change password without token: verify with oldPassword OR OTP.
+   * Either { identifier, oldPassword, newPassword } or { mobile, otp, newPassword }.
+   */
+  changePasswordWithVerification: Joi.object({
+    identifier: Joi.string().trim().min(1).optional(),
+    oldPassword: Joi.string().min(1).optional(),
+    mobile: Joi.string().trim().pattern(/^[6-9]\d{9}$/).optional().messages({ 'string.pattern.base': 'Mobile must be a valid 10-digit Indian number' }),
+    otp: Joi.string().trim().min(4).max(8).optional(),
+    newPassword: Joi.string().min(6).required().messages({
+      'string.min': 'Password must be at least 6 characters',
+    }),
+  }).custom((value, helpers) => {
+    const hasOldPassword = value.identifier && value.oldPassword;
+    const hasOtp = value.mobile && value.otp;
+    if (hasOldPassword && !hasOtp) return value;
+    if (hasOtp && !hasOldPassword) return value;
+    return helpers.error('any.custom', { message: 'Provide either (identifier + oldPassword) or (mobile + otp) to verify identity' });
   }),
 
   logout: Joi.object({

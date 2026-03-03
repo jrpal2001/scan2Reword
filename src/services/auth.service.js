@@ -2,6 +2,8 @@ import bcrypt from 'bcrypt';
 import jwt from 'jsonwebtoken';
 import Otp from '../models/Otp.model.js';
 import Admin from '../models/Admin.js';
+import Manager from '../models/Manager.model.js';
+import Staff from '../models/Staff.model.js';
 import { userRepository } from '../repositories/user.repository.js';
 import { managerRepository } from '../repositories/manager.repository.js';
 import { staffRepository } from '../repositories/staff.repository.js';
@@ -62,14 +64,13 @@ export const authService = {
     return { message: 'OTP sent successfully' };
   },
 
-  async verifyOtp(mobile, otp, purpose = 'register', fcmToken = null, deviceInfo = null, ipAddress = null, userAgent = null) {
+  /** Verify OTP only (validate and mark used). Does not issue tokens. Used for change-password flow. */
+  async verifyOtpOnly(mobile, otp, purpose = 'register') {
     if (!mobile || !otp) {
       throw new ApiError(HTTP_STATUS.BAD_REQUEST, 'Mobile and OTP are required', null, ERROR_CODES.BAD_REQUEST);
     }
     const trimmed = String(mobile).trim();
     const otpTrimmed = String(otp).trim();
-
-    // Static OTP for testing: 123456 always passes (no DB OTP record required)
     const isStaticTestOtp = otpTrimmed === '123456';
     if (!isStaticTestOtp) {
       const record = await Otp.findOne({ mobile: trimmed, purpose, used: false }).sort({ createdAt: -1 });
@@ -84,7 +85,11 @@ export const authService = {
       }
       await Otp.findByIdAndUpdate(record._id, { used: true });
     }
+  },
 
+  async verifyOtp(mobile, otp, purpose = 'register', fcmToken = null, deviceInfo = null, ipAddress = null, userAgent = null) {
+    await this.verifyOtpOnly(mobile, otp, purpose);
+    const trimmed = String(mobile).trim();
     const user = await userRepository.findByMobile(trimmed);
     if (user) {
       const userType = 'UserLoyalty';
@@ -545,5 +550,133 @@ export const authService = {
       await staffRepository.update(userId, { passwordHash });
     }
     return { message: 'Password set successfully' };
+  },
+
+  /**
+   * Change password when user is authenticated (valid Bearer token).
+   * Allowed for Admin, Manager, Staff, and User (customer).
+   */
+  async changePassword(userId, userType, newPassword) {
+    if (!userId || !newPassword || typeof newPassword !== 'string' || newPassword.length < 6) {
+      throw new ApiError(HTTP_STATUS.BAD_REQUEST, 'Password must be at least 6 characters', null, ERROR_CODES.BAD_REQUEST);
+    }
+    const normalizedType = (typeof userType === 'string' ? userType : (userType || '')).toLowerCase();
+    if (normalizedType === 'admin') {
+      const admin = await Admin.findById(userId);
+      if (!admin) throw new ApiError(HTTP_STATUS.NOT_FOUND, 'Admin not found', null, ERROR_CODES.NOT_FOUND);
+      admin.password = newPassword;
+      await admin.save();
+      return { message: 'Password changed successfully' };
+    }
+    if (normalizedType === 'manager') {
+      const manager = await managerRepository.findByIdWithPassword(userId);
+      if (!manager) throw new ApiError(HTTP_STATUS.NOT_FOUND, 'Manager not found', null, ERROR_CODES.NOT_FOUND);
+      const passwordHash = await this.hashPassword(newPassword);
+      await managerRepository.update(userId, { passwordHash });
+      return { message: 'Password changed successfully' };
+    }
+    if (normalizedType === 'staff') {
+      const staff = await staffRepository.findByIdWithPassword(userId);
+      if (!staff) throw new ApiError(HTTP_STATUS.NOT_FOUND, 'Staff not found', null, ERROR_CODES.NOT_FOUND);
+      const passwordHash = await this.hashPassword(newPassword);
+      await staffRepository.update(userId, { passwordHash });
+      return { message: 'Password changed successfully' };
+    }
+    if (normalizedType === 'user') {
+      const user = await userRepository.findById(userId);
+      if (!user) throw new ApiError(HTTP_STATUS.NOT_FOUND, 'User not found', null, ERROR_CODES.NOT_FOUND);
+      const passwordHash = await this.hashPassword(newPassword);
+      await userRepository.update(userId, { passwordHash });
+      return { message: 'Password changed successfully' };
+    }
+    throw new ApiError(HTTP_STATUS.FORBIDDEN, 'Change password is not available for this account type', null, ERROR_CODES.FORBIDDEN);
+  },
+
+  /**
+   * Change password without token: verify with oldPassword (identifier + oldPassword) or OTP (mobile + otp).
+   * Then set newPassword for the resolved entity (Admin, Manager, Staff, or User by mobile).
+   */
+  async changePasswordWithVerification({ identifier, oldPassword, mobile, otp, newPassword }) {
+    if (!newPassword || typeof newPassword !== 'string' || newPassword.length < 6) {
+      throw new ApiError(HTTP_STATUS.BAD_REQUEST, 'Password must be at least 6 characters', null, ERROR_CODES.BAD_REQUEST);
+    }
+    const hasOldPassword = identifier && oldPassword;
+    const hasOtp = mobile && otp;
+
+    if (hasOldPassword) {
+      // Resolve by identifier and verify old password (Admin, Manager, Staff only)
+      let entity = await managerRepository.findByIdentifier(identifier);
+      let ownerType = 'Manager';
+      if (!entity) {
+        entity = await staffRepository.findByIdentifier(identifier);
+        ownerType = 'Staff';
+      }
+      if (!entity) {
+        const trimmed = (identifier || '').trim();
+        const admin = await Admin.findOne({
+          $or: [{ email: trimmed.toLowerCase() }, { phone: trimmed }],
+        });
+        if (admin) {
+          const isMatch = await admin.comparePassword(oldPassword);
+          if (!isMatch) {
+            throw new ApiError(HTTP_STATUS.UNAUTHORIZED, 'Invalid identifier or password', null, ERROR_CODES.INVALID_CREDENTIALS);
+          }
+          admin.password = newPassword;
+          await admin.save();
+          return { message: 'Password changed successfully' };
+        }
+      }
+      if (!entity) {
+        throw new ApiError(HTTP_STATUS.UNAUTHORIZED, 'Invalid identifier or password', null, ERROR_CODES.INVALID_CREDENTIALS);
+      }
+      if (!entity.passwordHash) {
+        throw new ApiError(HTTP_STATUS.UNAUTHORIZED, 'Password not set for this account', null, ERROR_CODES.INVALID_CREDENTIALS);
+      }
+      const match = await bcrypt.compare(oldPassword, entity.passwordHash);
+      if (!match) {
+        throw new ApiError(HTTP_STATUS.UNAUTHORIZED, 'Invalid identifier or password', null, ERROR_CODES.INVALID_CREDENTIALS);
+      }
+      const passwordHash = await this.hashPassword(newPassword);
+      if (ownerType === 'Manager') {
+        await managerRepository.update(entity._id, { passwordHash });
+      } else {
+        await staffRepository.update(entity._id, { passwordHash });
+      }
+      return { message: 'Password changed successfully' };
+    }
+
+    if (hasOtp) {
+      // Verify OTP for purpose 'change-password', then find entity by mobile and update password
+      await this.verifyOtpOnly(mobile, otp, 'change-password');
+      const trimmed = String(mobile).trim();
+      // Admin uses phone field
+      const admin = await Admin.findOne({ phone: trimmed });
+      if (admin) {
+        admin.password = newPassword;
+        await admin.save();
+        return { message: 'Password changed successfully' };
+      }
+      const user = await userRepository.findByMobileWithPassword(trimmed);
+      if (user) {
+        const passwordHash = await this.hashPassword(newPassword);
+        await userRepository.update(user._id, { passwordHash });
+        return { message: 'Password changed successfully' };
+      }
+      let manager = await Manager.findOne({ mobile: trimmed });
+      if (manager) {
+        const passwordHash = await this.hashPassword(newPassword);
+        await managerRepository.update(manager._id, { passwordHash });
+        return { message: 'Password changed successfully' };
+      }
+      const staff = await Staff.findOne({ mobile: trimmed });
+      if (staff) {
+        const passwordHash = await this.hashPassword(newPassword);
+        await staffRepository.update(staff._id, { passwordHash });
+        return { message: 'Password changed successfully' };
+      }
+      throw new ApiError(HTTP_STATUS.NOT_FOUND, 'No account found for this mobile number', null, ERROR_CODES.NOT_FOUND);
+    }
+
+    throw new ApiError(HTTP_STATUS.BAD_REQUEST, 'Provide either (identifier + oldPassword) or (mobile + otp) to verify identity', null, ERROR_CODES.BAD_REQUEST);
   },
 };
