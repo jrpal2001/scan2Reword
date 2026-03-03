@@ -3,9 +3,11 @@ import * as vehicleController from '../controllers/vehicle.controller.js';
 import * as walletController from '../controllers/wallet.controller.js';
 import * as userController from '../controllers/user.controller.js';
 import { verifyJWT } from '../middlewares/auth.middleware.js';
+import { requireRoles } from '../middlewares/rbac.middleware.js';
 import { validateRequest } from '../middlewares/validateRequest.js';
 import { vehicleValidation } from '../validation/vehicle.validation.js';
 import { userValidation } from '../validation/userValidation.js';
+import { ROLES } from '../constants/roles.js';
 import { uploadToS3 } from '../middlewares/uploadToS3.js';
 import { parseBodyJson } from '../middlewares/parseBodyJson.js';
 import { upload, profileUpdateFields } from '../utils/multerConfig.js';
@@ -40,6 +42,15 @@ router.get(
   verifyJWT,
   validateRequest(userValidation.listMyTransactions, 'query'),
   userController.listMyTransactions
+);
+
+// Lookup customer by loyaltyId, vehicleNumber, or mobile (admin, manager, staff, owner, user)
+router.get(
+  '/scan/lookup',
+  verifyJWT,
+  requireRoles([ROLES.ADMIN, ROLES.MANAGER, ROLES.STAFF, ROLES.USER]),
+  validateRequest(userValidation.lookupCustomer, 'query'),
+  userController.lookupCustomer
 );
 
 // Wallet

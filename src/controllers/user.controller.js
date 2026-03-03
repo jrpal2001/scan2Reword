@@ -93,6 +93,23 @@ export const listMyTransactions = asyncHandler(async (req, res) => {
 });
 
 /**
+ * GET /api/user/lookup
+ * Look up customer (UserLoyalty) by loyaltyId, vehicleNumber, or mobile. Returns user details + vehicles (same shape as profile).
+ * Allowed for admin, manager, staff, owner, user (any authenticated role).
+ */
+export const lookupCustomer = asyncHandler(async (req, res) => {
+  const validated = req.validated || req.query;
+  const profile = await userService.lookupCustomer({
+    loyaltyId: validated.loyaltyId,
+    vehicleNumber: validated.vehicleNumber,
+    mobile: validated.mobile,
+  });
+  return res.status(HTTP_STATUS.OK).json(
+    ApiResponse.success(addISTToPayload(profile), 'User details retrieved')
+  );
+});
+
+/**
  * GET /api/user/referral-code
  * Get or generate referral code for manager/staff (req.user is Manager or Staff from verifyJWT)
  */

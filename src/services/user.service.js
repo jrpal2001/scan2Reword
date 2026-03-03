@@ -1168,6 +1168,35 @@ export const userService = {
   async getFleetVehicles(ownerId) {
     return getFleetVehiclesForOwner(ownerId);
   },
+
+  /**
+   * Look up a customer (UserLoyalty) by loyaltyId, vehicleNumber, or mobile.
+   * Returns same shape as getProfile (user details + vehicles; owner also gets fleetVehicles, totalFleetPoints).
+   * Used by admin/manager/staff/owner/user to find customer details at pump or in app.
+   */
+  async lookupCustomer({ loyaltyId, vehicleNumber, mobile }) {
+    let userId = null;
+    if (mobile && typeof mobile === 'string' && mobile.trim()) {
+      const user = await userRepository.findByMobile(mobile.trim());
+      if (user) userId = user._id;
+    }
+    if (!userId && loyaltyId && typeof loyaltyId === 'string' && loyaltyId.trim()) {
+      const user = await userRepository.findByLoyaltyId(loyaltyId.trim());
+      if (user) userId = user._id;
+      if (!userId) {
+        const vehicle = await vehicleRepository.findByLoyaltyId(loyaltyId.trim());
+        if (vehicle && vehicle.userId) userId = vehicle.userId;
+      }
+    }
+    if (!userId && vehicleNumber && typeof vehicleNumber === 'string' && vehicleNumber.trim()) {
+      const vehicle = await vehicleRepository.findByVehicleNumber(vehicleNumber.trim());
+      if (vehicle && vehicle.userId) userId = vehicle.userId;
+    }
+    if (!userId) {
+      throw new ApiError(HTTP_STATUS.NOT_FOUND, 'No user found for the given loyaltyId, vehicleNumber, or mobile');
+    }
+    return await this.getProfile(userId);
+  },
 };
 
 /** Profile shape for individual, owner, and driver (exclude passwordHash, add avatar) */

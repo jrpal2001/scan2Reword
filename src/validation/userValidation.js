@@ -260,6 +260,21 @@ export const userValidation = {
     profilePhoto: Joi.string().trim().allow('', null).optional(),
   }),
 
+  /** GET /api/user/lookup - look up customer by loyaltyId, vehicleNumber, or mobile (at least one non-empty required). All roles. */
+  lookupCustomer: Joi.object({
+    loyaltyId: Joi.string().trim().allow('').optional(),
+    vehicleNumber: Joi.string().trim().allow('').optional(),
+    mobile: Joi.string().trim().pattern(/^[6-9]\d{9}$/).allow('').optional(),
+  }).custom((value, helpers) => {
+    const has = (v) => v != null && String(v).trim() !== '';
+    if (!has(value?.loyaltyId) && !has(value?.vehicleNumber) && !has(value?.mobile)) {
+      return helpers.error('any.invalid');
+    }
+    return value;
+  }).messages({
+    'any.invalid': 'At least one of loyaltyId, vehicleNumber, or mobile must be provided and non-empty',
+  }),
+
   /** GET /api/user/transactions - list current user's transactions. Pagination + date/time/vehicle filters. */
   listMyTransactions: Joi.object({
     page: Joi.number().integer().min(1).optional(),
