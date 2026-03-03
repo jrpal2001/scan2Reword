@@ -2,8 +2,6 @@ import { asyncHandler } from '../utils/asyncHandler.js';
 import { ApiResponse } from '../utils/ApiResponse.js';
 import { addISTToDocument, addISTToList } from '../utils/dateUtils.js';
 import { pointsService } from '../services/points.service.js';
-import { userRepository } from '../repositories/user.repository.js';
-import { USER_TYPES } from '../models/User.model.js';
 import { auditLogService } from '../services/auditLog.service.js';
 import { ROLES } from '../constants/roles.js';
 import ApiError from '../utils/ApiError.js';
@@ -29,24 +27,6 @@ export const getWallet = asyncHandler(async (req, res) => {
     page: parseInt(page),
     limit: parseInt(limit),
   });
-
-  // If this user is a fleet owner, include fleet summary (all drivers + their wallet)
-  const userDoc = await userRepository.findById(userId);
-  if (userDoc && userDoc.userType === USER_TYPES.OWNER) {
-    const { list: drivers } = await userRepository.list({ ownerId: userId }, { page: 1, limit: 500 });
-    const fleetSummary = await Promise.all(
-      drivers.map(async (d) => {
-        const w = await pointsService.getWallet(d._id, { page: 1, limit: 1 });
-        return {
-          userId: d._id,
-          fullName: d.fullName,
-          mobile: d.mobile,
-          walletSummary: w.walletSummary,
-        };
-      })
-    );
-    result.fleetSummary = fleetSummary;
-  }
 
   const data = {
     walletSummary: result.walletSummary,

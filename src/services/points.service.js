@@ -3,6 +3,7 @@ import { userRepository } from '../repositories/user.repository.js';
 import { managerRepository } from '../repositories/manager.repository.js';
 import { staffRepository } from '../repositories/staff.repository.js';
 import { systemConfigService } from './systemConfig.service.js';
+import { USER_TYPES } from '../models/User.model.js';
 import ApiError from '../utils/ApiError.js';
 import { HTTP_STATUS } from '../constants/errorCodes.js';
 
@@ -275,7 +276,7 @@ export const pointsService = {
 
     const ledger = await pointsLedgerRepository.findByUserId(ownerId, { ...options, ownerType });
 
-    return {
+    const result = {
       walletSummary: user.walletSummary || {
         totalEarned: 0,
         availablePoints: 0,
@@ -284,5 +285,23 @@ export const pointsService = {
       },
       ledger,
     };
+
+    // Fleet owner: include fleet summary (all drivers under this owner with their wallet)
+    if (ownerType === 'UserLoyalty' && user.userType === USER_TYPES.OWNER) {
+      const { list: drivers } = await userRepository.list({ ownerId }, { page: 1, limit: 500 });
+      result.fleetSummary = await Promise.all(
+        drivers.map(async (d) => {
+          const w = await this.getWallet(d._id, { page: 1, limit: 1 });
+          return {
+            userId: d._id,
+            fullName: d.fullName,
+            mobile: d.mobile,
+            walletSummary: w.walletSummary,
+          };
+        })
+      );
+    }
+
+    return result;
   },
 };

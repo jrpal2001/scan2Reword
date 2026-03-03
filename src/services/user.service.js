@@ -11,6 +11,7 @@ import { pumpRepository } from '../repositories/pump.repository.js';
 import { staffAssignmentRepository } from '../repositories/staffAssignment.repository.js';
 import { vehicleRepository } from '../repositories/vehicle.repository.js';
 import { transactionRepository } from '../repositories/transaction.repository.js';
+import { buildCreatedAtFilter } from '../utils/dateUtils.js';
 import { ROLES } from '../constants/roles.js';
 import { USER_TYPES } from '../models/User.model.js';
 import ApiError from '../utils/ApiError.js';
@@ -1167,6 +1168,69 @@ export const userService = {
   /** Fleet owner: return all vehicles of drivers under this owner (for GET /api/user/vehicles). */
   async getFleetVehicles(ownerId) {
     return getFleetVehiclesForOwner(ownerId);
+  },
+
+  /**
+   * Get vehicles for a user for GET /api/user/vehicles (and manager/vehicles with userId).
+   * For role USER: owner gets fleet vehicles, driver/individual get their own. For admin/manager: vehicles by userId.
+   * Applies optional filter by queryVehicleId and queryVehicleNumber.
+   */
+  async getVehiclesForUser(userId, { role, queryVehicleId, queryVehicleNumber } = {}) {
+    let vehicles;
+    if (role === ROLES.USER) {
+      const user = await userRepository.findById(userId);
+      if (!user) throw new ApiError(HTTP_STATUS.NOT_FOUND, 'User not found');
+      if (user.userType === USER_TYPES.OWNER) {
+        vehicles = await this.getFleetVehicles(userId);
+      } else {
+        vehicles = await vehicleService.getVehiclesByUserId(userId);
+      }
+    } else {
+      vehicles = await vehicleService.getVehiclesByUserId(userId);
+    }
+    if (queryVehicleId && Array.isArray(vehicles)) {
+      vehicles = vehicles.filter((v) => String(v._id) === String(queryVehicleId));
+    }
+    if (queryVehicleNumber && Array.isArray(vehicles)) {
+      const num = String(queryVehicleNumber).trim().toUpperCase();
+      vehicles = vehicles.filter((v) => (v.vehicleNumber || '').toUpperCase() === num);
+    }
+    return vehicles;
+  },
+
+  /**
+   * List current user's transactions. For owner: includes owner + all fleet drivers' transactions. For driver/individual: only their own.
+   * Returns same paginated shape as transactionRepository.list.
+   */
+  async listMyTransactions(currentUserId, validated) {
+    const user = await userRepository.findById(currentUserId);
+    const userType = user?.userType;
+    let userIdFilter;
+    if (userType === USER_TYPES.OWNER) {
+      const drivers = await userRepository.list({ ownerId: currentUserId }, { page: 1, limit: 500 });
+      const allowedUserIds = [currentUserId, ...drivers.list.map((d) => d._id)];
+      userIdFilter = allowedUserIds.length === 1 ? { userId: currentUserId } : { userId: { $in: allowedUserIds } };
+    } else {
+      userIdFilter = { userId: currentUserId };
+    }
+    const { page, limit, vehicleId, category, status } = validated || {};
+    let filter = { ...userIdFilter };
+    if (vehicleId) filter.vehicleId = vehicleId;
+    if (category) filter.category = category;
+    if (status) filter.status = status;
+    const createdAt = buildCreatedAtFilter(validated);
+    if (createdAt) {
+      if (createdAt.$and) {
+        filter = { $and: [filter, ...createdAt.$and] };
+      } else if (createdAt.createdAt) {
+        filter.createdAt = createdAt.createdAt;
+      }
+    }
+    return await transactionRepository.list(filter, {
+      page: Number(page) || 1,
+      limit: Number(limit) || 20,
+      sort: { createdAt: -1 },
+    });
   },
 
   /**

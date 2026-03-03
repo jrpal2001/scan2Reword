@@ -3,9 +3,7 @@ import { ApiResponse } from '../utils/ApiResponse.js';
 import { addISTToDocument, addISTToList } from '../utils/dateUtils.js';
 import { vehicleService } from '../services/vehicle.service.js';
 import { userService } from '../services/user.service.js';
-import { userRepository } from '../repositories/user.repository.js';
 import { ROLES } from '../constants/roles.js';
-import { USER_TYPES } from '../models/User.model.js';
 import ApiError from '../utils/ApiError.js';
 import { HTTP_STATUS } from '../constants/errorCodes.js';
 
@@ -25,26 +23,11 @@ export const getVehicles = asyncHandler(async (req, res) => {
     throw new ApiError(HTTP_STATUS.FORBIDDEN, 'Access denied');
   }
 
-  let vehicles;
-  if (role === ROLES.USER) {
-    const user = await userRepository.findById(userId);
-    if (!user) throw new ApiError(HTTP_STATUS.NOT_FOUND, 'User not found');
-    if (user.userType === USER_TYPES.OWNER) {
-      vehicles = await userService.getFleetVehicles(userId);
-    } else {
-      vehicles = await vehicleService.getVehiclesByUserId(userId);
-    }
-  } else {
-    vehicles = await vehicleService.getVehiclesByUserId(userId);
-  }
-
-  if (queryVehicleId && Array.isArray(vehicles)) {
-    vehicles = vehicles.filter((v) => String(v._id) === String(queryVehicleId));
-  }
-  if (queryVehicleNumber && Array.isArray(vehicles)) {
-    const num = String(queryVehicleNumber).trim().toUpperCase();
-    vehicles = vehicles.filter((v) => (v.vehicleNumber || '').toUpperCase() === num);
-  }
+  const vehicles = await userService.getVehiclesForUser(userId, {
+    role,
+    queryVehicleId,
+    queryVehicleNumber,
+  });
 
   return res.status(HTTP_STATUS.OK).json(
     ApiResponse.success(Array.isArray(vehicles) ? addISTToList(vehicles) : addISTToDocument(vehicles), 'Vehicles retrieved')

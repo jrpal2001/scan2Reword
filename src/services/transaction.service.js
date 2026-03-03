@@ -3,6 +3,7 @@ import { scanService } from './scan.service.js';
 import { pointsService } from './points.service.js';
 import { campaignService } from './campaign.service.js';
 import { pumpRepository } from '../repositories/pump.repository.js';
+import { notificationService } from './notification.service.js';
 import ApiError from '../utils/ApiError.js';
 import { HTTP_STATUS } from '../constants/errorCodes.js';
 import { TRANSACTION_STATUS } from '../constants/status.js';
@@ -118,6 +119,21 @@ export const transactionService = {
         transactionId: transaction._id,
         createdBy: operatorId,
       });
+    }
+
+    // Send push notification to customer (pump name from already-fetched pump)
+    const pumpName = pump?.name || 'Petrol pump';
+    const n = pointsEarned || 0;
+    const pointsText = n === 1 ? '1 point' : `${n} points`;
+    const customerMessage = `Thank you for Purchasing fuel at ${pumpName}. You earned ${pointsText}.`;
+    try {
+      await notificationService.sendToUsers(
+        [transaction.userId],
+        'Transaction successful',
+        customerMessage
+      );
+    } catch (err) {
+      console.warn('[Transaction] Push notification to customer failed:', err?.message);
     }
 
     return transaction;
