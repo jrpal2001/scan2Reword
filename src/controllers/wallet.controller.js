@@ -1,5 +1,6 @@
 import { asyncHandler } from '../utils/asyncHandler.js';
 import { ApiResponse } from '../utils/ApiResponse.js';
+import { addISTToDocument, addISTToList } from '../utils/dateUtils.js';
 import { pointsService } from '../services/points.service.js';
 import { userRepository } from '../repositories/user.repository.js';
 import { USER_TYPES } from '../models/User.model.js';
@@ -108,6 +109,6 @@ export const adjustWallet = asyncHandler(async (req, res) => {
   });
 
   return res.status(HTTP_STATUS.OK).json(
-    ApiResponse.success(ledgerEntry, 'Wallet adjusted successfully')
+    ApiResponse.success(addISTToDocument(ledgerEntry), 'Wallet adjusted successfully')
   );
 });

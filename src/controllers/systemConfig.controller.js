@@ -1,5 +1,6 @@
 import { asyncHandler } from '../utils/asyncHandler.js';
 import { ApiResponse } from '../utils/ApiResponse.js';
+import { addISTToDocument } from '../utils/dateUtils.js';
 import { systemConfigService } from '../services/systemConfig.service.js';
 import { HTTP_STATUS } from '../constants/errorCodes.js';
 
@@ -21,6 +22,6 @@ export const getConfig = asyncHandler(async (req, res) => {
 export const updateConfig = asyncHandler(async (req, res) => {
   const config = await systemConfigService.updateConfig(req.validated);
   return res.status(HTTP_STATUS.OK).json(
-    ApiResponse.success(config, 'System configuration updated')
+    ApiResponse.success(addISTToDocument(config), 'System configuration updated')
   );
 });

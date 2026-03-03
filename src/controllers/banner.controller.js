@@ -1,5 +1,6 @@
 import { asyncHandler } from '../utils/asyncHandler.js';
 import { ApiResponse } from '../utils/ApiResponse.js';
+import { addISTToDocument, addISTToList } from '../utils/dateUtils.js';
 import { bannerService } from '../services/banner.service.js';
 import { HTTP_STATUS } from '../constants/errorCodes.js';
 
@@ -12,7 +13,7 @@ export const getActiveBanners = asyncHandler(async (req, res) => {
   const { pumpId } = req.query;
   const banners = await bannerService.getActiveBanners(pumpId || null);
   return res.status(HTTP_STATUS.OK).json(
-    ApiResponse.success(banners, 'Active banners retrieved')
+    ApiResponse.success(Array.isArray(banners) ? addISTToList(banners) : addISTToDocument(banners), 'Active banners retrieved')
   );
 });
 
@@ -30,7 +31,7 @@ export const createBanner = asyncHandler(async (req, res) => {
     req.allowedPumpIds
   );
   return res.status(HTTP_STATUS.CREATED).json(
-    ApiResponse.success(banner, 'Banner created successfully')
+    ApiResponse.success(addISTToDocument(banner), 'Banner created successfully')
   );
 });
 
@@ -50,7 +51,7 @@ export const updateBanner = asyncHandler(async (req, res) => {
     req.allowedPumpIds
   );
   return res.status(HTTP_STATUS.OK).json(
-    ApiResponse.success(banner, 'Banner updated successfully')
+    ApiResponse.success(addISTToDocument(banner), 'Banner updated successfully')
   );
 });
 
@@ -81,7 +82,7 @@ export const getBannerById = asyncHandler(async (req, res) => {
     req.allowedPumpIds
   );
   return res.status(HTTP_STATUS.OK).json(
-    ApiResponse.success(banner, 'Banner retrieved')
+    ApiResponse.success(addISTToDocument(banner), 'Banner retrieved')
   );
 });
 

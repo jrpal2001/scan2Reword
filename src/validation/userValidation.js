@@ -1,5 +1,6 @@
 import Joi from 'joi';
 import { ROLES } from '../constants/roles.js';
+import { TRANSACTION_STATUS } from '../constants/status.js';
 
 const mobileSchema = Joi.string().trim().pattern(/^[6-9]\d{9}$/).required().messages({
   'string.pattern.base': 'Mobile must be a valid 10-digit Indian number',
@@ -257,5 +258,20 @@ export const userValidation = {
     email: Joi.string().email().trim().lowercase().allow('', null).optional(),
     address: addressSchema,
     profilePhoto: Joi.string().trim().allow('', null).optional(),
+  }),
+
+  /** GET /api/user/transactions - list current user's transactions. Pagination + date/time/vehicle filters. */
+  listMyTransactions: Joi.object({
+    page: Joi.number().integer().min(1).optional(),
+    limit: Joi.number().integer().min(1).max(100).optional(),
+    vehicleId: Joi.string().hex().length(24).optional(),
+    category: Joi.string().valid('Fuel', 'Lubricant', 'Store', 'Service').optional(),
+    status: Joi.string().valid(...Object.values(TRANSACTION_STATUS)).optional(),
+    startDate: Joi.date().optional(),
+    endDate: Joi.date().optional(),
+    month: Joi.number().integer().min(1).max(12).optional(),
+    year: Joi.number().integer().min(2000).max(2100).optional(),
+    startTime: Joi.string().trim().pattern(/^([0-1]?[0-9]|2[0-3]):[0-5][0-9](:[0-5][0-9])?$/).optional(),
+    endTime: Joi.string().trim().pattern(/^([0-1]?[0-9]|2[0-3]):[0-5][0-9](:[0-5][0-9])?$/).optional(),
   }),
 };

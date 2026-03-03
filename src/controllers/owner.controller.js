@@ -1,5 +1,6 @@
 import { asyncHandler } from '../utils/asyncHandler.js';
 import { ApiResponse } from '../utils/ApiResponse.js';
+import { addISTToPayload } from '../utils/dateUtils.js';
 import { ownerService } from '../services/owner.service.js';
 import { HTTP_STATUS } from '../constants/errorCodes.js';
 
@@ -44,13 +45,13 @@ export const addVehicle = asyncHandler(async (req, res) => {
 
   return res.status(HTTP_STATUS.CREATED).json(
     ApiResponse.success(
-      {
+      addISTToPayload({
         userId: result.userId,
         vehicleId: result.vehicleId,
         loyaltyId: result.loyaltyId,
         user: result.user,
         vehicle: result.vehicle,
-      },
+      }),
       'Vehicle added to fleet successfully'
     )
   );

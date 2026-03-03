@@ -1,5 +1,6 @@
 import { asyncHandler } from '../utils/asyncHandler.js';
 import { ApiResponse } from '../utils/ApiResponse.js';
+import { addISTToDocument } from '../utils/dateUtils.js';
 import { redemptionService } from '../services/redemption.service.js';
 import { auditLogService } from '../services/auditLog.service.js';
 import { ROLES } from '../constants/roles.js';
@@ -78,7 +79,7 @@ export const approveRedemption = asyncHandler(async (req, res) => {
   const { id } = req.params;
   const redemption = await redemptionService.approveRedemption(id, req.user._id);
   return res.status(HTTP_STATUS.OK).json(
-    ApiResponse.success(redemption, 'Redemption approved successfully')
+    ApiResponse.success(addISTToDocument(redemption), 'Redemption approved successfully')
   );
 });
 
@@ -92,7 +93,7 @@ export const rejectRedemption = asyncHandler(async (req, res) => {
   const { reason } = req.validated;
   const redemption = await redemptionService.rejectRedemption(id, req.user._id, reason);
   return res.status(HTTP_STATUS.OK).json(
-    ApiResponse.success(redemption, 'Redemption rejected. Points refunded.')
+    ApiResponse.success(addISTToDocument(redemption), 'Redemption rejected. Points refunded.')
   );
 });
 
@@ -104,7 +105,7 @@ export const verifyRedemptionCode = asyncHandler(async (req, res) => {
   const { code } = req.params;
   const redemption = await redemptionService.verifyRedemptionCode(code);
   return res.status(HTTP_STATUS.OK).json(
-    ApiResponse.success(redemption, 'Redemption code is valid')
+    ApiResponse.success(addISTToDocument(redemption), 'Redemption code is valid')
   );
 });
 
@@ -118,7 +119,7 @@ export const useRedemptionCode = asyncHandler(async (req, res) => {
   const redemption = await redemptionService.verifyRedemptionCode(code);
   const updated = await redemptionService.markAsUsed(redemption._id, pumpId);
   return res.status(HTTP_STATUS.OK).json(
-    ApiResponse.success(updated, 'Redemption code used successfully')
+    ApiResponse.success(addISTToDocument(updated), 'Redemption code used successfully')
   );
 });
 
@@ -154,7 +155,7 @@ export const getRedemptionById = asyncHandler(async (req, res) => {
   const { redemptionId } = req.params;
   const redemption = await redemptionService.getRedemptionById(redemptionId);
   return res.status(HTTP_STATUS.OK).json(
-    ApiResponse.success(redemption, 'Redemption retrieved')
+    ApiResponse.success(addISTToDocument(redemption), 'Redemption retrieved')
   );
 });
 
@@ -177,7 +178,7 @@ export const createDirectRedemption = asyncHandler(async (req, res) => {
   const message = `Your ${pointsText} ${verb} been Redeemed at ${pumpName}.`;
   return res.status(HTTP_STATUS.CREATED).json(
     ApiResponse.success(
-      { redemption, redemptionCode: redemption.redemptionCode, message },
+      { redemption: addISTToDocument(redemption), redemptionCode: redemption.redemptionCode, message },
       message
     )
   );

@@ -382,6 +382,7 @@ export const dashboardService = {
     if (!pumpIds || pumpIds.length === 0) {
       return {
         assignedPumps: [],
+        manager: null,
         transactions: { today: 0, thisMonth: 0 },
         revenue: { today: 0, thisMonth: 0 },
         pointsIssued: { today: 0, thisMonth: 0 },
@@ -403,6 +404,23 @@ export const dashboardService = {
       location: p.location,
       status: p.status,
     }));
+
+    // Manager of this staff: derived from first assigned pump's managerId (staff → pump → manager)
+    let manager = null;
+    const firstPumpWithManager = pumps.find((p) => p && p.managerId);
+    if (firstPumpWithManager?.managerId) {
+      const managerDoc = await Manager.findById(firstPumpWithManager.managerId)
+        .select('_id fullName profilePhoto mobile')
+        .lean();
+      if (managerDoc) {
+        manager = {
+          _id: managerDoc._id,
+          fullName: managerDoc.fullName,
+          profilePhoto: managerDoc.profilePhoto ?? null,
+          mobile: managerDoc.mobile,
+        };
+      }
+    }
 
     // Transactions at staff's pump(s) (where they are operator or any at their pump)
     const transactionsToday = await Transaction.countDocuments({
@@ -470,6 +488,7 @@ export const dashboardService = {
 
     return {
       assignedPumps,
+      manager,
       transactions: {
         today: transactionsToday,
         thisMonth: transactionsThisMonth,

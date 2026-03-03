@@ -34,6 +34,14 @@ router.get('/vehicles', verifyJWT, vehicleController.getVehicles);
 router.post('/vehicles', verifyJWT, validateRequest(vehicleValidation.create), vehicleController.addVehicle);
 router.patch('/vehicles/:vehicleId', verifyJWT, validateRequest(vehicleValidation.update), vehicleController.updateVehicle);
 
+// My transactions (individual/driver/owner) – pagination + filters: vehicleId, category, status, dates, time
+router.get(
+  '/transactions',
+  verifyJWT,
+  validateRequest(userValidation.listMyTransactions, 'query'),
+  userController.listMyTransactions
+);
+
 // Wallet
 router.get('/:userId/wallet', verifyJWT, walletController.getWallet);
 

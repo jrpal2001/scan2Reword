@@ -6,74 +6,7 @@ import { pumpRepository } from '../repositories/pump.repository.js';
 import { ROLES } from '../constants/roles.js';
 import ApiError from '../utils/ApiError.js';
 import { HTTP_STATUS } from '../constants/errorCodes.js';
-
-/**
- * Build createdAt filter from startDate, endDate, month, year, startTime, endTime.
- * - startTime/endTime: filter by time-of-day (UTC) so only transactions within that time window each day are returned.
- * - Returns { createdAt: { $gte, $lte } } or { $and: [ { createdAt }, { $expr: time-of-day } ] } when startTime/endTime are used.
- */
-function buildCreatedAtFilter(validated) {
-  const { startDate, endDate, month, year, startTime, endTime } = validated || {};
-  let rangeStart = null;
-  let rangeEnd = null;
-
-  if (startDate || endDate) {
-    if (startDate) rangeStart = new Date(startDate);
-    if (endDate) rangeEnd = new Date(endDate);
-  } else if (year !== undefined && year !== null) {
-    if (month !== undefined && month !== null) {
-      rangeStart = new Date(year, month - 1, 1, 0, 0, 0, 0);
-      rangeEnd = new Date(year, month, 0, 23, 59, 59, 999);
-    } else {
-      rangeStart = new Date(year, 0, 1, 0, 0, 0, 0);
-      rangeEnd = new Date(year, 11, 31, 23, 59, 59, 999);
-    }
-  }
-
-  // Date range: for time-of-day filter we keep full-day range; we don't set hours on range here when startTime/endTime are present
-  const hasTimeOfDay = startTime || endTime;
-  if (!hasTimeOfDay) {
-    if (rangeStart && startTime) {
-      const [h, m, s = 0] = startTime.split(':').map(Number);
-      rangeStart.setHours(h, m, s, 0);
-    }
-    if (rangeEnd && endTime) {
-      const [h, m, s = 0] = endTime.split(':').map(Number);
-      rangeEnd.setHours(h, m, s, 999);
-    } else if (rangeEnd && !endTime) {
-      rangeEnd.setHours(23, 59, 59, 999);
-    }
-  } else if (rangeEnd && !endTime) {
-    rangeEnd.setHours(23, 59, 59, 999);
-  }
-
-  if (!rangeStart && !rangeEnd && !hasTimeOfDay) return undefined;
-
-  const dateRange = {};
-  if (rangeStart) dateRange.$gte = rangeStart;
-  if (rangeEnd) dateRange.$lte = rangeEnd;
-  const createdAtClause = Object.keys(dateRange).length ? { createdAt: dateRange } : null;
-
-  // Time-of-day filter (UTC): only include transactions where time is between startTime and endTime
-  if (hasTimeOfDay && (createdAtClause || rangeStart || rangeEnd)) {
-    const startParts = (startTime || '00:00').split(':').map(Number);
-    const endParts = (endTime || '23:59').split(':').map(Number);
-    const startMinutes = (startParts[0] || 0) * 60 + (startParts[1] || 0);
-    const endMinutes = (endParts[0] || 23) * 60 + (endParts[1] || 59);
-    const timeOfDayExpr = {
-      $and: [
-        { $gte: [{ $add: [{ $multiply: [{ $hour: '$createdAt' }, 60] }, { $minute: '$createdAt' }] }, startMinutes] },
-        { $lte: [{ $add: [{ $multiply: [{ $hour: '$createdAt' }, 60] }, { $minute: '$createdAt' }] }, endMinutes] },
-      ],
-    };
-    const clauses = [];
-    if (createdAtClause) clauses.push(createdAtClause);
-    clauses.push({ $expr: timeOfDayExpr });
-    return { $and: clauses };
-  }
-
-  return createdAtClause || undefined;
-}
+import { addISTToDocument, buildCreatedAtFilter } from '../utils/dateUtils.js';
 
 /**
  * POST /api/transactions
@@ -143,8 +76,8 @@ export const listTransactions = asyncHandler(async (req, res) => {
   if (createdAt) {
     if (createdAt.$and) {
       filter = { $and: [filter, ...createdAt.$and] };
-    } else {
-      filter.createdAt = createdAt;
+    } else if (createdAt.createdAt) {
+      filter.createdAt = createdAt.createdAt;
     }
   }
 
@@ -181,8 +114,8 @@ export const listTransactionsByPump = asyncHandler(async (req, res) => {
   if (createdAt) {
     if (createdAt.$and) {
       filter = { $and: [filter, ...createdAt.$and] };
-    } else {
-      filter.createdAt = createdAt;
+    } else if (createdAt.createdAt) {
+      filter.createdAt = createdAt.createdAt;
     }
   }
 
@@ -207,7 +140,8 @@ export const getTransactionById = asyncHandler(async (req, res) => {
     transactionId,
     req.allowedPumpIds
   );
+  const transactionWithIST = addISTToDocument(transaction);
   return res.status(HTTP_STATUS.OK).json(
-    ApiResponse.success(transaction, 'Transaction retrieved')
+    ApiResponse.success(transactionWithIST, 'Transaction retrieved')
   );
 });

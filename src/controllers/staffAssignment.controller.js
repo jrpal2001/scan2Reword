@@ -1,5 +1,6 @@
 import { asyncHandler } from '../utils/asyncHandler.js';
 import { ApiResponse } from '../utils/ApiResponse.js';
+import { addISTToDocument, addISTToList } from '../utils/dateUtils.js';
 import { staffAssignmentService } from '../services/staffAssignment.service.js';
 import { ROLES } from '../constants/roles.js';
 import ApiError from '../utils/ApiError.js';
@@ -17,7 +18,7 @@ export const assignStaffToPump = asyncHandler(async (req, res) => {
   }
   const assignment = await staffAssignmentService.assignStaffToPump(staffId, pumpId, req.user._id);
   return res.status(HTTP_STATUS.CREATED).json(
-    ApiResponse.success(assignment, 'Staff assigned to pump successfully')
+    ApiResponse.success(addISTToDocument(assignment), 'Staff assigned to pump successfully')
   );
 });
 
@@ -34,12 +35,13 @@ export const removeStaffFromPump = asyncHandler(async (req, res) => {
 });
 
 /**
- * GET /api/admin/staff-assignments/unassigned
+ * GET /api/admin/employee-list
  * List staff or managers who are not assigned to any pump.
- * Query: type=staff|manager (required), pumpId= (optional, for type=manager only = managers not assigned to that pump), search=, page, limit
+ * Query: type=staff|manager (required), search= (optional: fullName, mobile, email, staffCode/managerCode), pumpId= (optional, type=manager only), page, limit
  */
 export const getUnassignedList = asyncHandler(async (req, res) => {
-  const { type, pumpId, search, page, limit } = req.validated;
+  const validated = req.validated || req.query;
+  const { type, pumpId, search, page, limit } = validated;
   if (type === 'manager' && pumpId && req.userType === ROLES.MANAGER && req.allowedPumpIds?.length) {
     if (!req.allowedPumpIds.map(String).includes(String(pumpId))) {
       throw new ApiError(HTTP_STATUS.FORBIDDEN, 'You can only list unassigned managers for pumps you manage');
@@ -81,7 +83,7 @@ export const getAssignmentsByStaff = asyncHandler(async (req, res) => {
   const { staffId } = req.params;
   const assignments = await staffAssignmentService.getAssignmentsByStaff(staffId);
   return res.status(HTTP_STATUS.OK).json(
-    ApiResponse.success(assignments, 'Staff assignments retrieved successfully')
+    ApiResponse.success(Array.isArray(assignments) ? addISTToList(assignments) : addISTToDocument(assignments), 'Staff assignments retrieved successfully')
   );
 });
 
@@ -93,6 +95,6 @@ export const getStaffByPump = asyncHandler(async (req, res) => {
   const { pumpId } = req.params;
   const staff = await staffAssignmentService.getStaffByPump(pumpId);
   return res.status(HTTP_STATUS.OK).json(
-    ApiResponse.success(staff, 'Pump staff retrieved successfully')
+    ApiResponse.success(Array.isArray(staff) ? addISTToList(staff) : addISTToDocument(staff), 'Pump staff retrieved successfully')
   );
 });

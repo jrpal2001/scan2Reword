@@ -113,7 +113,7 @@ export const staffAssignmentService = {
   /**
    * List staff or managers who are not assigned to any pump.
    * @param {'staff'|'manager'} type - 'staff' = unassigned staff, 'manager' = unassigned managers (or not assigned to given pump)
-   * @param {string} [search] - Optional search term (fullName, mobile, email, staffCode/managerCode)
+   * @param {string} [search] - Optional search term; partial match on fullName, mobile, email, staffCode (staff) or managerCode (manager)
    * @param {{ page: number, limit: number, pumpId?: string }} options - Pagination; pumpId only for type=manager (managers not assigned to that pump)
    */
   async getUnassignedList(type, search, options = {}) {
@@ -121,10 +121,14 @@ export const staffAssignmentService = {
     const limit = options.limit || 20;
     const pagination = { page, limit, sort: { createdAt: -1 } };
 
+    // Search fields: fullName, mobile, email, staffCode (for staff) or managerCode (for manager)
+    const staffSearchFields = ['fullName', 'mobile', 'email', 'staffCode'];
+    const managerSearchFields = ['fullName', 'mobile', 'email', 'managerCode'];
+
     if (type === 'staff') {
       const assignedStaffIds = await staffAssignmentRepository.getAssignedStaffIds();
       const filter = { _id: { $nin: assignedStaffIds } };
-      const searchFilter = buildSearchFilter(search, ['fullName', 'mobile', 'email', 'staffCode']);
+      const searchFilter = buildSearchFilter(search, staffSearchFields);
       const combined = Object.keys(searchFilter).length ? { $and: [filter, searchFilter] } : filter;
       return await staffRepository.list(combined, pagination);
     }
@@ -143,7 +147,7 @@ export const staffAssignmentService = {
         const assignedManagerIds = await pumpRepository.getAssignedManagerIds();
         filter = { _id: { $nin: assignedManagerIds } };
       }
-      const searchFilter = buildSearchFilter(search, ['fullName', 'mobile', 'email', 'managerCode']);
+      const searchFilter = buildSearchFilter(search, managerSearchFields);
       const combined = Object.keys(searchFilter).length ? { $and: [filter, searchFilter] } : filter;
       return await managerRepository.list(combined, pagination);
     }

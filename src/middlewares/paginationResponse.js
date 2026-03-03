@@ -1,4 +1,5 @@
 import { ApiResponse } from '../utils/ApiResponse.js';
+import { addISTToList } from '../utils/dateUtils.js';
 
 /**
  * Build meta object from pagination result (total, page, limit, totalPages).
@@ -16,6 +17,7 @@ function paginationMeta(pagination) {
 
 /**
  * Middleware that adds res.sendPaginated and res.sendPaginatedMeta for paginated APIs.
+ * sendPaginated automatically adds createdAtIST/updatedAtIST to each item in result.list.
  *
  * - sendPaginated(result, message, statusCode): for list APIs where result = { list, total, page, limit, totalPages }.
  * - sendPaginatedMeta(data, paginationResult, message, statusCode): for custom payloads (e.g. getWallet) that include
@@ -23,7 +25,8 @@ function paginationMeta(pagination) {
  */
 export function paginationResponse(_, res, next) {
 	res.sendPaginated = function (result, message = 'Success', statusCode = 200) {
-		return res.status(statusCode).json(ApiResponse.paginated(result, message));
+		const withIST = result?.list ? { ...result, list: addISTToList(result.list) } : result;
+		return res.status(statusCode).json(ApiResponse.paginated(withIST, message));
 	};
 	res.sendPaginatedMeta = function (data, paginationResult, message = 'Success', statusCode = 200) {
 		const meta = paginationMeta(paginationResult);

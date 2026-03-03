@@ -1,5 +1,6 @@
 import { asyncHandler } from '../utils/asyncHandler.js';
 import { ApiResponse } from '../utils/ApiResponse.js';
+import { addISTToPayload } from '../utils/dateUtils.js';
 import { notificationService } from '../services/notification.service.js';
 import { HTTP_STATUS } from '../constants/errorCodes.js';
 
@@ -52,7 +53,7 @@ export const sendNotificationToAll = asyncHandler(async (req, res) => {
   const { title, body, link, img } = req.validated;
   const result = await notificationService.sendToAll(title, body, link, img);
   return res.status(HTTP_STATUS.OK).json(
-    ApiResponse.success(result, 'Notification sent to all users')
+    ApiResponse.success(addISTToPayload(result), 'Notification sent to all users')
   );
 });
 
@@ -65,6 +66,6 @@ export const sendNotificationToUsers = asyncHandler(async (req, res) => {
   const { userIds, title, body, link, img } = req.validated;
   const result = await notificationService.sendToUsers(userIds, title, body, link, img);
   return res.status(HTTP_STATUS.OK).json(
-    ApiResponse.success(result, 'Notifications sent to users')
+    ApiResponse.success(addISTToPayload(result), 'Notifications sent to users')
   );
 });

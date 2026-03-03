@@ -1,6 +1,7 @@
 import { asyncHandler } from '../utils/asyncHandler.js';
 import { ApiResponse } from '../utils/ApiResponse.js';
 import ApiError from '../utils/ApiError.js';
+import { addISTToDocument } from '../utils/dateUtils.js';
 import { userService } from '../services/user.service.js';
 import { auditLogService } from '../services/auditLog.service.js';
 import { HTTP_STATUS } from '../constants/errorCodes.js';
@@ -220,7 +221,7 @@ export const getUserById = asyncHandler(async (req, res) => {
     }
   }
   return res.status(HTTP_STATUS.OK).json(
-    ApiResponse.success(user, 'User retrieved successfully')
+    ApiResponse.success(addISTToDocument(user), 'User retrieved successfully')
   );
 });
 
@@ -270,7 +271,7 @@ export const updateUser = asyncHandler(async (req, res) => {
 
   const message = type === 'staff' ? 'Staff updated successfully' : type === 'manager' ? 'Manager updated successfully' : 'User updated successfully';
   return res.status(HTTP_STATUS.OK).json(
-    ApiResponse.success(updated, message)
+    ApiResponse.success(addISTToDocument(updated), message)
   );
 });
 
@@ -301,7 +302,7 @@ export const updateUserStatus = asyncHandler(async (req, res) => {
   });
 
   return res.status(HTTP_STATUS.OK).json(
-    ApiResponse.success(updated, `User ${status === USER_STATUS.BLOCKED ? 'blocked' : 'unblocked'} successfully`)
+    ApiResponse.success(addISTToDocument(updated), `User ${status === USER_STATUS.BLOCKED ? 'blocked' : 'unblocked'} successfully`)
   );
 });
 

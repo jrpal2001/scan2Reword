@@ -1,5 +1,6 @@
 import { asyncHandler } from '../utils/asyncHandler.js';
 import { ApiResponse } from '../utils/ApiResponse.js';
+import { addISTToDocument, addISTToList } from '../utils/dateUtils.js';
 import { rewardService } from '../services/reward.service.js';
 import { HTTP_STATUS } from '../constants/errorCodes.js';
 
@@ -12,7 +13,7 @@ export const getRewards = asyncHandler(async (req, res) => {
   const { pumpId } = req.query;
   const rewards = await rewardService.getAvailableRewards(pumpId || null);
   return res.status(HTTP_STATUS.OK).json(
-    ApiResponse.success(rewards, 'Available rewards retrieved')
+    ApiResponse.success(Array.isArray(rewards) ? addISTToList(rewards) : addISTToDocument(rewards), 'Available rewards retrieved')
   );
 });
 
@@ -24,7 +25,7 @@ export const getRewards = asyncHandler(async (req, res) => {
 export const createReward = asyncHandler(async (req, res) => {
   const reward = await rewardService.createReward(req.validated);
   return res.status(HTTP_STATUS.CREATED).json(
-    ApiResponse.success(reward, 'Reward created successfully')
+    ApiResponse.success(addISTToDocument(reward), 'Reward created successfully')
   );
 });
 
@@ -37,7 +38,7 @@ export const updateReward = asyncHandler(async (req, res) => {
   const { rewardId } = req.params;
   const reward = await rewardService.updateReward(rewardId, req.validated);
   return res.status(HTTP_STATUS.OK).json(
-    ApiResponse.success(reward, 'Reward updated successfully')
+    ApiResponse.success(addISTToDocument(reward), 'Reward updated successfully')
   );
 });
 
@@ -61,7 +62,7 @@ export const getRewardById = asyncHandler(async (req, res) => {
   const { rewardId } = req.params;
   const reward = await rewardService.getRewardById(rewardId);
   return res.status(HTTP_STATUS.OK).json(
-    ApiResponse.success(reward, 'Reward retrieved')
+    ApiResponse.success(addISTToDocument(reward), 'Reward retrieved')
   );
 });
 

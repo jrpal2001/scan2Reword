@@ -1,5 +1,6 @@
 import { asyncHandler } from '../utils/asyncHandler.js';
 import { ApiResponse } from '../utils/ApiResponse.js';
+import { addISTToDocument } from '../utils/dateUtils.js';
 import { campaignService } from '../services/campaign.service.js';
 import { auditLogService } from '../services/auditLog.service.js';
 import { HTTP_STATUS } from '../constants/errorCodes.js';
@@ -32,7 +33,7 @@ export const createCampaign = asyncHandler(async (req, res) => {
   });
 
   return res.status(HTTP_STATUS.CREATED).json(
-    ApiResponse.success(campaign, 'Campaign created successfully')
+    ApiResponse.success(addISTToDocument(campaign), 'Campaign created successfully')
   );
 });
 
@@ -52,7 +53,7 @@ export const updateCampaign = asyncHandler(async (req, res) => {
     req.allowedPumpIds
   );
   return res.status(HTTP_STATUS.OK).json(
-    ApiResponse.success(campaign, 'Campaign updated successfully')
+    ApiResponse.success(addISTToDocument(campaign), 'Campaign updated successfully')
   );
 });
 
@@ -83,7 +84,7 @@ export const getCampaignById = asyncHandler(async (req, res) => {
     req.allowedPumpIds
   );
   return res.status(HTTP_STATUS.OK).json(
-    ApiResponse.success(campaign, 'Campaign retrieved')
+    ApiResponse.success(addISTToDocument(campaign), 'Campaign retrieved')
   );
 });
 

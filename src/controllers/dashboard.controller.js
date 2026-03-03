@@ -1,5 +1,6 @@
 import { asyncHandler } from '../utils/asyncHandler.js';
 import { ApiResponse } from '../utils/ApiResponse.js';
+import { addISTToPayload } from '../utils/dateUtils.js';
 import { dashboardService } from '../services/dashboard.service.js';
 import { HTTP_STATUS } from '../constants/errorCodes.js';
 
@@ -38,7 +39,7 @@ export const getManagerDashboard = asyncHandler(async (req, res) => {
 
   const stats = await dashboardService.getManagerDashboard(pumpIds);
   return res.status(HTTP_STATUS.OK).json(
-    ApiResponse.success(stats, 'Manager dashboard statistics retrieved')
+    ApiResponse.success(addISTToPayload(stats), 'Manager dashboard statistics retrieved')
   );
 });
 
@@ -63,6 +64,6 @@ export const getFleetAggregation = asyncHandler(async (req, res) => {
   const ownerId = req.user._id.toString();
   const aggregation = await dashboardService.getFleetAggregation(ownerId);
   return res.status(HTTP_STATUS.OK).json(
-    ApiResponse.success(aggregation, 'Fleet aggregation retrieved')
+    ApiResponse.success(addISTToPayload(aggregation), 'Fleet aggregation retrieved')
   );
 });

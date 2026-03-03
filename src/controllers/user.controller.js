@@ -1,6 +1,9 @@
 import { asyncHandler } from '../utils/asyncHandler.js';
 import { ApiResponse } from '../utils/ApiResponse.js';
+import { addISTToPayload, buildCreatedAtFilter } from '../utils/dateUtils.js';
 import { userService } from '../services/user.service.js';
+import { transactionRepository } from '../repositories/transaction.repository.js';
+import { userRepository } from '../repositories/user.repository.js';
 import { ROLES } from '../constants/roles.js';
 import ApiError from '../utils/ApiError.js';
 import { HTTP_STATUS } from '../constants/errorCodes.js';
@@ -14,7 +17,7 @@ export const getProfile = asyncHandler(async (req, res) => {
     throw new ApiError(HTTP_STATUS.FORBIDDEN, 'Profile is only available for registered users (individual, owner, driver)');
   }
   const profile = await userService.getProfile(req.user._id);
-  return res.status(HTTP_STATUS.OK).json(ApiResponse.success(profile, 'Profile retrieved'));
+  return res.status(HTTP_STATUS.OK).json(ApiResponse.success(addISTToPayload(profile), 'Profile retrieved'));
 });
 
 /**
@@ -42,7 +45,51 @@ export const getDashboard = asyncHandler(async (req, res) => {
     throw new ApiError(HTTP_STATUS.FORBIDDEN, 'Dashboard is only available for registered users');
   }
   const dashboard = await userService.getUserDashboard(req.user._id);
-  return res.status(HTTP_STATUS.OK).json(ApiResponse.success(dashboard, 'Dashboard retrieved'));
+  return res.status(HTTP_STATUS.OK).json(ApiResponse.success(addISTToPayload(dashboard), 'Dashboard retrieved'));
+});
+
+/**
+ * GET /api/user/transactions
+ * List current user's transactions. For owner: includes transactions of the owner + all their fleet drivers. For driver/individual: only their own.
+ * Pagination + filters: vehicleId, category, status, startDate, endDate, month, year, startTime, endTime.
+ */
+export const listMyTransactions = asyncHandler(async (req, res) => {
+  if (req.userType !== ROLES.USER) {
+    throw new ApiError(HTTP_STATUS.FORBIDDEN, 'Transactions list is only available for registered users (individual, owner, driver)');
+  }
+  const validated = req.validated || req.query;
+  const { page, limit, vehicleId, category, status } = validated;
+  const currentUserId = req.user._id;
+  const userType = req.user.userType || (await userRepository.findById(currentUserId))?.userType;
+
+  // Owner sees their own transactions + all their fleet drivers' transactions
+  let userIdFilter;
+  if (userType === 'owner') {
+    const drivers = await userRepository.list({ ownerId: currentUserId }, { page: 1, limit: 500 });
+    const allowedUserIds = [currentUserId, ...drivers.list.map((d) => d._id)];
+    userIdFilter = allowedUserIds.length === 1 ? { userId: currentUserId } : { userId: { $in: allowedUserIds } };
+  } else {
+    userIdFilter = { userId: currentUserId };
+  }
+
+  let filter = { ...userIdFilter };
+  if (vehicleId) filter.vehicleId = vehicleId;
+  if (category) filter.category = category;
+  if (status) filter.status = status;
+  const createdAt = buildCreatedAtFilter(validated);
+  if (createdAt) {
+    if (createdAt.$and) {
+      filter = { $and: [filter, ...createdAt.$and] };
+    } else if (createdAt.createdAt) {
+      filter.createdAt = createdAt.createdAt;
+    }
+  }
+  const result = await transactionRepository.list(filter, {
+    page: Number(page) || 1,
+    limit: Number(limit) || 20,
+    sort: { createdAt: -1 },
+  });
+  return res.sendPaginated(result, 'Transactions retrieved', HTTP_STATUS.OK);
 });
 
 /**

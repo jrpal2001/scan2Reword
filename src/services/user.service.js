@@ -1163,6 +1163,11 @@ export const userService = {
       recentTransactions: recentTx.list,
     };
   },
+
+  /** Fleet owner: return all vehicles of drivers under this owner (for GET /api/user/vehicles). */
+  async getFleetVehicles(ownerId) {
+    return getFleetVehiclesForOwner(ownerId);
+  },
 };
 
 /** Profile shape for individual, owner, and driver (exclude passwordHash, add avatar) */
