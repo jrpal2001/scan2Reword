@@ -25,6 +25,7 @@ export const getManagerDashboard = asyncHandler(async (req, res) => {
     return res.status(HTTP_STATUS.OK).json(
       ApiResponse.success(
         {
+          assignedPumps: [],
           staff: { total: 0 },
           transactions: { today: 0, thisMonth: 0 },
           revenue: { today: 0, thisMonth: 0 },

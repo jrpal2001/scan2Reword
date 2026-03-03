@@ -246,6 +246,19 @@ export const dashboardService = {
     const todayStart = new Date(now.setHours(0, 0, 0, 0));
     const thisMonthStart = new Date(now.getFullYear(), now.getMonth(), 1);
 
+    // Assigned pump details (pumps this manager manages)
+    const pumpIdList = Array.isArray(pumpIds) ? pumpIds : [];
+    const pumps = pumpIdList.length
+      ? await Promise.all(pumpIdList.map((pid) => pumpRepository.findById(pid)))
+      : [];
+    const assignedPumps = pumps.filter(Boolean).map((p) => ({
+      _id: p._id,
+      name: p.name,
+      code: p.code,
+      location: p.location,
+      status: p.status,
+    }));
+
     // Transactions for manager's pumps
     const transactionsToday = await Transaction.countDocuments({
       pumpId: { $in: pumpIds },
@@ -348,6 +361,7 @@ export const dashboardService = {
     );
 
     return {
+      assignedPumps,
       staff: { total: staffCount },
       transactions: {
         today: transactionsToday,
