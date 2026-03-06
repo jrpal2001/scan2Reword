@@ -118,7 +118,7 @@ export const staffAssignmentService = {
    */
   async getUnassignedList(type, search, options = {}) {
     const page = options.page || 1;
-    const limit = options.limit || 20;
+    const limit = options.limit || 10;
     const pagination = { page, limit, sort: { createdAt: -1 } };
 
     // Search fields: fullName, mobile, email, staffCode (for staff) or managerCode (for manager)

@@ -36,6 +36,14 @@ router.patch(
   managerController.updateProfile
 );
 
+// My assigned pumps
+router.get(
+  '/pumps',
+  verifyJWT,
+  requireRoles([ROLES.MANAGER]),
+  managerController.listMyPumps
+);
+
 // Dashboard
 router.get(
   '/dashboard',

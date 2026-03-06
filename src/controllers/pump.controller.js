@@ -85,7 +85,7 @@ export const getPumpById = asyncHandler(async (req, res) => {
  * Admin only.
  */
 export const listPumps = asyncHandler(async (req, res) => {
-  const { page = 1, limit = 20, status, managerId } = req.query;
+  const { page = 1, limit = 10, status, managerId } = req.query;
   const filter = {};
   if (status) filter.status = status;
   if (managerId) filter.managerId = managerId;

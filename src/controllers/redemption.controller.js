@@ -129,7 +129,7 @@ export const useRedemptionCode = asyncHandler(async (req, res) => {
  * User can see own redemptions; Admin/Manager can see all.
  */
 export const listRedemptions = asyncHandler(async (req, res) => {
-  const { page = 1, limit = 20, status, userId } = req.query;
+  const { page = 1, limit = 10, status, userId } = req.query;
   const role = (req.userType || req.user?.role || '').toLowerCase();
   
   const filter = {};

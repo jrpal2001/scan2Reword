@@ -92,7 +92,7 @@ export const getBannerById = asyncHandler(async (req, res) => {
  * Admin/Manager only.
  */
 export const listBanners = asyncHandler(async (req, res) => {
-  const { page = 1, limit = 20, status, pumpId } = req.query;
+  const { page = 1, limit = 10, status, pumpId } = req.query;
   const role = (req.userType || req.user?.role || '').toLowerCase();
   
   const filter = {};

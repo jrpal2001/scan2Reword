@@ -3,6 +3,9 @@ import { scanService } from './scan.service.js';
 import { pointsService } from './points.service.js';
 import { campaignService } from './campaign.service.js';
 import { pumpRepository } from '../repositories/pump.repository.js';
+import { staffRepository } from '../repositories/staff.repository.js';
+import { managerRepository } from '../repositories/manager.repository.js';
+import Admin from '../models/Admin.js';
 import { notificationService } from './notification.service.js';
 import ApiError from '../utils/ApiError.js';
 import { HTTP_STATUS } from '../constants/errorCodes.js';
@@ -160,7 +163,72 @@ export const transactionService = {
       }
     }
 
-    return transactionRepository.list(filter, options);
+    const result = await transactionRepository.list(filter, options);
+    result.list = await this._enrichTransactionList(result.list);
+    return result;
+  },
+
+  /**
+   * Resolve operatorId to { operatorName, staffCode } from Staff, Manager, or Admin.
+   */
+  async _getOperatorDetails(operatorId) {
+    if (!operatorId) return { operatorName: null, staffCode: null };
+    const staff = await staffRepository.findById(operatorId);
+    if (staff) return { operatorName: staff.fullName ?? null, staffCode: staff.staffCode ?? null };
+    const manager = await managerRepository.findById(operatorId);
+    if (manager) return { operatorName: manager.fullName ?? null, staffCode: manager.managerCode ?? null };
+    const admin = await Admin.findById(operatorId).select('name').lean();
+    if (admin) return { operatorName: admin.name ?? null, staffCode: null };
+    return { operatorName: null, staffCode: null };
+  },
+
+  /**
+   * Enrich a single transaction with operator (name, staffCode) and pump (pumpName, pumpCode).
+   */
+  async _enrichTransaction(transaction) {
+    if (!transaction) return transaction;
+    const [operator, pump] = await Promise.all([
+      this._getOperatorDetails(transaction.operatorId),
+      transaction.pumpId ? pumpRepository.findById(transaction.pumpId) : null,
+    ]);
+    return {
+      ...transaction,
+      operatorName: operator.operatorName,
+      staffCode: operator.staffCode,
+      pumpName: pump?.name ?? null,
+      pumpCode: pump?.code ?? null,
+    };
+  },
+
+  /**
+   * Enrich a list of transactions with operator and pump details (batch).
+   */
+  async _enrichTransactionList(list) {
+    if (!list || list.length === 0) return list;
+    const operatorIds = [...new Set(list.map((t) => t.operatorId).filter(Boolean))];
+    const pumpIds = [...new Set(list.map((t) => t.pumpId).filter(Boolean))];
+    const [staffList, managerList, adminList, pumpList] = await Promise.all([
+      operatorIds.length ? staffRepository.listByIds(operatorIds) : [],
+      operatorIds.length ? managerRepository.listByIds(operatorIds) : [],
+      operatorIds.length ? Admin.find({ _id: { $in: operatorIds } }).select('name').lean() : [],
+      pumpIds.length ? pumpRepository.listByIds(pumpIds) : [],
+    ]);
+    const staffMap = new Map(staffList.map((s) => [String(s._id), { operatorName: s.fullName, staffCode: s.staffCode ?? null }]));
+    const managerMap = new Map(managerList.map((m) => [String(m._id), { operatorName: m.fullName, staffCode: m.managerCode ?? null }]));
+    const adminMap = new Map(adminList.map((a) => [String(a._id), { operatorName: a.name, staffCode: null }]));
+    const pumpMap = new Map(pumpList.map((p) => [String(p._id), { pumpName: p.name, pumpCode: p.code }]));
+    return list.map((t) => {
+      const opId = t.operatorId ? String(t.operatorId) : null;
+      const operator = staffMap.get(opId) ?? managerMap.get(opId) ?? adminMap.get(opId) ?? { operatorName: null, staffCode: null };
+      const pump = t.pumpId ? pumpMap.get(String(t.pumpId)) : null;
+      return {
+        ...t,
+        operatorName: operator.operatorName ?? null,
+        staffCode: operator.staffCode ?? null,
+        pumpName: pump?.pumpName ?? null,
+        pumpCode: pump?.pumpCode ?? null,
+      };
+    });
   },
 
   /**
@@ -180,7 +248,7 @@ export const transactionService = {
       throw new ApiError(HTTP_STATUS.FORBIDDEN, 'Access denied to this transaction');
     }
 
-    return transaction;
+    return this._enrichTransaction(transaction);
   },
 
   /**
@@ -237,6 +305,6 @@ export const transactionService = {
         createdBy: operatorId,
       });
     }
-    return updated;
+    return this._enrichTransaction(updated);
   },
 };

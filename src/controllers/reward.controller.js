@@ -72,7 +72,7 @@ export const getRewardById = asyncHandler(async (req, res) => {
  * Admin only.
  */
 export const listRewards = asyncHandler(async (req, res) => {
-  const { page = 1, limit = 20, status } = req.query;
+  const { page = 1, limit = 10, status } = req.query;
   const filter = {};
   if (status) filter.status = status;
 

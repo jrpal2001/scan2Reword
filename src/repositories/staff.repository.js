@@ -10,6 +10,11 @@ export const staffRepository = {
     return Staff.findById(id).select('-passwordHash').lean();
   },
 
+  async listByIds(ids) {
+    if (!ids?.length) return [];
+    return Staff.find({ _id: { $in: ids } }).select('fullName staffCode').lean();
+  },
+
   async findByIdWithPassword(id) {
     return Staff.findById(id);
   },
@@ -55,7 +60,7 @@ export const staffRepository = {
   },
 
   async list(filter = {}, options = {}) {
-    const { page = 1, limit = 20, sort = { createdAt: -1 } } = options;
+    const { page = 1, limit = 10, sort = { createdAt: -1 } } = options;
     const skip = (page - 1) * limit;
     const [list, total] = await Promise.all([
       Staff.find(filter).sort(sort).skip(skip).limit(limit).select('-passwordHash').lean(),

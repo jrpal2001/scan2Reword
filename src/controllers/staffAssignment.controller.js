@@ -49,7 +49,7 @@ export const getUnassignedList = asyncHandler(async (req, res) => {
   }
   const result = await staffAssignmentService.getUnassignedList(type, search, {
     page: page || 1,
-    limit: limit || 20,
+    limit: limit || 10,
     pumpId: type === 'manager' ? pumpId : undefined,
   });
   const label = type === 'staff' ? 'Unassigned staff' : 'Unassigned managers';
@@ -69,7 +69,7 @@ export const listAssignments = asyncHandler(async (req, res) => {
 
   const result = await staffAssignmentService.listAssignments(filter, {
     page: parseInt(page) || 1,
-    limit: parseInt(limit) || 20,
+    limit: parseInt(limit) || 10,
   });
 
   return res.sendPaginated(result, 'Assignments retrieved successfully', HTTP_STATUS.OK);

@@ -48,7 +48,7 @@ export const vehicleRepository = {
   },
 
   async list(filter = {}, options = {}) {
-    const { page = 1, limit = 20, sort = { createdAt: -1 } } = options;
+    const { page = 1, limit = 10, sort = { createdAt: -1 } } = options;
     const skip = (page - 1) * limit;
     const [list, total] = await Promise.all([
       Vehicle.find(filter).sort(sort).skip(skip).limit(limit).lean(),

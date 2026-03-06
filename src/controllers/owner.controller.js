@@ -10,11 +10,11 @@ import { HTTP_STATUS } from '../constants/errorCodes.js';
  * e.g. identifier=678 returns all owners whose mobile/fullName/loyaltyId contains "678". Paginated.
  */
 export const searchOwner = asyncHandler(async (req, res) => {
-  const { identifier, page = 1, limit = 20 } = req.validated;
+  const { identifier, page = 1, limit = 10 } = req.validated;
 
   const result = await ownerService.searchOwner(identifier, {
     page: parseInt(page, 10) || 1,
-    limit: parseInt(limit, 10) || 20,
+    limit: parseInt(limit, 10) || 10,
   });
 
   return res.sendPaginated(result, 'Owners found', HTTP_STATUS.OK);
@@ -63,7 +63,7 @@ export const addVehicle = asyncHandler(async (req, res) => {
  */
 export const getFleetVehicles = asyncHandler(async (req, res) => {
   const ownerId = req.user._id;
-  const { page = 1, limit = 20 } = req.query;
+  const { page = 1, limit = 10 } = req.query;
 
   const result = await ownerService.getFleetVehicles(ownerId, {
     page: parseInt(page),

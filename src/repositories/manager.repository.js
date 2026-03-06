@@ -10,6 +10,11 @@ export const managerRepository = {
     return Manager.findById(id).select('-passwordHash').lean();
   },
 
+  async listByIds(ids) {
+    if (!ids?.length) return [];
+    return Manager.find({ _id: { $in: ids } }).select('fullName managerCode').lean();
+  },
+
   async findByIdWithPassword(id) {
     return Manager.findById(id);
   },
@@ -51,7 +56,7 @@ export const managerRepository = {
   },
 
   async list(filter = {}, options = {}) {
-    const { page = 1, limit = 20, sort = { createdAt: -1 } } = options;
+    const { page = 1, limit = 10, sort = { createdAt: -1 } } = options;
     const skip = (page - 1) * limit;
     const [list, total] = await Promise.all([
       Manager.find(filter).sort(sort).skip(skip).limit(limit).select('-passwordHash').lean(),

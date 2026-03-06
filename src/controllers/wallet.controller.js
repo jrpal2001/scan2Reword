@@ -22,7 +22,7 @@ export const getWallet = asyncHandler(async (req, res) => {
     throw new ApiError(HTTP_STATUS.FORBIDDEN, 'Access denied to this wallet');
   }
 
-  const { page = 1, limit = 20 } = req.query;
+  const { page = 1, limit = 10 } = req.query;
   const result = await pointsService.getWallet(userId, {
     page: parseInt(page),
     limit: parseInt(limit),

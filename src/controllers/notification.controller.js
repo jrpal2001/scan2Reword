@@ -23,7 +23,7 @@ export const subscribeToken = asyncHandler(async (req, res) => {
  * Get notifications for authenticated user.
  */
 export const getMyNotifications = asyncHandler(async (req, res) => {
-  const { page = 1, limit = 20 } = req.query;
+  const { page = 1, limit = 10 } = req.query;
   const result = await notificationService.getMyNotifications(req.user._id, {
     page: parseInt(page),
     limit: parseInt(limit),

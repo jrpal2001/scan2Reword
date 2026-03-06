@@ -102,7 +102,7 @@ export const ownerService = {
    * @returns {Promise<Object>} List of fleet vehicles with vehicle details
    */
   async getFleetVehicles(ownerId, options = {}) {
-    const { page = 1, limit = 20 } = options;
+    const { page = 1, limit = 10 } = options;
     const result = await userRepository.list({ ownerId }, { page, limit });
     
     // Get vehicles for each driver

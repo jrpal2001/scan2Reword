@@ -1228,7 +1228,7 @@ export const userService = {
     }
     return await transactionRepository.list(filter, {
       page: Number(page) || 1,
-      limit: Number(limit) || 20,
+      limit: Number(limit) || 10,
       sort: { createdAt: -1 },
     });
   },

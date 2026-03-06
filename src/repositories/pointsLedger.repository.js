@@ -15,7 +15,7 @@ export const pointsLedgerRepository = {
 
   async findByUserId(userId, options = {}) {
     const filter = { userId, ownerType: options.ownerType || 'UserLoyalty' };
-    const { page = 1, limit = 20, sort = { createdAt: -1 } } = options;
+    const { page = 1, limit = 10, sort = { createdAt: -1 } } = options;
     const skip = (page - 1) * limit;
     const [list, total] = await Promise.all([
       PointsLedger.find(filter).sort(sort).skip(skip).limit(limit).lean(),
@@ -41,7 +41,7 @@ export const pointsLedgerRepository = {
   },
 
   async list(filter = {}, options = {}) {
-    const { page = 1, limit = 20, sort = { createdAt: -1 } } = options;
+    const { page = 1, limit = 10, sort = { createdAt: -1 } } = options;
     const skip = (page - 1) * limit;
     const [list, total] = await Promise.all([
       PointsLedger.find(filter).sort(sort).skip(skip).limit(limit).lean(),

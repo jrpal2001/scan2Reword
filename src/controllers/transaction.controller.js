@@ -67,7 +67,7 @@ export const listTransactions = asyncHandler(async (req, res) => {
     filter,
     {
       page: Number(page) || 1,
-      limit: Number(limit) || 20,
+      limit: Number(limit) || 10,
     },
     req.allowedPumpIds
   );
@@ -105,7 +105,7 @@ export const listTransactionsByPump = asyncHandler(async (req, res) => {
     filter,
     {
       page: Number(page) || 1,
-      limit: Number(limit) || 20,
+      limit: Number(limit) || 10,
     },
     req.allowedPumpIds
   );

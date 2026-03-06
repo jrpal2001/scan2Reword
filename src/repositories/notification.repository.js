@@ -14,7 +14,7 @@ export const notificationRepository = {
   },
 
   async findByUserId(userId, options = {}) {
-    const { page = 1, limit = 20, sort = { createdAt: -1 } } = options;
+    const { page = 1, limit = 10, sort = { createdAt: -1 } } = options;
     const skip = (page - 1) * limit;
     const [list, total] = await Promise.all([
       Notification.find({ users: userId }).sort(sort).skip(skip).limit(limit).lean(),
@@ -33,7 +33,7 @@ export const notificationRepository = {
   },
 
   async list(filter = {}, options = {}) {
-    const { page = 1, limit = 20, sort = { createdAt: -1 } } = options;
+    const { page = 1, limit = 10, sort = { createdAt: -1 } } = options;
     const skip = (page - 1) * limit;
     const [list, total] = await Promise.all([
       Notification.find(filter).sort(sort).skip(skip).limit(limit).lean(),

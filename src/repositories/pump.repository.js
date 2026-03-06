@@ -27,6 +27,11 @@ export const pumpRepository = {
     return Pump.findById(id).lean();
   },
 
+  async listByIds(ids) {
+    if (!ids?.length) return [];
+    return Pump.find({ _id: { $in: ids } }).select('name code').lean();
+  },
+
   async create(data) {
     // Ensure managerId is null if empty string
     const pumpData = {
@@ -76,12 +81,30 @@ export const pumpRepository = {
   },
 
   async list(filter = {}, options = {}) {
-    const { page = 1, limit = 20, sort = { createdAt: -1 } } = options;
+    const { page = 1, limit = 10, sort = { createdAt: -1 } } = options;
     const skip = (page - 1) * limit;
     const [list, total] = await Promise.all([
-      Pump.find(filter).sort(sort).skip(skip).limit(limit).lean(),
+      Pump.find(filter)
+        .populate('managerId', 'fullName profilePhoto managerCode')
+        .sort(sort)
+        .skip(skip)
+        .limit(limit)
+        .lean(),
       Pump.countDocuments(filter),
     ]);
-    return { list, total, page, limit, totalPages: Math.ceil(total / limit) };
+    // Attach manager details: { managerId, name, profilePhoto, managerCode }; keep managerId as id on pump
+    const listWithManager = list.map((pump) => {
+      const managerId = pump.managerId?._id ?? pump.managerId;
+      const manager = pump.managerId
+        ? {
+            managerId: pump.managerId._id,
+            name: pump.managerId.fullName,
+            profilePhoto: pump.managerId.profilePhoto ?? null,
+            managerCode: pump.managerId.managerCode ?? null,
+          }
+        : null;
+      return { ...pump, managerId, manager };
+    });
+    return { list: listWithManager, total, page, limit, totalPages: Math.ceil(total / limit) };
   },
 };

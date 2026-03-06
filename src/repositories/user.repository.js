@@ -57,7 +57,7 @@ export const userRepository = {
    * e.g. query "678" matches mobile 9876543678, 6789123456, etc.
    */
   async searchOwnersByQuery(queryString, options = {}) {
-    const { page = 1, limit = 20, sort = { createdAt: -1 } } = options;
+    const { page = 1, limit = 10, sort = { createdAt: -1 } } = options;
     if (!queryString || typeof queryString !== 'string' || !queryString.trim()) {
       return { list: [], total: 0, page, limit, totalPages: 0 };
     }
@@ -85,7 +85,7 @@ export const userRepository = {
   },
 
   async list(filter = {}, options = {}) {
-    const { page = 1, limit = 20, sort = { createdAt: -1 } } = options;
+    const { page = 1, limit = 10, sort = { createdAt: -1 } } = options;
     const skip = (page - 1) * limit;
     const [list, total] = await Promise.all([
       User.find(filter).sort(sort).skip(skip).limit(limit).select('-passwordHash').lean(),
