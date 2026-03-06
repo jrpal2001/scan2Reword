@@ -1,8 +1,10 @@
 import { redemptionRepository } from '../repositories/redemption.repository.js';
 import { rewardRepository } from '../repositories/reward.repository.js';
 import { pumpRepository } from '../repositories/pump.repository.js';
+import { userRepository } from '../repositories/user.repository.js';
 import { pointsService } from './points.service.js';
 import { scanService } from './scan.service.js';
+import { notificationService } from './notification.service.js';
 import ApiError from '../utils/ApiError.js';
 import { HTTP_STATUS } from '../constants/errorCodes.js';
 import { REDEMPTION_STATUS } from '../constants/status.js';
@@ -14,6 +16,28 @@ function generateRedemptionCode() {
   const prefix = 'RED';
   const randomDigits = Math.floor(10000000 + Math.random() * 90000000).toString();
   return `${prefix}${randomDigits}`;
+}
+
+/**
+ * Get user IDs to notify for a redemption: the user (redeemer) and, if they are a driver (organization), the owner.
+ */
+async function getRedemptionNotificationUserIds(userId) {
+  if (!userId) return [];
+  const user = await userRepository.findById(userId);
+  if (!user) return [userId];
+  const ids = [userId];
+  if (user.ownerId) ids.push(user.ownerId);
+  return [...new Set(ids.map((id) => String(id)))];
+}
+
+async function sendRedemptionNotification(redemption, title, body) {
+  try {
+    const userIds = await getRedemptionNotificationUserIds(redemption.userId);
+    if (userIds.length === 0) return;
+    await notificationService.sendToUsers(userIds, title, body);
+  } catch (err) {
+    console.warn('[Redemption] Notification failed:', err?.message);
+  }
 }
 
 export const redemptionService = {
@@ -85,6 +109,12 @@ export const redemptionService = {
     await rewardRepository.update(rewardId, {
       redeemedQuantity: (reward.redeemedQuantity || 0) + 1,
     });
+
+    await sendRedemptionNotification(
+      redemption,
+      'Points redeemed',
+      `You redeemed ${reward.pointsRequired} points successfully.`
+    );
 
     return redemption;
   },
@@ -175,6 +205,12 @@ export const redemptionService = {
       approvedBy: approverId,
     });
 
+    await sendRedemptionNotification(
+      updated,
+      'Redemption approved',
+      `Your redemption of ${updated.pointsUsed} points has been approved.`
+    );
+
     return updated;
   },
 
@@ -222,6 +258,13 @@ export const redemptionService = {
 
     const pump = pumpId ? await pumpRepository.findById(pumpId) : null;
     const pumpName = pump?.name || 'Petrol pump';
+
+    await sendRedemptionNotification(
+      redemption,
+      'Points redeemed',
+      `${pointsToDeduct} points were redeemed from your account.`
+    );
+
     return { redemption, pumpName };
   },
 

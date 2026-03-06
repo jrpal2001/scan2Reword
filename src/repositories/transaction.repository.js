@@ -31,4 +31,11 @@ export const transactionRepository = {
     const transaction = await Transaction.findByIdAndUpdate(id, { $set: data }, { new: true }).lean();
     return transaction;
   },
+
+  /** Get distinct user IDs who have made at least one transaction at any of the given pumps. */
+  async getDistinctUserIdsByPumpIds(pumpIds) {
+    if (!pumpIds?.length) return [];
+    const ids = await Transaction.distinct('userId', { pumpId: { $in: pumpIds } });
+    return ids;
+  },
 };

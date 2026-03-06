@@ -1,5 +1,8 @@
 import { campaignRepository } from '../repositories/campaign.repository.js';
 import { pumpRepository } from '../repositories/pump.repository.js';
+import { transactionRepository } from '../repositories/transaction.repository.js';
+import { userRepository } from '../repositories/user.repository.js';
+import { notificationService } from './notification.service.js';
 import ApiError from '../utils/ApiError.js';
 import { HTTP_STATUS } from '../constants/errorCodes.js';
 import { CAMPAIGN_STATUS } from '../constants/status.js';
@@ -46,7 +49,38 @@ export const campaignService = {
       status: data.status || CAMPAIGN_STATUS.DRAFT,
     });
 
+    // Notify users: all pumps → all customers; specific pumps → users who registered/transacted at those pumps
+    try {
+      await this._sendCampaignCreatedNotification(campaign);
+    } catch (err) {
+      console.warn('[Campaign] Notification after create failed:', err?.message);
+    }
+
     return campaign;
+  },
+
+  /**
+   * Send notification when a campaign is created.
+   * - All pumps (pumpIds empty): notify all active customers.
+   * - Specific pumps: notify users who have made a transaction at any of those pumps.
+   */
+  async _sendCampaignCreatedNotification(campaign) {
+    const pumpIds = campaign.pumpIds && campaign.pumpIds.length > 0 ? campaign.pumpIds : null;
+    let userIds = [];
+
+    if (!pumpIds || pumpIds.length === 0) {
+      userIds = await userRepository.getActiveCustomerIds();
+    } else {
+      userIds = await transactionRepository.getDistinctUserIdsByPumpIds(pumpIds);
+    }
+
+    if (!userIds || userIds.length === 0) {
+      return;
+    }
+
+    const title = 'New offer';
+    const body = `${campaign.name} is now live. Earn more points on your next visit!`;
+    await notificationService.sendToUsers(userIds, title, body);
   },
 
   async updateCampaign(campaignId, data, userId, userRole, allowedPumpIds = null) {

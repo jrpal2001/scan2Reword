@@ -94,6 +94,11 @@ export const userRepository = {
     return { list, total, page, limit, totalPages: Math.ceil(total / limit) };
   },
 
+  /** Get all active customer (UserLoyalty) IDs - e.g. for campaign "all pumps" notification. */
+  async getActiveCustomerIds() {
+    return User.distinct('_id', { status: 'active' });
+  },
+
   async delete(id) {
     const doc = await User.findByIdAndDelete(id);
     return !!doc;
