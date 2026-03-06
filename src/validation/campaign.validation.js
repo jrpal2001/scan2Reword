@@ -3,6 +3,7 @@ import { CAMPAIGN_STATUS } from '../constants/status.js';
 
 const conditionsSchema = Joi.object({
   minAmount: Joi.number().min(0).optional(),
+  minliters: Joi.number().min(0).optional(),
   categories: Joi.array().items(Joi.string().valid('Fuel', 'Lubricant', 'Store', 'Service')).optional(),
   userSegment: Joi.string().trim().allow('').optional(),
   frequencyLimit: Joi.number().integer().min(1).optional(),

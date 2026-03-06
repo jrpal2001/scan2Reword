@@ -39,6 +39,8 @@ export const campaignService = {
 
     const campaign = await campaignRepository.create({
       ...data,
+      // Default pumpIds to [] so "all pumps" is explicit; omit only for Admin when not sending pumpIds
+      pumpIds: data.pumpIds != null ? data.pumpIds : [],
       createdBy: userId,
       createdByRole: userRole,
       status: data.status || CAMPAIGN_STATUS.DRAFT,
@@ -133,13 +135,14 @@ export const campaignService = {
 
   /**
    * Find active campaigns for a transaction
-   * Used in transaction points calculation
+   * Used in transaction points calculation. Pass liters so minliters condition can be applied (e.g. Fuel).
    */
-  async findActiveCampaignsForTransaction(pumpId, category, amount) {
+  async findActiveCampaignsForTransaction(pumpId, category, amount, liters = null) {
     return campaignRepository.findActiveCampaigns({
       pumpId,
       category,
       amount,
+      liters,
     });
   },
 };

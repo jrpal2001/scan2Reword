@@ -63,34 +63,32 @@ export const transactionService = {
       }
     }
 
-    // Find active campaigns for this transaction
+    // Find active campaigns for this transaction (liters used for minliters condition, e.g. Fuel)
     const activeCampaigns = await campaignService.findActiveCampaignsForTransaction(
       pumpId,
       category,
-      amount
+      amount,
+      category === 'Fuel' ? liters : null
     );
 
     // Calculate base points (uses SystemConfig: points.fuel.pointsPerLiter, etc.)
     let basePoints = await pointsService.calculatePoints(category, amount, liters, 1);
     let finalPoints = basePoints;
-    let appliedCampaignId = null;
+    const appliedCampaignIds = [];
 
-    // Apply campaign (use first matching campaign)
-    if (activeCampaigns.length > 0) {
-      const campaign = activeCampaigns[0];
-      appliedCampaignId = campaign._id;
-
+    // Apply all matching campaigns in sequence (e.g. Admin 2x + Manager 1.5x => base * 2 * 1.5)
+    for (const campaign of activeCampaigns) {
+      appliedCampaignIds.push(campaign._id);
       if (campaign.type === 'multiplier') {
-        finalPoints = Math.floor(basePoints * campaign.multiplier);
+        finalPoints = Math.floor(finalPoints * campaign.multiplier);
       } else if (campaign.type === 'bonusPoints') {
-        finalPoints = basePoints + campaign.bonusPoints;
+        finalPoints = finalPoints + campaign.bonusPoints;
       } else if (campaign.type === 'bonusPercentage') {
-        const bonus = Math.floor((basePoints * campaign.bonusPercentage) / 100);
-        finalPoints = basePoints + bonus;
+        finalPoints = finalPoints + Math.floor((finalPoints * campaign.bonusPercentage) / 100);
       }
     }
 
-    const pointsEarned = finalPoints;
+    const pointsEarned = Math.max(0, finalPoints);
 
     // Create transaction
     const transaction = await transactionRepository.create({
@@ -104,7 +102,8 @@ export const transactionService = {
       billNumber: String(billNumber).trim(),
       paymentMode,
       pointsEarned,
-      campaignId: campaignId || appliedCampaignId || null,
+      campaignId: campaignId || appliedCampaignIds[0] || null,
+      campaignIds: appliedCampaignIds.length > 0 ? appliedCampaignIds : undefined,
       status: TRANSACTION_STATUS.COMPLETED,
       attachments: attachments || [],
     });

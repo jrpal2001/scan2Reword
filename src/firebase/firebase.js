@@ -13,7 +13,7 @@ try {
   
   try {
     // Try to import service account file
-    const serviceAccountModule = await import("./rehotra-d4d85-firebase-adminsdk-fbsvc-f3ea4e3a34.js");
+    const serviceAccountModule = await import("./my-reword-firebase-adminsdk-fbsvc-82c021b752.json.js");
     serviceAccount = serviceAccountModule.serviceAccount;
     
     // Check if service account is valid (has required fields)
@@ -42,7 +42,7 @@ try {
     }
   } else {
     console.warn('[Firebase] Service account not found or invalid. Firebase features (push notifications) will be disabled.');
-    console.warn('[Firebase] To enable: Add valid Firebase service account JSON file at src/firebase/rehotra-d4d85-firebase-adminsdk-fbsvc-f3ea4e3a34.js');
+    console.warn('[Firebase] To enable: Set FIREBASE_PROJECT_ID, FIREBASE_PRIVATE_KEY, FIREBASE_CLIENT_EMAIL in .env');
     console.warn('[Firebase] The service account object must contain: project_id, private_key, client_email');
   }
 } catch (error) {

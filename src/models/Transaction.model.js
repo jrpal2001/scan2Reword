@@ -21,7 +21,8 @@ const transactionSchema = new mongoose.Schema(
       default: 'Other',
     },
     pointsEarned: { type: Number, default: 0, min: 0 },
-    campaignId: { type: mongoose.Schema.Types.ObjectId, ref: 'Campaign', default: null },
+    campaignId: { type: mongoose.Schema.Types.ObjectId, ref: 'Campaign', default: null }, // First applied campaign (backward compat)
+    campaignIds: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Campaign' }], // All campaigns applied (stacked)
     status: {
       type: String,
       enum: Object.values(TRANSACTION_STATUS),

@@ -6,7 +6,7 @@ import Campaign from '../models/Campaign.model.js';
 export const campaignRepository = {
   async create(data) {
     const campaign = await Campaign.create(data);
-    return campaign;
+    return campaign.toObject ? campaign.toObject() : campaign;
   },
 
   async findById(id) {
@@ -35,12 +35,12 @@ export const campaignRepository = {
 
   /**
    * Find active campaigns matching criteria
-   * @param {Object} criteria - { pumpId?, category?, amount?, userId? }
+   * @param {Object} criteria - { pumpId?, category?, amount?, liters?, userId? }
    * @returns {Array} Active campaigns
    */
   async findActiveCampaigns(criteria = {}) {
     const now = new Date();
-    const { pumpId, category, amount, userId } = criteria;
+    const { pumpId, category, amount, liters, userId } = criteria;
 
     const filter = {
       status: 'active',
@@ -59,12 +59,19 @@ export const campaignRepository = {
     const campaigns = await Campaign.find(filter).lean();
 
     // Filter by conditions
-    return campaigns.filter((campaign) => {
+    const filtered = campaigns.filter((campaign) => {
       const { conditions } = campaign;
 
       // Check min amount
-      if (conditions.minAmount && amount && amount < conditions.minAmount) {
+      if (conditions.minAmount && amount != null && amount < conditions.minAmount) {
         return false;
+      }
+
+      // Check min liters (for Fuel): campaign applies only if user buys at least minliters
+      if (conditions.minliters != null && conditions.minliters > 0) {
+        if (liters == null || liters < conditions.minliters) {
+          return false;
+        }
       }
 
       // Check category
@@ -78,5 +85,7 @@ export const campaignRepository = {
 
       return true;
     });
+
+    return filtered;
   },
 };
