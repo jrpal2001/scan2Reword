@@ -113,6 +113,69 @@ export async function getReviewStats(validated, allowedPumpIds = null) {
 }
 
 /**
+ * Fleet review statistics for a fleet owner: transactions (and redemptions) of owner + all their drivers.
+ * Same filters as getReviewStats (startDate, endDate, month, year, startTime, endTime, pumpId?, userId?).
+ * userId when provided must be in the owner's fleet (owner or one of their drivers).
+ * @param {Object} validated - Validated query params
+ * @param {string} ownerId - Fleet owner's user _id
+ */
+export async function getFleetReviewStats(validated, ownerId) {
+  const fleetUserIds = await userRepository.getFleetUserIds(ownerId);
+  const fleetObjectIds = fleetUserIds.map((id) => toObjectId(id));
+
+  const withDefault = applyDefaultCurrentMonth(validated || {});
+  const createdAt = buildCreatedAtFilter(withDefault);
+  const filter = {};
+  if (createdAt) {
+    if (createdAt.$and) {
+      filter.$and = [...createdAt.$and];
+    } else if (createdAt.createdAt) {
+      filter.createdAt = createdAt.createdAt;
+    }
+  }
+  if (withDefault?.userId) {
+    const requestedStr = String(withDefault.userId);
+    if (!fleetUserIds.includes(requestedStr)) {
+      return {
+        list: [],
+        totalAmount: 0,
+        totalLiters: 0,
+        totalPointsGenerated: 0,
+        totalPointsRedeemed: 0,
+        totalPointsGeneratedByStaffManager: 0,
+        totalPointsRedeemedByStaffManager: 0,
+      };
+    }
+    filter.userId = toObjectId(withDefault.userId);
+  } else {
+    filter.userId = { $in: fleetObjectIds };
+  }
+  if (withDefault?.pumpId) filter.pumpId = toObjectId(withDefault.pumpId);
+
+  const baseFilter = filter;
+  const [txAgg, redemptionAgg, txListResult] = await Promise.all([
+    getTransactionAggregates(baseFilter),
+    getRedemptionAggregates(baseFilter),
+    transactionService.listTransactions(
+      baseFilter,
+      { page: 1, limit: STATS_LIST_LIMIT, sort: { createdAt: -1 } },
+      null
+    ),
+  ]);
+  const list = txListResult?.list ?? [];
+
+  return {
+    list,
+    totalAmount: txAgg.totalAmount ?? 0,
+    totalLiters: txAgg.totalLiters ?? 0,
+    totalPointsGenerated: txAgg.totalPointsGenerated ?? 0,
+    totalPointsRedeemed: redemptionAgg.totalPointsRedeemed ?? 0,
+    totalPointsGeneratedByStaffManager: 0,
+    totalPointsRedeemedByStaffManager: 0,
+  };
+}
+
+/**
  * Get user registrations: list + totalRegistrations + byPeriod + referral earned statistics.
  * When no date filter is provided, uses current month (IST).
  * referrerIds: when set (manager), only referral points earned by these referrers (Manager + their Staff) are counted.

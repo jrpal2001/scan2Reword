@@ -3,8 +3,10 @@ import { ApiResponse } from '../utils/ApiResponse.js';
 import { addISTToList } from '../utils/dateUtils.js';
 import { HTTP_STATUS } from '../constants/errorCodes.js';
 import { ROLES } from '../constants/roles.js';
+import { USER_TYPES } from '../models/User.model.js';
 import * as statsService from '../services/stats.service.js';
 import { staffAssignmentRepository } from '../repositories/staffAssignment.repository.js';
+import ApiError from '../utils/ApiError.js';
 
 /**
  * GET /api/admin/stats/review
@@ -27,6 +29,33 @@ export const getReviewStats = asyncHandler(async (req, res) => {
   };
   return res.status(HTTP_STATUS.OK).json(
     ApiResponse.success(data, 'Review statistics retrieved')
+  );
+});
+
+/**
+ * GET /api/owner/stats/review
+ * Fleet owner only. Same query as admin review: startDate?, endDate?, month?, year?, startTime?, endTime?, pumpId?, userId?
+ * Returns stats for owner + all their drivers (fleet). Optional userId filters to that driver if they belong to the fleet.
+ */
+export const getFleetReviewStats = asyncHandler(async (req, res) => {
+  if (req.user?.userType !== USER_TYPES.OWNER) {
+    throw new ApiError(HTTP_STATUS.FORBIDDEN, 'Fleet statistics are only available for fleet owners');
+  }
+  const validated = req.validated || req.query;
+  const stats = await statsService.getFleetReviewStats(validated, req.user._id);
+  const listWithIST = addISTToList(stats.list || []);
+  const listWithoutAttachments = listWithIST.map(({ attachments, ...rest }) => rest);
+  const data = {
+    list: listWithoutAttachments,
+    totalAmount: stats.totalAmount,
+    totalLiters: stats.totalLiters,
+    totalPointsGenerated: stats.totalPointsGenerated,
+    totalPointsRedeemed: stats.totalPointsRedeemed,
+    totalPointsGeneratedByStaffManager: stats.totalPointsGeneratedByStaffManager,
+    totalPointsRedeemedByStaffManager: stats.totalPointsRedeemedByStaffManager,
+  };
+  return res.status(HTTP_STATUS.OK).json(
+    ApiResponse.success(data, 'Fleet review statistics retrieved')
   );
 });
 

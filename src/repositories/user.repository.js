@@ -99,6 +99,18 @@ export const userRepository = {
     return User.distinct('_id', { status: 'active' });
   },
 
+  /**
+   * Get fleet member IDs for a fleet owner: owner + all drivers (users with ownerId = ownerId).
+   * @param {string|import('mongoose').Types.ObjectId} ownerId
+   * @returns {Promise<string[]>} Array of user IDs (owner + drivers)
+   */
+  async getFleetUserIds(ownerId) {
+    const id = typeof ownerId === 'string' ? new mongoose.Types.ObjectId(ownerId) : ownerId;
+    const driverIds = await User.find({ ownerId: id, status: 'active' }).select('_id').lean();
+    const ids = [id.toString(), ...driverIds.map((d) => d._id.toString())];
+    return ids;
+  },
+
   async delete(id) {
     const doc = await User.findByIdAndDelete(id);
     return !!doc;

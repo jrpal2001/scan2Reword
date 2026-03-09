@@ -1,10 +1,12 @@
 import { Router } from 'express';
 import * as ownerController from '../controllers/owner.controller.js';
 import * as dashboardController from '../controllers/dashboard.controller.js';
+import * as statsController from '../controllers/stats.controller.js';
 import { verifyJWT } from '../middlewares/auth.middleware.js';
 import { requireRoles } from '../middlewares/rbac.middleware.js';
 import { validateRequest } from '../middlewares/validateRequest.js';
 import { ownerValidation } from '../validation/owner.validation.js';
+import { statsValidation } from '../validation/stats.validation.js';
 import { uploadToS3 } from '../middlewares/uploadToS3.js';
 import { parseBodyJson } from '../middlewares/parseBodyJson.js';
 import { upload, userUploadFields } from '../utils/multerConfig.js';
@@ -18,6 +20,15 @@ router.get(
   verifyJWT,
   requireRoles([ROLES.USER]),
   dashboardController.getFleetAggregation
+);
+
+// Fleet review statistics (owner + drivers). Same query as admin review: startDate?, endDate?, month?, year?, startTime?, endTime?, pumpId?, userId?
+router.get(
+  '/stats/review',
+  verifyJWT,
+  requireRoles([ROLES.USER]),
+  validateRequest(statsValidation.review, 'query'),
+  statsController.getFleetReviewStats
 );
 
 // Search owner (public endpoint for registration flow)
