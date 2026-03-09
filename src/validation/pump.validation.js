@@ -23,7 +23,17 @@ const locationSchema = Joi.object({
   lng: coerceNumber(-180, 180),
 });
 
+/** Optional lat/lng for public pump list (query params). */
+const optionalLat = Joi.number().min(-90).max(90).optional();
+const optionalLng = Joi.number().min(-180).max(180).optional();
+
 export const pumpValidation = {
+  /** Public list: optional lat, lng (query). */
+  publicList: Joi.object({
+    lat: optionalLat,
+    lng: optionalLng,
+  }),
+
   create: Joi.object({
     name: Joi.string().trim().min(2).max(100).required(),
     code: Joi.string().trim().min(2).max(20).uppercase().optional(), // Auto-generated if omitted (PREFIX + padded number)

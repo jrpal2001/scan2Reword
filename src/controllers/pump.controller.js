@@ -96,3 +96,17 @@ export const listPumps = asyncHandler(async (req, res) => {
   });
   return res.sendPaginated(result, 'Pumps retrieved', HTTP_STATUS.OK);
 });
+
+/**
+ * GET /api/pumps (public, no auth)
+ * Query: lat?, lng? (optional). When provided, each pump includes distanceKm and list is sorted by distance.
+ */
+export const getPublicPumpList = asyncHandler(async (req, res) => {
+  const validated = req.validated || req.query;
+  const lat = validated.lat != null ? Number(validated.lat) : null;
+  const lng = validated.lng != null ? Number(validated.lng) : null;
+  const result = await pumpService.getPublicPumpList(lat, lng);
+  return res.status(HTTP_STATUS.OK).json(
+    ApiResponse.success(result, 'Pumps retrieved')
+  );
+});

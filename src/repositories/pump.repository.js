@@ -80,6 +80,17 @@ export const pumpRepository = {
     return pumps;
   },
 
+  /**
+   * List all active pumps for public API (no auth). Returns id, name, code, location, status, pumpImages.
+   * Used with optional lat/lng to compute distance.
+   */
+  async listActiveForPublic(limit = 500) {
+    return Pump.find({ status: 'active' })
+      .select('name code location status pumpImages')
+      .limit(limit)
+      .lean();
+  },
+
   async list(filter = {}, options = {}) {
     const { page = 1, limit = 10, sort = { createdAt: -1 } } = options;
     const skip = (page - 1) * limit;
