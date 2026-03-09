@@ -12,6 +12,7 @@ export const bannerValidation = {
     status: Joi.string().valid('active', 'expired').default('active'),
   }),
 
+  // Empty object allowed when only updating image (file upload); controller merges req.s3Uploads.imageUrl
   update: Joi.object({
     title: Joi.string().trim().min(2).max(200).optional(),
     description: Joi.string().trim().allow('').optional(),
@@ -21,5 +22,5 @@ export const bannerValidation = {
     endTime: Joi.date().optional(),
     pumpIds: Joi.array().items(Joi.string().hex().length(24)).optional(),
     status: Joi.string().valid('active', 'expired').optional(),
-  }).min(1),
+  }),
 };

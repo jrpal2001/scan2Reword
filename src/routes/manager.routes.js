@@ -7,6 +7,7 @@ import * as campaignController from '../controllers/campaign.controller.js';
 import * as bannerController from '../controllers/banner.controller.js';
 import * as redemptionController from '../controllers/redemption.controller.js';
 import * as transactionController from '../controllers/transaction.controller.js';
+import * as statsController from '../controllers/stats.controller.js';
 import { verifyJWT } from '../middlewares/auth.middleware.js';
 import { requireRoles, attachPumpScope } from '../middlewares/rbac.middleware.js';
 import { validateRequest } from '../middlewares/validateRequest.js';
@@ -16,10 +17,12 @@ import { campaignValidation } from '../validation/campaign.validation.js';
 import { bannerValidation } from '../validation/banner.validation.js';
 import { redemptionValidation } from '../validation/redemption.validation.js';
 import { transactionValidation } from '../validation/transaction.validation.js';
+import { statsValidation } from '../validation/stats.validation.js';
 import { ROLES } from '../constants/roles.js';
 import { uploadToS3 } from '../middlewares/uploadToS3.js';
 import { parseBodyJson } from '../middlewares/parseBodyJson.js';
-import { upload, userUploadFields, profileUpdateFields } from '../utils/multerConfig.js';
+import { normalizeFormBody } from '../middlewares/normalizeFormBody.js';
+import { upload, userUploadFields, profileUpdateFields, bannerUploadFields } from '../utils/multerConfig.js';
 
 const router = Router();
 
@@ -135,12 +138,16 @@ router.delete(
   campaignController.deleteCampaign
 );
 
-// Banners CRUD (pump-scoped)
+// Banners CRUD (pump-scoped; form-data: imageUrl = file upload to S3)
 router.post(
   '/banners',
   verifyJWT,
   requireRoles([ROLES.MANAGER]),
   attachPumpScope,
+  upload.fields(bannerUploadFields),
+  parseBodyJson,
+  normalizeFormBody,
+  uploadToS3('banners'),
   validateRequest(bannerValidation.create),
   bannerController.createBanner
 );
@@ -166,6 +173,10 @@ router.patch(
   verifyJWT,
   requireRoles([ROLES.MANAGER]),
   attachPumpScope,
+  upload.fields(bannerUploadFields),
+  parseBodyJson,
+  normalizeFormBody,
+  uploadToS3('banners'),
   validateRequest(bannerValidation.update),
   bannerController.updateBanner
 );
@@ -203,6 +214,26 @@ router.post(
   attachPumpScope,
   validateRequest(redemptionValidation.reject),
   redemptionController.rejectRedemption
+);
+
+// Review statistics (no pagination). Scoped to manager's pumps. Filters: startDate, endDate, month, year, startTime, endTime, pumpId?, userId?
+router.get(
+  '/stats/review',
+  verifyJWT,
+  requireRoles([ROLES.MANAGER]),
+  attachPumpScope,
+  validateRequest(statsValidation.review, 'query'),
+  statsController.getReviewStats
+);
+
+// User registration graph (users registered at manager's pumps). Query: startDate?, endDate?, month?, year?, groupBy?
+router.get(
+  '/stats/user-registrations',
+  verifyJWT,
+  requireRoles([ROLES.MANAGER]),
+  attachPumpScope,
+  validateRequest(statsValidation.userRegistrationGraph, 'query'),
+  statsController.getUserRegistrationGraph
 );
 
 // Transactions (list for manager's pump(s))

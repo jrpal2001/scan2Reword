@@ -60,6 +60,15 @@ export const staffAssignmentRepository = {
     return docs;
   },
 
+  /** Get distinct staff IDs assigned to any of the given pump IDs (active assignments). */
+  async getStaffIdsByPumpIds(pumpIds) {
+    if (!pumpIds?.length) return [];
+    return StaffAssignment.distinct('staffId', {
+      pumpId: { $in: pumpIds },
+      status: 'active',
+    });
+  },
+
   async list(filter = {}, options = {}) {
     const { page = 1, limit = 10, sort = { createdAt: -1 } } = options;
     const skip = (page - 1) * limit;

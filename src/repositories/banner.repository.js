@@ -6,7 +6,7 @@ import Banner from '../models/Banner.model.js';
 export const bannerRepository = {
   async create(data) {
     const banner = await Banner.create(data);
-    return banner;
+    return banner.toObject ? banner.toObject() : banner;
   },
 
   async findById(id) {

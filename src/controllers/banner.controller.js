@@ -19,13 +19,18 @@ export const getActiveBanners = asyncHandler(async (req, res) => {
 
 /**
  * POST /api/admin/banners or POST /api/manager/banners
- * Body: req.validated (banner data)
+ * Body: form-data or JSON. Fields: title, description?, imageUrl? (file or URL), linkUrl?, startTime, endTime, pumpIds?, status?
+ * If imageUrl is sent as a file, it is uploaded to S3 (banners/) and the URL is used.
  * Admin/Manager only.
  */
 export const createBanner = asyncHandler(async (req, res) => {
+  const data = { ...req.validated };
+  const uploadedUrl = req.s3Uploads?.imageUrl?.[0];
+  if (uploadedUrl) data.imageUrl = uploadedUrl;
+
   const role = (req.userType || req.user?.role || '').toLowerCase();
   const banner = await bannerService.createBanner(
-    req.validated,
+    data,
     req.user._id,
     role,
     req.allowedPumpIds
@@ -36,16 +41,20 @@ export const createBanner = asyncHandler(async (req, res) => {
 });
 
 /**
- * PUT /api/admin/banners/:bannerId or PUT /api/manager/banners/:bannerId
- * Body: req.validated (partial banner data)
+ * PATCH /api/admin/banners/:bannerId or PATCH /api/manager/banners/:bannerId
+ * Body: form-data or JSON (partial). imageUrl can be file (uploaded to S3) or URL string.
  * Admin/Manager only.
  */
 export const updateBanner = asyncHandler(async (req, res) => {
   const { bannerId } = req.params;
+  const data = { ...req.validated };
+  const uploadedUrl = req.s3Uploads?.imageUrl?.[0];
+  if (uploadedUrl) data.imageUrl = uploadedUrl;
+
   const role = (req.userType || req.user?.role || '').toLowerCase();
   const banner = await bannerService.updateBanner(
     bannerId,
-    req.validated,
+    data,
     req.user._id,
     role,
     req.allowedPumpIds

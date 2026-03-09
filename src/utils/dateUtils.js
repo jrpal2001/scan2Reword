@@ -175,3 +175,24 @@ export function buildCreatedAtFilter(validated) {
 
   return createdAtClause || undefined;
 }
+
+/** IST offset in milliseconds (UTC+5:30). */
+const IST_OFFSET_MS = (5 * 60 + 30) * 60 * 1000;
+
+/**
+ * Get start and end of current month in IST, as UTC Date objects (for MongoDB createdAt filter).
+ * @returns {{ start: Date, end: Date }}
+ */
+export function getCurrentMonthRangeIST() {
+  const now = new Date();
+  const ist = new Date(now.getTime() + IST_OFFSET_MS);
+  const year = ist.getUTCFullYear();
+  const month = ist.getUTCMonth(); // 0–11
+  // Start of month in IST: year, month, 1, 0, 0, 0 → convert to UTC
+  const startIST = new Date(Date.UTC(year, month, 1, 0, 0, 0, 0));
+  const start = new Date(startIST.getTime() - IST_OFFSET_MS);
+  // End of month in IST: last day 23:59:59.999
+  const lastDay = new Date(Date.UTC(year, month + 1, 0, 23, 59, 59, 999));
+  const end = new Date(lastDay.getTime() - IST_OFFSET_MS);
+  return { start, end };
+}

@@ -42,5 +42,8 @@ export const transactionUploadFields = [{ name: 'attachments', maxCount: 5 }];
 /** Pump images (multiple) */
 export const pumpUploadFields = [{ name: 'pumpImages', maxCount: 10 }];
 
+/** Banner image (single) – uploads to S3, stored as imageUrl */
+export const bannerUploadFields = [{ name: 'imageUrl', maxCount: 1 }];
+
 /** Profile avatar only (PATCH /api/user/profile) */
 export const profileUpdateFields = [{ name: 'profilePhoto', maxCount: 1 }];

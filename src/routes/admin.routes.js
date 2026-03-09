@@ -10,6 +10,7 @@ import * as rewardController from '../controllers/reward.controller.js';
 import * as systemConfigController from '../controllers/systemConfig.controller.js';
 import * as staffAssignmentController from '../controllers/staffAssignment.controller.js';
 import * as redemptionController from '../controllers/redemption.controller.js';
+import * as statsController from '../controllers/stats.controller.js';
 import { verifyJWT } from '../middlewares/auth.middleware.js';
 import { requireRoles, attachPumpScope, requirePumpAccess } from '../middlewares/rbac.middleware.js';
 import { validateRequest } from '../middlewares/validateRequest.js';
@@ -23,10 +24,12 @@ import { rewardValidation } from '../validation/reward.validation.js';
 import { systemConfigValidation } from '../validation/systemConfig.validation.js';
 import { staffAssignmentValidation } from '../validation/staffAssignment.validation.js';
 import { redemptionValidation } from '../validation/redemption.validation.js';
+import { statsValidation } from '../validation/stats.validation.js';
 import { ROLES } from '../constants/roles.js';
 import { uploadToS3 } from '../middlewares/uploadToS3.js';
 import { parseBodyJson } from '../middlewares/parseBodyJson.js';
-import { upload, userUploadFields, pumpUploadFields } from '../utils/multerConfig.js';
+import { normalizeFormBody } from '../middlewares/normalizeFormBody.js';
+import { upload, userUploadFields, pumpUploadFields, bannerUploadFields } from '../utils/multerConfig.js';
 
 const router = Router();
 
@@ -50,6 +53,26 @@ router.get(
   verifyJWT,
   requireRoles([ROLES.ADMIN]),
   dashboardController.getAdminDashboard
+);
+
+// Review statistics (no pagination, no attachments). Filters: startDate, endDate, month, year, startTime, endTime, pumpId?, userId?
+router.get(
+  '/stats/review',
+  verifyJWT,
+  requireRoles([ROLES.ADMIN]),
+  attachPumpScope,
+  validateRequest(statsValidation.review, 'query'),
+  statsController.getReviewStats
+);
+
+// User registration graph. Query: startDate?, endDate?, month?, year?, groupBy? ('day' | 'month')
+router.get(
+  '/stats/user-registrations',
+  verifyJWT,
+  requireRoles([ROLES.ADMIN]),
+  attachPumpScope,
+  validateRequest(statsValidation.userRegistrationGraph, 'query'),
+  statsController.getUserRegistrationGraph
 );
 
 // Users: one multer per route, allowed fields from multerConfig
@@ -193,11 +216,15 @@ router.delete(
   campaignController.deleteCampaign
 );
 
-// Banners CRUD
+// Banners CRUD (form-data: imageUrl = file upload to S3; other fields in body or JSON string)
 router.post(
   '/banners',
   verifyJWT,
   requireRoles([ROLES.ADMIN]),
+  upload.fields(bannerUploadFields),
+  parseBodyJson,
+  normalizeFormBody,
+  uploadToS3('banners'),
   validateRequest(bannerValidation.create),
   bannerController.createBanner
 );
@@ -220,6 +247,10 @@ router.patch(
   '/banners/:bannerId',
   verifyJWT,
   requireRoles([ROLES.ADMIN]),
+  upload.fields(bannerUploadFields),
+  parseBodyJson,
+  normalizeFormBody,
+  uploadToS3('banners'),
   validateRequest(bannerValidation.update),
   bannerController.updateBanner
 );
