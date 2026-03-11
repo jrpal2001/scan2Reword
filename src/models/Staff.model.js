@@ -1,5 +1,7 @@
 import mongoose from 'mongoose';
+import bcrypt from 'bcrypt';
 import { USER_STATUS } from '../constants/status.js';
+import { encryptPassword } from '../utils/passwordEncrypt.js';
 
 const staffSchema = new mongoose.Schema(
   {
@@ -7,6 +9,10 @@ const staffSchema = new mongoose.Schema(
     mobile: { type: String, required: true, trim: true, match: /^[6-9]\d{9}$/, unique: true },
     email: { type: String, trim: true, lowercase: true, sparse: true },
     passwordHash: { type: String, required: false, default: null },
+    /** Encrypted (reversible) copy of password so admin can view; set via pre-save when `password` is set. */
+    passwordEncrypted: { type: String, default: null, select: false },
+    /** Temporary: set before save to trigger hash + encrypt; cleared in pre-save (not persisted as plain). */
+    password: { type: String, default: null, select: false },
     staffCode: { type: String, trim: true, sparse: true, unique: true },
     referralCode: { type: String, sparse: true, unique: true },
     walletSummary: {
@@ -33,6 +39,15 @@ const staffSchema = new mongoose.Schema(
 
 staffSchema.index({ assignedManagerId: 1 });
 staffSchema.index({ status: 1 });
+
+staffSchema.pre('save', async function () {
+  if (this.password != null && String(this.password).trim() !== '') {
+    const plain = String(this.password).trim();
+    this.passwordHash = await bcrypt.hash(plain, 10);
+    this.passwordEncrypted = encryptPassword(plain);
+  }
+  this.password = null;
+});
 
 const Staff = mongoose.models.Staff || mongoose.model('Staff', staffSchema);
 export default Staff;

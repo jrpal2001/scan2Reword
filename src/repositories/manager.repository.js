@@ -16,7 +16,7 @@ export const managerRepository = {
   },
 
   async findByIdWithPassword(id) {
-    return Manager.findById(id);
+    return Manager.findById(id).select('+passwordEncrypted');
   },
 
   async findByMobile(mobile) {

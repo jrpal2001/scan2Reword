@@ -424,8 +424,9 @@ export const userService = {
     }
 
     let passwordHash = null;
-    if (userData.password) {
-      passwordHash = await authService.hashPassword(userData.password);
+    const plainPassword = userData.password || null;
+    if (plainPassword && ![ROLES.MANAGER, ROLES.STAFF].includes(role)) {
+      passwordHash = await authService.hashPassword(plainPassword);
     }
 
     let referralCode = userData.referralCode || null;
@@ -470,7 +471,7 @@ export const userService = {
         fullName: userData.fullName,
         mobile: userData.mobile,
         email: userData.email || null,
-        passwordHash: passwordHash || null,
+        password: plainPassword || undefined,
         managerCode,
         referralCode,
         walletSummary: { totalEarned: 0, availablePoints: 0, redeemedPoints: 0, expiredPoints: 0 },
@@ -493,7 +494,7 @@ export const userService = {
         fullName: userData.fullName,
         mobile: userData.mobile,
         email: userData.email || null,
-        passwordHash: passwordHash || null,
+        password: plainPassword || undefined,
         staffCode,
         referralCode,
         assignedManagerId: userData.assignedManagerId || null,
@@ -709,8 +710,9 @@ export const userService = {
     }
 
     let passwordHash = null;
-    if (userData.password) {
-      passwordHash = await authService.hashPassword(userData.password);
+    const plainPasswordOperator = userData.password || null;
+    if (plainPasswordOperator && userRole !== ROLES.STAFF) {
+      passwordHash = await authService.hashPassword(plainPasswordOperator);
     }
 
     let referralCode = userData.referralCode || null;
@@ -755,7 +757,7 @@ export const userService = {
         fullName: userData.fullName,
         mobile: userData.mobile,
         email: userData.email || null,
-        passwordHash: passwordHash || null,
+        password: plainPasswordOperator || undefined,
         staffCode,
         referralCode,
         assignedManagerId: finalAssignedManagerId,

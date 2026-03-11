@@ -125,6 +125,34 @@ router.delete(
   adminController.deleteUser
 );
 
+// Managers (list + get by ID; no password in response)
+router.get(
+  '/managers',
+  verifyJWT,
+  requireRoles([ROLES.ADMIN]),
+  adminController.listManagers
+);
+router.get(
+  '/managers/:managerId',
+  verifyJWT,
+  requireRoles([ROLES.ADMIN]),
+  adminController.getManagerById
+);
+
+// Staff (list + get by ID; no password in response)
+router.get(
+  '/staff',
+  verifyJWT,
+  requireRoles([ROLES.ADMIN]),
+  adminController.listStaff
+);
+router.get(
+  '/staff/:staffId',
+  verifyJWT,
+  requireRoles([ROLES.ADMIN]),
+  adminController.getStaffById
+);
+
 // Pumps CRUD (create/update support multipart with pumpImages)
 router.post(
   '/pumps',

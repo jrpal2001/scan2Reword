@@ -16,7 +16,7 @@ export const staffRepository = {
   },
 
   async findByIdWithPassword(id) {
-    return Staff.findById(id);
+    return Staff.findById(id).select('+passwordEncrypted');
   },
 
   async findByMobile(mobile) {

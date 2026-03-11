@@ -539,15 +539,16 @@ export const authService = {
     if (userType !== 'Manager' && userType !== 'Staff') {
       throw new ApiError(HTTP_STATUS.FORBIDDEN, 'Only Manager or Staff can set password via this endpoint', null, ERROR_CODES.FORBIDDEN);
     }
-    const passwordHash = await this.hashPassword(newPassword);
     if (userType === 'Manager') {
       const manager = await managerRepository.findByIdWithPassword(userId);
       if (!manager) throw new ApiError(HTTP_STATUS.NOT_FOUND, 'Manager not found', null, ERROR_CODES.NOT_FOUND);
-      await managerRepository.update(userId, { passwordHash });
+      manager.password = newPassword;
+      await manager.save();
     } else {
       const staff = await staffRepository.findByIdWithPassword(userId);
       if (!staff) throw new ApiError(HTTP_STATUS.NOT_FOUND, 'Staff not found', null, ERROR_CODES.NOT_FOUND);
-      await staffRepository.update(userId, { passwordHash });
+      staff.password = newPassword;
+      await staff.save();
     }
     return { message: 'Password set successfully' };
   },
@@ -571,15 +572,15 @@ export const authService = {
     if (normalizedType === 'manager') {
       const manager = await managerRepository.findByIdWithPassword(userId);
       if (!manager) throw new ApiError(HTTP_STATUS.NOT_FOUND, 'Manager not found', null, ERROR_CODES.NOT_FOUND);
-      const passwordHash = await this.hashPassword(newPassword);
-      await managerRepository.update(userId, { passwordHash });
+      manager.password = newPassword;
+      await manager.save();
       return { message: 'Password changed successfully' };
     }
     if (normalizedType === 'staff') {
       const staff = await staffRepository.findByIdWithPassword(userId);
       if (!staff) throw new ApiError(HTTP_STATUS.NOT_FOUND, 'Staff not found', null, ERROR_CODES.NOT_FOUND);
-      const passwordHash = await this.hashPassword(newPassword);
-      await staffRepository.update(userId, { passwordHash });
+      staff.password = newPassword;
+      await staff.save();
       return { message: 'Password changed successfully' };
     }
     if (normalizedType === 'user') {
@@ -636,12 +637,12 @@ export const authService = {
       if (!match) {
         throw new ApiError(HTTP_STATUS.UNAUTHORIZED, 'Invalid identifier or password', null, ERROR_CODES.INVALID_CREDENTIALS);
       }
-      const passwordHash = await this.hashPassword(newPassword);
-      if (ownerType === 'Manager') {
-        await managerRepository.update(entity._id, { passwordHash });
-      } else {
-        await staffRepository.update(entity._id, { passwordHash });
-      }
+      const doc = ownerType === 'Manager'
+        ? await managerRepository.findByIdWithPassword(entity._id)
+        : await staffRepository.findByIdWithPassword(entity._id);
+      if (!doc) throw new ApiError(HTTP_STATUS.NOT_FOUND, 'Account not found', null, ERROR_CODES.NOT_FOUND);
+      doc.password = newPassword;
+      await doc.save();
       return { message: 'Password changed successfully' };
     }
 
@@ -662,16 +663,16 @@ export const authService = {
         await userRepository.update(user._id, { passwordHash });
         return { message: 'Password changed successfully' };
       }
-      let manager = await Manager.findOne({ mobile: trimmed });
+      let manager = await Manager.findOne({ mobile: trimmed }).select('+passwordEncrypted');
       if (manager) {
-        const passwordHash = await this.hashPassword(newPassword);
-        await managerRepository.update(manager._id, { passwordHash });
+        manager.password = newPassword;
+        await manager.save();
         return { message: 'Password changed successfully' };
       }
-      const staff = await Staff.findOne({ mobile: trimmed });
+      const staff = await Staff.findOne({ mobile: trimmed }).select('+passwordEncrypted');
       if (staff) {
-        const passwordHash = await this.hashPassword(newPassword);
-        await staffRepository.update(staff._id, { passwordHash });
+        staff.password = newPassword;
+        await staff.save();
         return { message: 'Password changed successfully' };
       }
       throw new ApiError(HTTP_STATUS.NOT_FOUND, 'No account found for this mobile number', null, ERROR_CODES.NOT_FOUND);

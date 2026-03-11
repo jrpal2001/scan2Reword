@@ -2,7 +2,12 @@ import { asyncHandler } from '../utils/asyncHandler.js';
 import { ApiResponse } from '../utils/ApiResponse.js';
 import ApiError from '../utils/ApiError.js';
 import { addISTToDocument } from '../utils/dateUtils.js';
+import { decryptPassword } from '../utils/passwordEncrypt.js';
 import { userService } from '../services/user.service.js';
+import { managerService } from '../services/manager.service.js';
+import { staffService } from '../services/staff.service.js';
+import { managerRepository } from '../repositories/manager.repository.js';
+import { staffRepository } from '../repositories/staff.repository.js';
 import { auditLogService } from '../services/auditLog.service.js';
 import { HTTP_STATUS } from '../constants/errorCodes.js';
 import { ROLES } from '../constants/roles.js';
@@ -331,5 +336,98 @@ export const deleteUser = asyncHandler(async (req, res) => {
 
   return res.status(HTTP_STATUS.OK).json(
     ApiResponse.success({ deleted: true, type: result.type }, `${result.type} deleted successfully`)
+  );
+});
+
+/**
+ * GET /api/admin/managers
+ * List all managers (paginated). Query: page?, limit?, status?, search? (fullName, mobile, email, managerCode).
+ * Response does not include passwordHash.
+ */
+export const listManagers = asyncHandler(async (req, res) => {
+  const { page = 1, limit = 10, status, search } = req.query;
+  const filter = {};
+  if (status) filter.status = status;
+  if (search && String(search).trim()) {
+    const term = String(search).trim().replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    const regex = new RegExp(term, 'i');
+    filter.$or = [
+      { fullName: regex },
+      { mobile: regex },
+      { email: regex },
+      { managerCode: regex },
+    ];
+  }
+  const result = await managerRepository.list(filter, {
+    page: parseInt(page, 10) || 1,
+    limit: parseInt(limit, 10) || 10,
+    sort: { createdAt: -1 },
+  });
+  return res.sendPaginated(result, 'Managers retrieved', HTTP_STATUS.OK);
+});
+
+/**
+ * GET /api/admin/managers/:managerId
+ * Get manager by ID. Decrypts stored password and returns as passwordViewable for admin to view.
+ */
+export const getManagerById = asyncHandler(async (req, res) => {
+  const { managerId } = req.params;
+  const managerDoc = await managerRepository.findByIdWithPassword(managerId);
+  if (!managerDoc) {
+    throw new ApiError(HTTP_STATUS.NOT_FOUND, 'Manager not found');
+  }
+  const manager = managerDoc.toObject ? managerDoc.toObject() : { ...managerDoc };
+  manager.passwordViewable = decryptPassword(manager.passwordEncrypted) ?? null;
+  delete manager.passwordHash;
+  delete manager.passwordEncrypted;
+  return res.status(HTTP_STATUS.OK).json(
+    ApiResponse.success(addISTToDocument(manager), 'Manager retrieved')
+  );
+});
+
+/**
+ * GET /api/admin/staff
+ * List all staff (paginated). Query: page?, limit?, status?, search? (fullName, mobile, email, staffCode), assignedManagerId?.
+ * Response does not include passwordHash.
+ */
+export const listStaff = asyncHandler(async (req, res) => {
+  const { page = 1, limit = 10, status, search, assignedManagerId } = req.query;
+  const filter = {};
+  if (status) filter.status = status;
+  if (assignedManagerId) filter.assignedManagerId = assignedManagerId;
+  if (search && String(search).trim()) {
+    const term = String(search).trim().replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    const regex = new RegExp(term, 'i');
+    filter.$or = [
+      { fullName: regex },
+      { mobile: regex },
+      { email: regex },
+      { staffCode: regex },
+    ];
+  }
+  const result = await staffRepository.list(filter, {
+    page: parseInt(page, 10) || 1,
+    limit: parseInt(limit, 10) || 10,
+    sort: { createdAt: -1 },
+  });
+  return res.sendPaginated(result, 'Staff retrieved', HTTP_STATUS.OK);
+});
+
+/**
+ * GET /api/admin/staff/:staffId
+ * Get staff by ID. Decrypts stored password and returns as passwordViewable for admin to view.
+ */
+export const getStaffById = asyncHandler(async (req, res) => {
+  const { staffId } = req.params;
+  const staffDoc = await staffRepository.findByIdWithPassword(staffId);
+  if (!staffDoc) {
+    throw new ApiError(HTTP_STATUS.NOT_FOUND, 'Staff not found');
+  }
+  const staff = staffDoc.toObject ? staffDoc.toObject() : { ...staffDoc };
+  staff.passwordViewable = decryptPassword(staff.passwordEncrypted) ?? null;
+  delete staff.passwordHash;
+  delete staff.passwordEncrypted;
+  return res.status(HTTP_STATUS.OK).json(
+    ApiResponse.success(addISTToDocument(staff), 'Staff retrieved')
   );
 });

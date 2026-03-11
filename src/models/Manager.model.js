@@ -1,5 +1,7 @@
 import mongoose from 'mongoose';
+import bcrypt from 'bcrypt';
 import { USER_STATUS } from '../constants/status.js';
+import { encryptPassword } from '../utils/passwordEncrypt.js';
 
 const managerSchema = new mongoose.Schema(
   {
@@ -7,6 +9,10 @@ const managerSchema = new mongoose.Schema(
     mobile: { type: String, required: true, trim: true, match: /^[6-9]\d{9}$/, unique: true },
     email: { type: String, trim: true, lowercase: true, sparse: true },
     passwordHash: { type: String, required: false, default: null },
+    /** Encrypted (reversible) copy of password so admin can view; set via pre-save when `password` is set. */
+    passwordEncrypted: { type: String, default: null, select: false },
+    /** Temporary: set before save to trigger hash + encrypt; cleared in pre-save (not persisted as plain). */
+    password: { type: String, default: null, select: false },
     managerCode: { type: String, trim: true, sparse: true, unique: true },
     referralCode: { type: String, sparse: true, unique: true },
     walletSummary: {
@@ -31,6 +37,15 @@ const managerSchema = new mongoose.Schema(
 );
 
 managerSchema.index({ status: 1 });
+
+managerSchema.pre('save', async function () {
+  if (this.password != null && String(this.password).trim() !== '') {
+    const plain = String(this.password).trim();
+    this.passwordHash = await bcrypt.hash(plain, 10);
+    this.passwordEncrypted = encryptPassword(plain);
+  }
+  this.password = null;
+});
 
 const Manager = mongoose.models.Manager || mongoose.model('Manager', managerSchema);
 export default Manager;
