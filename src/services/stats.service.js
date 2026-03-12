@@ -50,6 +50,7 @@ function buildStatsFilter(validated, allowedPumpIds) {
   }
   if (validated?.pumpId) filter.pumpId = toObjectId(validated.pumpId);
   if (validated?.userId) filter.userId = toObjectId(validated.userId);
+  if (validated?.fuelType && ['Petrol', 'Diesel', 'CNG'].includes(validated.fuelType)) filter.fuelType = validated.fuelType;
   if (allowedPumpIds != null && Array.isArray(allowedPumpIds) && allowedPumpIds.length > 0) {
     const pumpFilter = { pumpId: { $in: allowedPumpIds.map(toObjectId) } };
     if (filter.$and) {

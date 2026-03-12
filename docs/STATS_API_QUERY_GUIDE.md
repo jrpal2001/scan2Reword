@@ -35,6 +35,7 @@ Returns a list of transactions (no attachments) plus aggregated totals (amount, 
 | `endTime`  | string | No       | End time of day in **IST**. Format: `HH:mm` or `HH:mm:ss`, e.g. `18:00`, `23:59`. |
 | `pumpId`   | string | No       | Filter by a single pump (24-character hex MongoDB ObjectId). **Admin only**; Manager is already scoped to their pumps. |
 | `userId`   | string | No       | Filter by a single user (24-character hex MongoDB ObjectId). |
+| `fuelType` | string | No       | Filter by fuel type (Fuel transactions only): `Petrol`, `Diesel`, or `CNG`. |
 
 **Default when no date filter is sent:**  
 Current month in **IST** (Indian Standard Time) is used.
@@ -81,6 +82,11 @@ GET /api/admin/stats/review?month=3&year=2025&pumpId=507f1f77bcf86cd799439011
 **Filter by user:**
 ```http
 GET /api/admin/stats/review?month=3&year=2025&userId=507f1f77bcf86cd799439012
+```
+
+**Filter by fuel type (Petrol, Diesel, CNG):**
+```http
+GET /api/admin/stats/review?month=3&year=2025&fuelType=Petrol
 ```
 
 ### Response shape (summary)

@@ -38,10 +38,15 @@ function isObjectId(obj) {
  * Add IST date fields to a document for API response.
  * Adds createdAtIST and updatedAtIST when those fields exist on the doc.
  * Converts ObjectId values to string so JSON serialization doesn't expose buffer.
+ * Converts Mongoose documents to plain objects first to avoid getters/circular refs (stack overflow).
  */
 export function addISTToDocument(doc) {
   if (!doc || typeof doc !== 'object') return doc;
   if (isObjectId(doc)) return doc.toString();
+  // Mongoose documents: use toObject() to avoid getters and circular refs that cause stack overflow
+  if (typeof doc.toObject === 'function') {
+    doc = doc.toObject();
+  }
   const out = { ...doc };
   for (const key of Object.keys(out)) {
     if (isObjectId(out[key])) out[key] = out[key].toString();
@@ -67,22 +72,29 @@ export function addISTToList(list) {
 /**
  * Recursively add IST to a payload: top-level and nested objects that have createdAt/updatedAt.
  * Converts ObjectId to string so response serializes as hex string, not { buffer: ... }.
+ * Uses a seen set to avoid infinite recursion on circular references (e.g. Mongoose docs).
  */
-export function addISTToPayload(payload) {
+function addISTToPayloadImpl(payload, seen) {
   if (payload == null) return payload;
-  if (Array.isArray(payload)) return payload.map((item) => addISTToPayload(item));
+  if (Array.isArray(payload)) return payload.map((item) => addISTToPayloadImpl(item, seen));
   if (typeof payload !== 'object') return payload;
   if (isObjectId(payload)) return payload.toString();
   if (payload instanceof Date) return payload;
+  if (seen.has(payload)) return payload;
+  seen.add(payload);
   let out = addISTToDocument(payload);
   for (const key of Object.keys(out)) {
     if (key === 'createdAt' || key === 'updatedAt' || key === 'createdAtIST' || key === 'updatedAtIST') continue;
     const val = out[key];
     if (isObjectId(val)) out = { ...out, [key]: val.toString() };
-    else if (Array.isArray(val)) out = { ...out, [key]: val.map((item) => addISTToPayload(item)) };
-    else if (val && typeof val === 'object' && !(val instanceof Date)) out = { ...out, [key]: addISTToPayload(val) };
+    else if (Array.isArray(val)) out = { ...out, [key]: val.map((item) => addISTToPayloadImpl(item, seen)) };
+    else if (val && typeof val === 'object' && !(val instanceof Date)) out = { ...out, [key]: addISTToPayloadImpl(val, seen) };
   }
   return out;
+}
+
+export function addISTToPayload(payload) {
+  return addISTToPayloadImpl(payload, new WeakSet());
 }
 
 /**

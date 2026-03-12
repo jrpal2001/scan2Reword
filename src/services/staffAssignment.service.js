@@ -134,19 +134,15 @@ export const staffAssignmentService = {
     }
 
     if (type === 'manager') {
-      let filter;
       if (options.pumpId) {
         const pump = await pumpRepository.findById(options.pumpId);
         if (!pump) {
           throw new ApiError(HTTP_STATUS.NOT_FOUND, 'Pump not found');
         }
-        // Exclude only the manager assigned to THIS pump. Show all others (including managers assigned to other pumps, since a manager can be assigned to multiple pumps).
-        const currentManagerId = pump.managerId;
-        filter = currentManagerId ? { _id: { $ne: currentManagerId } } : {};
-      } else {
-        const assignedManagerIds = await pumpRepository.getAssignedManagerIds();
-        filter = { _id: { $nin: assignedManagerIds } };
       }
+      // Only show managers who are not assigned to ANY pump (exclude all assigned managers).
+      const assignedManagerIds = await pumpRepository.getAssignedManagerIds();
+      const filter = { _id: { $nin: assignedManagerIds } };
       const searchFilter = buildSearchFilter(search, managerSearchFields);
       const combined = Object.keys(searchFilter).length ? { $and: [filter, searchFilter] } : filter;
       return await managerRepository.list(combined, pagination);

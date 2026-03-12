@@ -161,8 +161,9 @@ All below are under **`/api/admin`** and require **Admin JWT** unless noted.
 Transaction review stats: list of transactions (no attachments) + totals. Same filters as in [STATS_API_QUERY_GUIDE.md](./STATS_API_QUERY_GUIDE.md).
 
 **Query (all optional):**  
-`startDate`, `endDate`, `month`, `year`, `startTime`, `endTime`, `pumpId`, `userId`  
+`startDate`, `endDate`, `month`, `year`, `startTime`, `endTime`, `pumpId`, `userId`, `fuelType`  
 - Dates: ISO or date strings; month 1–12; year 2000–2100.  
+- `fuelType`: `Petrol`, `Diesel`, or `CNG` (filters Fuel transactions only).  
 - Time: IST, `HH:mm` or `HH:mm:ss`.  
 - If no date given: **current month (IST)**.
 
@@ -223,9 +224,10 @@ User registration graph data: list of users + total + by period + referral stats
 - **Body:** `{ "status": "active" | "inactive" | "blocked", "reason": "optional" }`.  
 - **Response:** `data` = updated entity.
 
-**Delete – DELETE `/users/:userId`**  
-- **Query (optional):** `type` = `manager` \| `staff` \| `user`.  
+**Delete – DELETE `/users/:userId`**
+- **Query (optional):** `type` = `manager` \| `staff` \| `user`.
 - **Response:** `data` = `{ "deleted": true, "type": "..." }`.
+- **Note:** When a user, manager, or staff is deleted, **transactions are not deleted**. They are kept for admin analytics and review tracking. Historical transaction data (e.g. in stats/review) remains available.
 
 **UI:** User list with search/status filter and pagination; create user form (multipart); detail page; edit form; status dropdown; delete with type.
 
@@ -424,15 +426,48 @@ See [BANNER_API_FORMDATA.md](./BANNER_API_FORMDATA.md) for full form-data and S3
 
 **Update – PATCH `/config`**  
 **Body (JSON):**  
-`points`: { registration, referral, fuel, lubricant, store, service (number or object) },  
+`points`: { registration, referral, referralForReferredUser, displayRupeesPerPoint, fuel, lubricant, store, service (number or object) },  
 `pointsExpiry`: { durationMonths, notificationDays }.  
 At least one top-level key required.
 
-**UI:** Settings page with points and expiry forms.
+- **referral**: Points given to the referrer (Manager/Staff) when someone uses their referral code.
+- **referralForReferredUser**: Points given to the new user (customer) when they sign up with a referral code.
+- **displayRupeesPerPoint**: Display only — 1 point = this many rupees (e.g. `0.1` means 10 points = ₹1). Use in the UI to show “X points = ₹Y”; not used for redemption logic.
+
+**UI:** Settings page with points (including referral and display conversion) and expiry forms.
 
 ---
 
-### 4.10 Staff Assignments
+### 4.10 Onboarding (admin only for CRUD; public GET list)
+
+Onboarding stores **multiple images per document** in `onboardImage` (array). Admin uploads images via multipart; the app fetches the list publicly (no auth).
+
+| Method | Path | Auth | Description |
+|--------|------|------|-------------|
+| POST | `/api/admin/onboarding` | Admin | Create one doc with multiple images (multipart: field `images`, max 10) |
+| GET | `/api/admin/onboarding` | Admin | List all (paginated), sorted by `createdAt` |
+| GET | `/api/admin/onboarding/:id` | Admin | Get one by ID |
+| PATCH | `/api/admin/onboarding/:id` | Admin | Replace onboardImage array (multipart: field `images`, max 10) |
+| DELETE | `/api/admin/onboarding/:id` | Admin | Delete item |
+| GET | `/api/onboarding` | **Public** | List all onboarding docs (no auth). For app onboarding screens. |
+
+**Create – POST `/api/admin/onboarding`**
+**Request:** `multipart/form-data`. Field name **`images`**, multiple files (max 10). Creates **one** document with `onboardImage: [url1, url2, ...]`. No JSON body required.
+
+**Admin list – GET `/api/admin/onboarding`**
+**Query:** `page`, `limit`.
+**Response:** Paginated list. Each item: `_id`, `onboardImage` (array of URLs), `createdAt`, `updatedAt`, `createdAtIST`, `updatedAtIST`.
+
+**Update – PATCH `/api/admin/onboarding/:id`**
+**Request:** `multipart/form-data`. Field name **`images`**, multiple files (max 10). Replaces the document’s `onboardImage` array with the new URLs.
+
+**Public list – GET `/api/onboarding`**
+**Query:** `limit` (optional, max 50, default 20).
+**Response:** `{ "success": true, "data": { "list": [ { "_id", "onboardImage": ["url1", "url2", ...], "createdAt", "createdAtIST", ... } ] } }`. Sorted by `createdAt`. No auth required.
+
+---
+
+### 4.11 Staff Assignments
 
 | Method | Path | Description |
 |--------|------|-------------|

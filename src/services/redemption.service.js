@@ -2,6 +2,7 @@ import { redemptionRepository } from '../repositories/redemption.repository.js';
 import { rewardRepository } from '../repositories/reward.repository.js';
 import { pumpRepository } from '../repositories/pump.repository.js';
 import { userRepository } from '../repositories/user.repository.js';
+import { vehicleRepository } from '../repositories/vehicle.repository.js';
 import { pointsService } from './points.service.js';
 import { scanService } from './scan.service.js';
 import { notificationService } from './notification.service.js';
@@ -28,6 +29,26 @@ async function getRedemptionNotificationUserIds(userId) {
   const ids = [userId];
   if (user.ownerId) ids.push(user.ownerId);
   return [...new Set(ids.map((id) => String(id)))];
+}
+
+/**
+ * Get display info for a user (name, loyaltyId, mobile) for notifications and list responses.
+ * loyaltyId: from User.loyaltyId if set, else from first vehicle.
+ */
+async function getUserDisplayInfo(userId) {
+  if (!userId) return { fullName: null, loyaltyId: null, mobile: null };
+  const user = await userRepository.findById(userId);
+  if (!user) return { fullName: null, loyaltyId: null, mobile: null };
+  let loyaltyId = user.loyaltyId || null;
+  if (!loyaltyId) {
+    const vehicles = await vehicleRepository.findByUserId(userId);
+    loyaltyId = vehicles?.[0]?.loyaltyId || null;
+  }
+  return {
+    fullName: user.fullName || null,
+    loyaltyId,
+    mobile: user.mobile || null,
+  };
 }
 
 async function sendRedemptionNotification(redemption, title, body) {
@@ -125,21 +146,19 @@ export const redemptionService = {
    * @param {string} params.identifier - loyaltyId, owner ID, or mobile
    * @param {number} params.pointsToDeduct - Points to deduct
    * @param {string} params.operatorId - Manager/Staff ID
+   * @param {string} params.operatorType - 'Manager' | 'Staff'
    * @param {string} params.pumpId - Pump ID
    * @returns {Object} Redemption record
    */
-  async createAtPumpRedemption({ identifier, pointsToDeduct, operatorId, pumpId }) {
-    // Validate identifier and get user
+  async createAtPumpRedemption({ identifier, pointsToDeduct, operatorId, operatorType, pumpId }) {
     const { user } = await scanService.validateIdentifier(identifier);
 
-    // Check user balance
     const wallet = await pointsService.getWallet(user._id, { page: 1, limit: 1 });
     const availablePoints = wallet.walletSummary.availablePoints;
     if (availablePoints < pointsToDeduct) {
       throw new ApiError(HTTP_STATUS.BAD_REQUEST, 'Insufficient points balance');
     }
 
-    // Generate unique redemption code
     let redemptionCode;
     let exists = true;
     while (exists) {
@@ -148,10 +167,8 @@ export const redemptionService = {
       exists = !!existing;
     }
 
-    // Calculate expiry date (30 days from now)
     const expiryDate = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
 
-    // Create redemption record as PENDING - admin must approve before points are deducted
     const redemption = await redemptionRepository.create({
       userId: user._id,
       rewardId: null,
@@ -159,11 +176,27 @@ export const redemptionService = {
       redemptionCode,
       status: REDEMPTION_STATUS.PENDING,
       approvedBy: null,
+      createdBy: operatorType ? operatorId : null,
+      createdByModel: operatorType === 'Manager' || operatorType === 'Staff' ? operatorType : null,
       usedAtPump: pumpId,
       expiryDate,
     });
 
-    // Do NOT deduct points here - points deducted when admin approves
+    // Notify admin: new redemption request (include redeemer name, loyaltyId, phone)
+    try {
+      const userDisplay = await getUserDisplayInfo(user._id);
+      const userPart = [userDisplay.fullName && `Name: ${userDisplay.fullName}`, userDisplay.loyaltyId && `Loyalty ID: ${userDisplay.loyaltyId}`, userDisplay.mobile && `Phone: ${userDisplay.mobile}`].filter(Boolean).join(', ');
+      const bodyText = userPart
+        ? `Redemption of ${pointsToDeduct} points (code: ${redemptionCode}) is pending approval. ${userPart}.`
+        : `Redemption of ${pointsToDeduct} points (code: ${redemptionCode}) is pending approval.`;
+      await notificationService.createForAdmin('New redemption request', bodyText, null, {
+        redeemerFullName: userDisplay.fullName || null,
+        redeemerLoyaltyId: userDisplay.loyaltyId || null,
+        redeemerMobile: userDisplay.mobile || null,
+      });
+    } catch (err) {
+      console.warn('[Redemption] Admin notification failed:', err?.message);
+    }
 
     return {
       redemption,
@@ -205,11 +238,36 @@ export const redemptionService = {
       approvedBy: approverId,
     });
 
+    // Notify user (and owner if driver)
     await sendRedemptionNotification(
       updated,
       'Redemption approved',
       `Your redemption of ${updated.pointsUsed} points has been approved.`
     );
+
+    // Notify creator (Manager or Staff) and user/owner via in-app notification (body includes user name, loyaltyId, phone)
+    const userIds = await getRedemptionNotificationUserIds(updated.userId);
+    const managerIds = updated.createdByModel === 'Manager' && updated.createdBy ? [updated.createdBy] : [];
+    const staffIds = updated.createdByModel === 'Staff' && updated.createdBy ? [updated.createdBy] : [];
+    const userDisplay = await getUserDisplayInfo(updated.userId);
+    const userPart = [userDisplay.fullName && `Name: ${userDisplay.fullName}`, userDisplay.loyaltyId && `Loyalty ID: ${userDisplay.loyaltyId}`, userDisplay.mobile && `Phone: ${userDisplay.mobile}`].filter(Boolean).join(', ');
+    const bodyText = userPart
+      ? `Redemption of ${updated.pointsUsed} points (code: ${updated.redemptionCode}) has been approved. ${userPart}.`
+      : `Redemption of ${updated.pointsUsed} points (code: ${updated.redemptionCode}) has been approved.`;
+    try {
+      await notificationService.createForRecipients({
+        title: 'Redemption approved',
+        body: bodyText,
+        userIds,
+        managerIds,
+        staffIds,
+        redeemerFullName: userDisplay.fullName || null,
+        redeemerLoyaltyId: userDisplay.loyaltyId || null,
+        redeemerMobile: userDisplay.mobile || null,
+      });
+    } catch (err) {
+      console.warn('[Redemption] Approval notification failed:', err?.message);
+    }
 
     return updated;
   },
@@ -354,20 +412,34 @@ export const redemptionService = {
   },
 
   /**
-   * Get redemption by ID
+   * Get redemption by ID. Enriches with userDisplay: { fullName, loyaltyId, mobile } for the redeemer.
    */
   async getRedemptionById(redemptionId) {
     const redemption = await redemptionRepository.findById(redemptionId);
     if (!redemption) {
       throw new ApiError(HTTP_STATUS.NOT_FOUND, 'Redemption not found');
     }
-    return redemption;
+    const userDisplay = await getUserDisplayInfo(redemption.userId);
+    return { ...redemption, userDisplay };
   },
 
   /**
-   * List redemptions
+   * List redemptions. Optionally enriches each item with userDisplay: { fullName, loyaltyId, mobile } for the redeemer (userId).
    */
-  async listRedemptions(filter = {}, options = {}) {
-    return redemptionRepository.list(filter, options);
+  async listRedemptions(filter = {}, options = {}, enrichWithUserDisplay = true) {
+    const result = await redemptionRepository.list(filter, options);
+    if (!enrichWithUserDisplay || !result?.list?.length) return result;
+    const userIds = [...new Set(result.list.map((r) => r.userId).filter(Boolean))];
+    const displayMap = {};
+    await Promise.all(
+      userIds.map(async (uid) => {
+        displayMap[String(uid)] = await getUserDisplayInfo(uid);
+      })
+    );
+    result.list = result.list.map((r) => ({
+      ...r,
+      userDisplay: r.userId ? displayMap[String(r.userId)] || { fullName: null, loyaltyId: null, mobile: null } : { fullName: null, loyaltyId: null, mobile: null },
+    }));
+    return result;
   },
 };

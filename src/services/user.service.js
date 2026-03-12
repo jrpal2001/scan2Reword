@@ -276,11 +276,12 @@ export const userService = {
       throw vehicleError;
     }
 
-    // Credit referral points to referrer (Manager or Staff) if referralCode provided
+    // Credit referral points to referrer (Manager or Staff) and to referred user if referralCode provided
     if (referrer && referrer._id && (referrer._ownerType === 'Manager' || referrer._ownerType === 'Staff')) {
       try {
         const systemConfig = await systemConfigService.getConfig();
         const referralPoints = systemConfig.points?.referral || 0;
+        const referralForReferredUser = systemConfig.points?.referralForReferredUser ?? 0;
         if (referralPoints > 0) {
           await pointsService.creditPoints({
             userId: referrer._id,
@@ -289,6 +290,16 @@ export const userService = {
             type: 'credit',
             reason: `Referral bonus - User ${user._id} registered with referral code`,
             createdBy: user._id,
+          });
+        }
+        if (referralForReferredUser > 0) {
+          await pointsService.creditPoints({
+            userId: user._id,
+            ownerType: 'UserLoyalty',
+            points: referralForReferredUser,
+            type: 'credit',
+            reason: 'Referral signup bonus - you used a referral code',
+            createdBy: referrer._id,
           });
         }
       } catch (error) {
@@ -558,11 +569,12 @@ export const userService = {
       }
     }
 
-    // Credit referral points to referrer (Manager or Staff) when user created with referral code - same as register
+    // Credit referral points to referrer (Manager or Staff) and to referred user when user created with referral code
     if (referrer && referrer._id && (referrer._ownerType === 'Manager' || referrer._ownerType === 'Staff')) {
       try {
         const systemConfig = await systemConfigService.getConfig();
         const referralPoints = systemConfig.points?.referral || 0;
+        const referralForReferredUser = systemConfig.points?.referralForReferredUser ?? 0;
         if (referralPoints > 0) {
           await pointsService.creditPoints({
             userId: referrer._id,
@@ -571,6 +583,16 @@ export const userService = {
             type: 'credit',
             reason: `Referral bonus - User ${created._id} registered with referral code (admin)`,
             createdBy: created._id,
+          });
+        }
+        if (referralForReferredUser > 0) {
+          await pointsService.creditPoints({
+            userId: created._id,
+            ownerType: 'UserLoyalty',
+            points: referralForReferredUser,
+            type: 'credit',
+            reason: 'Referral signup bonus - you used a referral code',
+            createdBy: referrer._id,
           });
         }
       } catch (error) {
@@ -867,11 +889,12 @@ export const userService = {
         console.error('Failed to credit registration points:', error.message);
       }
 
-      // Credit referral points to referrer (Manager or Staff) when referralCode was provided
+      // Credit referral points to referrer (Manager or Staff) and to referred user when referralCode was provided
       if (referrer && referrer._id && (referrer._ownerType === 'Manager' || referrer._ownerType === 'Staff')) {
         try {
           const systemConfig = await systemConfigService.getConfig();
           const referralPoints = systemConfig.points?.referral || 0;
+          const referralForReferredUser = systemConfig.points?.referralForReferredUser ?? 0;
           if (referralPoints > 0) {
             await pointsService.creditPoints({
               userId: referrer._id,
@@ -880,6 +903,16 @@ export const userService = {
               type: 'credit',
               reason: `Referral bonus - User ${created._id} created with referral code (${operatorType})`,
               createdBy: created._id,
+            });
+          }
+          if (referralForReferredUser > 0) {
+            await pointsService.creditPoints({
+              userId: created._id,
+              ownerType: 'UserLoyalty',
+              points: referralForReferredUser,
+              type: 'credit',
+              reason: 'Referral signup bonus - you used a referral code',
+              createdBy: referrer._id,
             });
           }
         } catch (error) {
@@ -1051,6 +1084,7 @@ export const userService = {
 
   /**
    * Delete any user (manager, staff, or customer) by ID. Admin only.
+   * Transactions are NOT deleted: they are kept for admin analytics and review tracking.
    * @param {string} userId - ID of the entity to delete
    * @param {string} type - Optional: 'manager' | 'staff' | 'user'. If omitted, resolves by checking Manager, then Staff, then User.
    * @returns {{ deleted: true, type: string }}
@@ -1068,6 +1102,7 @@ export const userService = {
       if (!manager) throw new ApiError(HTTP_STATUS.NOT_FOUND, 'Manager not found');
       await pumpRepository.unsetManagerId(userId);
       await managerRepository.delete(userId);
+      // Do NOT delete transactions: admin uses them for analytics/review
       return { deleted: true, type: 'manager' };
     }
 
@@ -1076,6 +1111,7 @@ export const userService = {
       if (!staff) throw new ApiError(HTTP_STATUS.NOT_FOUND, 'Staff not found');
       await staffAssignmentRepository.deleteByStaffId(userId);
       await staffRepository.delete(userId);
+      // Do NOT delete transactions: admin uses them for analytics/review
       return { deleted: true, type: 'staff' };
     }
 
@@ -1083,6 +1119,7 @@ export const userService = {
       const user = await userRepository.findById(userId);
       if (!user) throw new ApiError(HTTP_STATUS.NOT_FOUND, 'User not found');
       await userRepository.delete(userId);
+      // Do NOT delete transactions: admin uses them for analytics/review
       return { deleted: true, type: 'user' };
     }
 

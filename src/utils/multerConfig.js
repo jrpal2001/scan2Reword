@@ -45,5 +45,8 @@ export const pumpUploadFields = [{ name: 'pumpImages', maxCount: 10 }];
 /** Banner image (single) – uploads to S3, stored as imageUrl */
 export const bannerUploadFields = [{ name: 'imageUrl', maxCount: 1 }];
 
+/** Onboarding: multiple images in one doc (create/update use same field) */
+export const onboardingUploadFields = [{ name: 'images', maxCount: 10 }];
+
 /** Profile avatar only (PATCH /api/user/profile) */
 export const profileUpdateFields = [{ name: 'profilePhoto', maxCount: 1 }];

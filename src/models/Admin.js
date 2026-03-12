@@ -9,6 +9,8 @@ const adminSchema = new mongoose.Schema({
   password: { type: String, required: true },
   userType: { type: String, default: 'Admin' }, // fixed user type
   refreshToken: { type: String, default: null },
+  /** FCM device tokens for push notifications (e.g. new redemption requests). */
+  FcmTokens: { type: [String], default: [] },
   createdAt: { type: Date, default: Date.now },
 });
 

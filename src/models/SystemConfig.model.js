@@ -5,7 +5,12 @@ const systemConfigSchema = new mongoose.Schema(
     // Points configuration
     points: {
       registration: { type: Number, default: 0, min: 0 },
+      /** Points given to the referrer (Manager/Staff) when someone uses their referral code */
       referral: { type: Number, default: 0, min: 0 },
+      /** Points given to the new user (referred person) when they sign up with a referral code */
+      referralForReferredUser: { type: Number, default: 0, min: 0 },
+      /** Display only: 1 point = this many rupees (e.g. 0.1 means 10 points = ₹1). Used by frontend for showing point value. */
+      displayRupeesPerPoint: { type: Number, default: 0, min: 0 },
       fuel: {
         pointsPerLiter: { type: Number, default: 1, min: 0 },
       },

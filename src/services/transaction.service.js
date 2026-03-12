@@ -28,7 +28,7 @@ export const transactionService = {
    * @returns {Object} Created transaction
    */
   async createTransaction(data, operatorId, allowedPumpIds = null) {
-    let { pumpId, identifier, amount, liters, category, billNumber, paymentMode, attachments, campaignId } = data;
+    let { pumpId, identifier, amount, liters, category, fuelType, billNumber, paymentMode, attachments, campaignId } = data;
 
     amount = amount ?? 0;
     category = category ?? 'Fuel';
@@ -102,6 +102,7 @@ export const transactionService = {
       amount,
       liters: category === 'Fuel' ? liters : null,
       category,
+      fuelType: category === 'Fuel' && fuelType && ['Petrol', 'Diesel', 'CNG'].includes(fuelType) ? fuelType : null,
       billNumber: String(billNumber).trim(),
       paymentMode,
       pointsEarned,

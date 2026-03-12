@@ -13,6 +13,9 @@ const redemptionSchema = new mongoose.Schema(
       default: REDEMPTION_STATUS.PENDING,
     },
     approvedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'UserLoyalty', default: null },
+    /** Who created this redemption (Manager/Staff at pump). Used to notify creator when admin approves. */
+    createdBy: { type: mongoose.Schema.Types.ObjectId, refPath: 'createdByModel', default: null },
+    createdByModel: { type: String, enum: ['Manager', 'Staff'], default: null },
     usedAtPump: { type: mongoose.Schema.Types.ObjectId, ref: 'Pump', default: null },
     expiryDate: { type: Date, required: true },
     usedAt: { type: Date, default: null },

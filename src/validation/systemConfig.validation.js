@@ -3,6 +3,8 @@ import Joi from 'joi';
 const pointsConfigSchema = Joi.object({
   registration: Joi.number().min(0).optional(),
   referral: Joi.number().min(0).optional(),
+  referralForReferredUser: Joi.number().min(0).optional(),
+  displayRupeesPerPoint: Joi.number().min(0).optional(),
   // Accept fuel as number (pointsPerLiter) or object format
   fuel: Joi.alternatives().try(
     Joi.number().min(0), // Simple format: fuel: 0.25

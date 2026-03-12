@@ -1,6 +1,10 @@
 import mongoose from 'mongoose';
 import { TRANSACTION_STATUS } from '../constants/status.js';
 
+/**
+ * Transactions are never deleted when a User, Manager, or Staff is deleted.
+ * They are retained for admin analytics and review tracking.
+ */
 const transactionSchema = new mongoose.Schema(
   {
     pumpId: { type: mongoose.Schema.Types.ObjectId, ref: 'Pump', required: true },
@@ -13,6 +17,12 @@ const transactionSchema = new mongoose.Schema(
       type: String,
       enum: ['Fuel', 'Lubricant', 'Store', 'Service'],
       default: 'Fuel',
+    },
+    /** Fuel type when category is Fuel: Petrol, Diesel, CNG. Null for non-Fuel. */
+    fuelType: {
+      type: String,
+      enum: ['Petrol', 'Diesel', 'CNG'],
+      default: null,
     },
     billNumber: { type: String, default: '', trim: true },
     paymentMode: {
@@ -39,6 +49,7 @@ transactionSchema.index({ vehicleId: 1 });
 transactionSchema.index({ userId: 1 });
 transactionSchema.index({ createdAt: -1 });
 transactionSchema.index({ pumpId: 1, billNumber: 1 }, { unique: true });
+transactionSchema.index({ fuelType: 1 });
 
 const Transaction = mongoose.models.Transaction || mongoose.model('Transaction', transactionSchema);
 export default Transaction;

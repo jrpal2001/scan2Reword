@@ -5,6 +5,7 @@ export const statsValidation = {
   review: Joi.object({
     pumpId: Joi.string().hex().length(24).optional(),
     userId: Joi.string().hex().length(24).optional(),
+    fuelType: Joi.string().valid('Petrol', 'Diesel', 'CNG').optional(),
     startDate: Joi.date().optional(),
     endDate: Joi.date().optional(),
     month: Joi.number().integer().min(1).max(12).optional(),

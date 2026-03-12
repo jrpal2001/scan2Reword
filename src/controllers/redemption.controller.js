@@ -52,10 +52,12 @@ export const createAtPumpRedemption = asyncHandler(async (req, res) => {
   if (!pumpId) {
     throw new ApiError(HTTP_STATUS.BAD_REQUEST, 'pumpId is required for Manager/Admin; Staff must be assigned to exactly one pump');
   }
+  const operatorType = req.userType === ROLES.MANAGER ? 'Manager' : req.userType === ROLES.STAFF ? 'Staff' : null;
   const result = await redemptionService.createAtPumpRedemption({
     identifier,
     pointsToDeduct,
     operatorId: req.user._id,
+    operatorType,
     pumpId,
   });
   return res.status(HTTP_STATUS.CREATED).json(
@@ -134,9 +136,14 @@ export const listRedemptions = asyncHandler(async (req, res) => {
   
   const filter = {};
   if (status) filter.status = status;
-  // User can only see own redemptions
   if (role === 'user') {
     filter.userId = req.user._id;
+  } else if (role === 'manager') {
+    filter.createdBy = req.user._id;
+    filter.createdByModel = 'Manager';
+  } else if (role === 'staff') {
+    filter.createdBy = req.user._id;
+    filter.createdByModel = 'Staff';
   } else if (userId) {
     filter.userId = userId;
   }

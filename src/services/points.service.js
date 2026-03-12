@@ -85,7 +85,10 @@ export const pointsService = {
       if (!liters || liters <= 0) return 0;
       const perLiter = pointsConfig.fuel?.pointsPerLiter ?? 1;
       basePoints = liters * perLiter;
-    } else if (key === 'lubricant' || key === 'store' || key === 'service') {
+      // Fuel: fractional points allowed (e.g. 0.5 per liter → 1.5 L = 0.75 points). Round to 2 decimals.
+      return Math.round(basePoints * multiplier * 100) / 100;
+    }
+    if (key === 'lubricant' || key === 'store' || key === 'service') {
       const per100 = pointsConfig[key]?.pointsPer100Rupees ?? 5;
       basePoints = Math.floor((amount / 100) * per100);
     }

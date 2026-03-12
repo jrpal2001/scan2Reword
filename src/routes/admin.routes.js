@@ -10,6 +10,8 @@ import * as rewardController from '../controllers/reward.controller.js';
 import * as systemConfigController from '../controllers/systemConfig.controller.js';
 import * as staffAssignmentController from '../controllers/staffAssignment.controller.js';
 import * as redemptionController from '../controllers/redemption.controller.js';
+import * as notificationController from '../controllers/notification.controller.js';
+import * as onboardingController from '../controllers/onboarding.controller.js';
 import * as statsController from '../controllers/stats.controller.js';
 import { verifyJWT } from '../middlewares/auth.middleware.js';
 import { requireRoles, attachPumpScope, requirePumpAccess } from '../middlewares/rbac.middleware.js';
@@ -24,12 +26,13 @@ import { rewardValidation } from '../validation/reward.validation.js';
 import { systemConfigValidation } from '../validation/systemConfig.validation.js';
 import { staffAssignmentValidation } from '../validation/staffAssignment.validation.js';
 import { redemptionValidation } from '../validation/redemption.validation.js';
+import { onboardingValidation } from '../validation/onboarding.validation.js';
 import { statsValidation } from '../validation/stats.validation.js';
 import { ROLES } from '../constants/roles.js';
 import { uploadToS3 } from '../middlewares/uploadToS3.js';
 import { parseBodyJson } from '../middlewares/parseBodyJson.js';
 import { normalizeFormBody } from '../middlewares/normalizeFormBody.js';
-import { upload, userUploadFields, pumpUploadFields, bannerUploadFields } from '../utils/multerConfig.js';
+import { upload, userUploadFields, pumpUploadFields, bannerUploadFields, onboardingUploadFields } from '../utils/multerConfig.js';
 
 const router = Router();
 
@@ -395,6 +398,57 @@ router.delete(
   requireRoles([ROLES.ADMIN, ROLES.MANAGER]),
   attachPumpScope,
   staffAssignmentController.removeStaffFromPump
+);
+
+// Admin notifications (e.g. new redemption requests from manager/staff)
+router.get(
+  '/notifications',
+  verifyJWT,
+  requireRoles([ROLES.ADMIN]),
+  notificationController.getAdminNotifications
+);
+
+// Onboarding (admin CRUD) — onboardImage[]; create/update = multipart "images" (max 10)
+router.post(
+  '/onboarding',
+  verifyJWT,
+  requireRoles([ROLES.ADMIN]),
+  upload.fields(onboardingUploadFields),
+  parseBodyJson,
+  normalizeFormBody,
+  uploadToS3('onboarding'),
+  validateRequest(onboardingValidation.create),
+  onboardingController.createOnboarding
+);
+router.get(
+  '/onboarding',
+  verifyJWT,
+  requireRoles([ROLES.ADMIN]),
+  validateRequest(onboardingValidation.list, 'query'),
+  onboardingController.listOnboarding
+);
+router.get(
+  '/onboarding/:id',
+  verifyJWT,
+  requireRoles([ROLES.ADMIN]),
+  onboardingController.getOnboardingById
+);
+router.patch(
+  '/onboarding/:id',
+  verifyJWT,
+  requireRoles([ROLES.ADMIN]),
+  upload.fields(onboardingUploadFields),
+  parseBodyJson,
+  normalizeFormBody,
+  uploadToS3('onboarding'),
+  validateRequest(onboardingValidation.update),
+  onboardingController.updateOnboarding
+);
+router.delete(
+  '/onboarding/:id',
+  verifyJWT,
+  requireRoles([ROLES.ADMIN]),
+  onboardingController.deleteOnboarding
 );
 
 // Redemptions: admin direct redeem, approve/reject (manager/staff redemptions go to admin for approval)
