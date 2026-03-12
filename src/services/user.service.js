@@ -992,6 +992,27 @@ export const userService = {
   },
 
   /**
+   * List users referred/registered by a given manager or staff (createdBy = referrerId, createdByModel in Manager|Staff).
+   * Works for admin (any referrerId), manager/staff (only their own id). Referrer must exist as Manager or Staff.
+   */
+  async listUsersByReferrerId(referrerId, filter = {}, options = {}) {
+    const baseFilter = { createdBy: referrerId, createdByModel: { $in: ['Manager', 'Staff'] } };
+    const merged = { ...baseFilter, ...filter };
+    const result = await userRepository.list(merged, options);
+    if (!result.list || result.list.length === 0) return result;
+    const pumpIds = [...new Set(result.list.map((u) => u.registeredPumpId).filter(Boolean))];
+    const pumps = pumpIds.length
+      ? await Promise.all(pumpIds.map((id) => pumpRepository.findById(id)))
+      : [];
+    const pumpMap = Object.fromEntries(pumps.filter(Boolean).map((p) => [String(p._id), { _id: p._id, name: p.name, code: p.code }]));
+    result.list = result.list.map((u) => ({
+      ...u,
+      registeredPump: u.registeredPumpId ? pumpMap[String(u.registeredPumpId)] || null : null,
+    }));
+    return result;
+  },
+
+  /**
    * List users with filters. When allowedPumpIds is provided (manager), only users who registered at those pumps are returned.
    * Each user is enriched with registeredPump { _id, name, code } when they have registeredPumpId.
    */

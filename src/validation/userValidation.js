@@ -252,6 +252,15 @@ export const userValidation = {
     type: Joi.string().valid('manager', 'staff', 'user').optional(),
   }),
 
+  /** List referred users by manager/staff id. Admin: referrerId required. Manager/Staff: referrerId optional (default self). */
+  listReferredUsers: Joi.object({
+    referrerId: objectIdSchema.optional(),
+    page: Joi.number().integer().min(1).optional(),
+    limit: Joi.number().integer().min(1).max(100).optional(),
+    status: Joi.string().valid('active', 'inactive', 'blocked').optional(),
+    search: Joi.string().trim().allow('').optional(),
+  }),
+
   /** PATCH /api/user/profile - current user (individual/owner/driver). All optional (can send only profilePhoto file). */
   updateProfile: Joi.object({
     fullName: Joi.string().trim().min(2).max(100).optional(),

@@ -1,7 +1,7 @@
 import { asyncHandler } from '../utils/asyncHandler.js';
 import { ApiResponse } from '../utils/ApiResponse.js';
 import ApiError from '../utils/ApiError.js';
-import { addISTToDocument } from '../utils/dateUtils.js';
+import { addISTToDocument, addISTToList } from '../utils/dateUtils.js';
 import { decryptPassword } from '../utils/passwordEncrypt.js';
 import { userService } from '../services/user.service.js';
 import { managerService } from '../services/manager.service.js';
@@ -227,6 +227,54 @@ export const getUserById = asyncHandler(async (req, res) => {
   }
   return res.status(HTTP_STATUS.OK).json(
     ApiResponse.success(addISTToDocument(user), 'User retrieved successfully')
+  );
+});
+
+/**
+ * GET /api/admin/users/referred or /api/manager/users/referred or /api/staff/users/referred
+ * One API for all: pass referrerId (manager or staff id) to get that referrer's user list.
+ * Admin: can pass any manager/staff id. Manager/Staff: can only pass their own id (or omit = self).
+ */
+export const listReferredUsers = asyncHandler(async (req, res) => {
+  const { referrerId: queryReferrerId, page = 1, limit = 10, status, search } = req.validated || req.query;
+  const role = req.userType;
+
+  let referrerId = queryReferrerId;
+  if (role === ROLES.MANAGER || role === ROLES.STAFF) {
+    referrerId = referrerId || req.user._id;
+    if (String(referrerId) !== String(req.user._id)) {
+      throw new ApiError(HTTP_STATUS.FORBIDDEN, 'You can only view users referred by yourself');
+    }
+  }
+  if (!referrerId) {
+    throw new ApiError(HTTP_STATUS.BAD_REQUEST, 'referrerId is required (manager or staff id)');
+  }
+
+  const referrerAsManager = await managerRepository.findById(referrerId);
+  const referrerAsStaff = await staffRepository.findById(referrerId);
+  if (!referrerAsManager && !referrerAsStaff) {
+    throw new ApiError(HTTP_STATUS.NOT_FOUND, 'Referrer not found (must be a manager or staff id)');
+  }
+
+  const filter = {};
+  if (status) filter.status = status;
+  if (search) {
+    filter.$or = [
+      { fullName: { $regex: search, $options: 'i' } },
+      { mobile: { $regex: search, $options: 'i' } },
+      { email: { $regex: search, $options: 'i' } },
+    ];
+  }
+  const result = await userService.listUsersByReferrerId(referrerId, filter, {
+    page: parseInt(page) || 1,
+    limit: parseInt(limit) || 10,
+    sort: { createdAt: -1 },
+  });
+  const listWithIST = addISTToList(result.list || []);
+  return res.sendPaginated(
+    { ...result, list: listWithIST },
+    'Referred users retrieved',
+    HTTP_STATUS.OK
   );
 });
 

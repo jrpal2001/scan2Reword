@@ -19,6 +19,7 @@ import onboardingPublicRoutes from './routes/onboarding.public.routes.js';
 import redemptionRoutes from './routes/redemption.routes.js';
 import notificationRoutes from './routes/notification.routes.js';
 import ownerRoutes from './routes/owner.routes.js';
+import referredUsersRoutes from './routes/referredUsers.routes.js';
 import { errorHandler } from './middlewares/errorHandler.js';
 import { formDataParser } from './middlewares/formDataParser.js';
 import { paginationResponse } from './middlewares/paginationResponse.js';
@@ -119,6 +120,7 @@ app.use('/api/onboarding', onboardingPublicRoutes);
 app.use('/api/redeem', redemptionRoutes);
 app.use('/api/notifications', notificationRoutes);
 app.use('/api/owner', ownerRoutes);
+app.use('/api/users', referredUsersRoutes);
 console.log('[App] All routes registered');
 
 // Health check (for liveness/readiness)
