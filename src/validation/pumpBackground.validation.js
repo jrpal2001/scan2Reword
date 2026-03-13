@@ -16,6 +16,9 @@ export const pumpBackgroundValidation = {
             }),
     }),
     update: Joi.object({
-        // Add any fields that can be updated in body
+        existingImages: Joi.alternatives().try(
+            Joi.string().trim(),
+            Joi.array().items(Joi.string().trim())
+        ).optional(),
     }),
 };

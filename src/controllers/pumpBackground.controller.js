@@ -46,12 +46,20 @@ export const updateBackground = asyncHandler(async (req, res) => {
 
     const uploadedImages = req.s3Uploads?.imageUrl || []
 
-    if (!uploadedImages.length)
-        throw new ApiError(HTTP_STATUS.BAD_REQUEST, "At least one image must be uploaded")
+    let existingImages = req.body?.existingImages || []
+    if (typeof existingImages === 'string') {
+        existingImages = [existingImages]
+    }
+    existingImages = existingImages.filter(img => img && img.trim() !== '')
+
+    const finalImages = [...existingImages, ...uploadedImages]
+
+    if (!finalImages.length)
+        throw new ApiError(HTTP_STATUS.BAD_REQUEST, "At least one image must be present")
 
     const data = await pumpBackgroundService.updateBackground(
         req.params.id,
-        uploadedImages
+        finalImages
     )
 
     res.status(HTTP_STATUS.OK).json(

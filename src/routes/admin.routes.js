@@ -503,7 +503,7 @@ router.get(
   pumpBackgroundController.getBackgroundById
 );
 
-router.put(
+router.patch(
   '/pump-background/:id',
   verifyJWT,
   requireRoles([ROLES.ADMIN]),
