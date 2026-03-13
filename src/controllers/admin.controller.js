@@ -428,6 +428,8 @@ export const getManagerById = asyncHandler(async (req, res) => {
   manager.passwordViewable = decryptPassword(manager.passwordEncrypted) ?? null;
   delete manager.passwordHash;
   delete manager.passwordEncrypted;
+  const referredUserCount = await userService.countUsersByReferrerId(manager._id);
+  manager.referredUserCount = referredUserCount;
   return res.status(HTTP_STATUS.OK).json(
     ApiResponse.success(addISTToDocument(manager), 'Manager retrieved')
   );
@@ -475,6 +477,8 @@ export const getStaffById = asyncHandler(async (req, res) => {
   staff.passwordViewable = decryptPassword(staff.passwordEncrypted) ?? null;
   delete staff.passwordHash;
   delete staff.passwordEncrypted;
+  const referredUserCount = await userService.countUsersByReferrerId(staff._id);
+  staff.referredUserCount = referredUserCount;
   return res.status(HTTP_STATUS.OK).json(
     ApiResponse.success(addISTToDocument(staff), 'Staff retrieved')
   );

@@ -991,6 +991,11 @@ export const userService = {
     return managerRepository.findById(managerId);
   },
 
+  /** Count users referred/registered by a given manager or staff. */
+  async countUsersByReferrerId(referrerId) {
+    return userRepository.countReferredBy(referrerId);
+  },
+
   /**
    * List users referred/registered by a given manager or staff (createdBy = referrerId, createdByModel in Manager|Staff).
    * Works for admin (any referrerId), manager/staff (only their own id). Referrer must exist as Manager or Staff.

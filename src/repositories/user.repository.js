@@ -115,4 +115,9 @@ export const userRepository = {
     const doc = await User.findByIdAndDelete(id);
     return !!doc;
   },
+
+  /** Count users referred/registered by a given manager or staff. */
+  async countReferredBy(referrerId) {
+    return User.countDocuments({ createdBy: referrerId, createdByModel: { $in: ['Manager', 'Staff'] } });
+  },
 };
