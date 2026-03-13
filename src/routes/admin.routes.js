@@ -13,6 +13,7 @@ import * as redemptionController from '../controllers/redemption.controller.js';
 import * as notificationController from '../controllers/notification.controller.js';
 import * as onboardingController from '../controllers/onboarding.controller.js';
 import * as statsController from '../controllers/stats.controller.js';
+import * as pumpBackgroundController from '../controllers/pumpBackground.controller.js';
 import { verifyJWT } from '../middlewares/auth.middleware.js';
 import { requireRoles, attachPumpScope, requirePumpAccess } from '../middlewares/rbac.middleware.js';
 import { validateRequest } from '../middlewares/validateRequest.js';
@@ -28,6 +29,7 @@ import { staffAssignmentValidation } from '../validation/staffAssignment.validat
 import { redemptionValidation } from '../validation/redemption.validation.js';
 import { onboardingValidation } from '../validation/onboarding.validation.js';
 import { statsValidation } from '../validation/stats.validation.js';
+import { pumpBackgroundValidation } from '../validation/pumpBackground.validation.js';
 import { ROLES } from '../constants/roles.js';
 import { uploadToS3 } from '../middlewares/uploadToS3.js';
 import { parseBodyJson } from '../middlewares/parseBodyJson.js';
@@ -471,6 +473,58 @@ router.post(
   requireRoles([ROLES.ADMIN]),
   validateRequest(redemptionValidation.reject, 'body'),
   redemptionController.rejectRedemption
+);
+
+//background images crud
+
+router.post(
+  '/pump-background',
+  verifyJWT,
+  requireRoles([ROLES.ADMIN]),
+  upload.fields([{ name: 'imageUrl', maxCount: 10 }]),
+  parseBodyJson,
+  normalizeFormBody,
+  uploadToS3('pump-background'),
+  validateRequest(pumpBackgroundValidation.create),
+  pumpBackgroundController.createBackground
+);
+
+router.get(
+  '/pump-background',
+  verifyJWT,
+  requireRoles([ROLES.ADMIN]),
+  pumpBackgroundController.getAllBackgrounds
+);
+
+router.get(
+  '/pump-background/:id',
+  verifyJWT,
+  requireRoles([ROLES.ADMIN]),
+  pumpBackgroundController.getBackgroundById
+);
+
+router.put(
+  '/pump-background/:id',
+  verifyJWT,
+  requireRoles([ROLES.ADMIN]),
+  upload.fields([{ name: 'imageUrl', maxCount: 10 }]),
+  parseBodyJson,
+  normalizeFormBody,
+  uploadToS3('pump-background'),
+  validateRequest(pumpBackgroundValidation.update),
+  pumpBackgroundController.updateBackground
+);
+
+router.delete(
+  '/pump-background/:id',
+  verifyJWT,
+  requireRoles([ROLES.ADMIN]),
+  pumpBackgroundController.deleteBackground
+);
+
+router.get(
+  '/public/pump-background',
+  pumpBackgroundController.getPublicBackgrounds
 );
 
 export default router;

@@ -92,7 +92,7 @@ export const approveRedemption = asyncHandler(async (req, res) => {
  */
 export const rejectRedemption = asyncHandler(async (req, res) => {
   const { id } = req.params;
-  const { reason } = req.validated;
+  const reason = req.validated?.reason || '';
   const redemption = await redemptionService.rejectRedemption(id, req.user._id, reason);
   return res.status(HTTP_STATUS.OK).json(
     ApiResponse.success(addISTToDocument(redemption), 'Redemption rejected. Points refunded.')
@@ -133,7 +133,7 @@ export const useRedemptionCode = asyncHandler(async (req, res) => {
 export const listRedemptions = asyncHandler(async (req, res) => {
   const { page = 1, limit = 10, status, userId } = req.query;
   const role = (req.userType || req.user?.role || '').toLowerCase();
-  
+
   const filter = {};
   if (status) filter.status = status;
   if (role === 'user') {

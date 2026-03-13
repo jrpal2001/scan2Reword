@@ -2,6 +2,7 @@ import { Router } from 'express';
 import * as vehicleController from '../controllers/vehicle.controller.js';
 import * as walletController from '../controllers/wallet.controller.js';
 import * as userController from '../controllers/user.controller.js';
+import * as pumpBackgroundController from '../controllers/pumpBackground.controller.js';
 import { verifyJWT } from '../middlewares/auth.middleware.js';
 import { requireRoles } from '../middlewares/rbac.middleware.js';
 import { validateRequest } from '../middlewares/validateRequest.js';
@@ -55,5 +56,12 @@ router.get(
 
 // Wallet
 router.get('/:userId/wallet', verifyJWT, walletController.getWallet);
+
+//pump background
+router.get(
+  '/pump-background',
+  verifyJWT,
+  pumpBackgroundController.getPublicBackgrounds
+);
 
 export default router;

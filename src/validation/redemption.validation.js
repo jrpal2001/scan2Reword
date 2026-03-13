@@ -17,7 +17,7 @@ export const redemptionValidation = {
   }),
 
   reject: Joi.object({
-    reason: Joi.string().trim().min(1).required(),
+    reason: Joi.string().trim().allow('').optional(),
   }),
 
   /** Admin direct redeem: pumpId required so we can track at which pump redemption was done */
