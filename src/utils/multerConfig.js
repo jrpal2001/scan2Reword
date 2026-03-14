@@ -3,16 +3,37 @@ import multer from 'multer';
 const storage = multer.memoryStorage();
 
 const fileFilter = (req, file, cb) => {
-  const allowedTypes = ['image/jpeg', 'image/png', 'image/webp', 'application/pdf'];
+  // const allowedTypes = ['image/jpeg', 'image/png', 'image/webp', 'application/pdf'];
+  const allowedTypes = [
+    'image/jpeg',
+    'image/png',
+    'image/webp',
+    'image/jpg',
+    'image/gif',
+    'image/bmp',
+    'image/tiff',
+    'image/svg+xml',
+    'image/heic',
+    'image/heif',
+    'image/avif',
+    'image/x-icon',
+  // Documents
+    'application/pdf',
+
+    // Added video support
+    'video/mp4',
+    'video/webm',
+    'video/quicktime'
+  ];
   if (allowedTypes.includes(file.mimetype)) {
     cb(null, true);
   } else {
-    cb(new Error('Only JPEG, PNG, WEBP, and PDF files are allowed'), false);
+    cb(new Error('Only JPEG, PNG, WEBP, GIF, BMP, TIFF, SVG, HEIC, HEIF, AVIF, ICO, PDF, MP4, WEBM, and MOV files are allowed'), false);
   }
 };
 
-// 10MB max per file to avoid RAM spikes (e.g. 10 users × 10MB = 100MB, not 500MB)
-const FILE_SIZE_LIMIT = 10 * 1024 * 1024;
+// 50MB max per file to avoid RAM spikes (e.g. 10 users × 50MB = 500MB)
+const FILE_SIZE_LIMIT = 50 * 1024 * 1024;
 
 export const upload = multer({
   storage,
