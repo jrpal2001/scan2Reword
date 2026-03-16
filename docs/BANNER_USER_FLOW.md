@@ -70,6 +70,8 @@ So: **user does not “create” or “manage” banners** – they only **view*
 - **Auth:** None (public).
 - **Query:**
   - `pumpId` (optional) – if the user is on a specific pump/station screen, send this to get banners for that pump + global banners.
+  - `page` (optional, default `1`) – page number.
+  - `limit` (optional, default `10`, max `50`) – items per page.
 
 ### When to Send `pumpId`
 
@@ -101,11 +103,17 @@ So the **same endpoint** serves both “show everything” and “show for this 
       "updatedAtIST": "..."
     }
   ],
-  "meta": null
+  "meta": {
+    "total": 1,
+    "page": 1,
+    "limit": 10,
+    "totalPages": 1
+  }
 }
 ```
 
 - `data` is an **array** of banners (may be empty if none are active).
+- `meta` includes pagination details.
 - App uses `title`, `description`, `imageUrl` to render; uses `linkUrl` when the user taps the banner.
 
 ---

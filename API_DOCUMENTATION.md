@@ -2178,22 +2178,28 @@ attachments: (files, optional - max 5)
 
 **Query Parameters:**
 - `pumpId` (optional): Filter by pump
+- `page` (optional, default `1`): Page number
+- `limit` (optional, default `10`, max `50`): Items per page
 
 **Response:**
 ```json
 {
   "success": true,
-  "data": {
-    "list": [
-      {
-        "_id": "...",
-        "title": "Special Offer",
-        "description": "Get 50% off",
-        "imageUrl": "...",
-        "linkUrl": "..."
-      }
-    ],
-    "total": 5
+  "message": "Active banners retrieved",
+  "data": [
+    {
+      "_id": "...",
+      "title": "Special Offer",
+      "description": "Get 50% off",
+      "imageUrl": "...",
+      "linkUrl": "..."
+    }
+  ],
+  "meta": {
+    "total": 5,
+    "page": 1,
+    "limit": 10,
+    "totalPages": 1
   }
 }
 ```

@@ -36,9 +36,13 @@ export const bannerRepository = {
   /**
    * Find active banners (startTime ≤ now and endTime > now)
    * @param {string} pumpId - Optional pump ID to filter
-   * @returns {Array} Active banners
+   * @param {{ page?: number, limit?: number }} options
+   * @returns {{ list: Array, total: number, page: number, limit: number, totalPages: number }}
    */
-  async findActiveBanners(pumpId = null) {
+  async findActiveBanners(pumpId = null, options = {}) {
+    const page = Math.max(1, parseInt(options.page, 10) || 1);
+    const limit = Math.min(50, Math.max(1, parseInt(options.limit, 10) || 10));
+    const skip = (page - 1) * limit;
     const now = new Date();
     const filter = {
       startTime: { $lte: now },
@@ -57,6 +61,11 @@ export const bannerRepository = {
       // Filter will match banners with empty pumpIds or any pumpIds
     }
 
-    return Banner.find(filter).sort({ createdAt: -1 }).lean();
+    const [list, total] = await Promise.all([
+      Banner.find(filter).sort({ createdAt: -1 }).skip(skip).limit(limit).lean(),
+      Banner.countDocuments(filter),
+    ]);
+
+    return { list, total, page, limit, totalPages: Math.ceil(total / limit) };
   },
 };

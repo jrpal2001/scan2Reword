@@ -1,6 +1,12 @@
 import Joi from 'joi';
 
 export const bannerValidation = {
+  publicList: Joi.object({
+    pumpId: Joi.string().hex().length(24).allow('').optional(),
+    page: Joi.number().integer().min(1).optional(),
+    limit: Joi.number().integer().min(1).max(50).optional(),
+  }),
+
   create: Joi.object({
     title: Joi.string().trim().min(2).max(200).required(),
     description: Joi.string().trim().allow('').optional(),

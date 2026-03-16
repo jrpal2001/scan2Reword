@@ -122,7 +122,7 @@ export const bannerService = {
    * Get active banners (public endpoint)
    * Filters by startTime ≤ now and endTime > now
    */
-  async getActiveBanners(pumpId = null) {
-    return bannerRepository.findActiveBanners(pumpId);
+  async getActiveBanners(pumpId = null, options = {}) {
+    return bannerRepository.findActiveBanners(pumpId, options);
   },
 };

@@ -1,20 +1,21 @@
 import { asyncHandler } from '../utils/asyncHandler.js';
 import { ApiResponse } from '../utils/ApiResponse.js';
-import { addISTToDocument, addISTToList } from '../utils/dateUtils.js';
+import { addISTToDocument } from '../utils/dateUtils.js';
 import { bannerService } from '../services/banner.service.js';
 import { HTTP_STATUS } from '../constants/errorCodes.js';
 
 /**
  * GET /api/banners
- * Query: pumpId? (optional)
+ * Query: pumpId? (optional), page? (optional), limit? (optional)
  * Public endpoint - returns active banners (startTime ≤ now and endTime > now)
  */
 export const getActiveBanners = asyncHandler(async (req, res) => {
-  const { pumpId } = req.query;
-  const banners = await bannerService.getActiveBanners(pumpId || null);
-  return res.status(HTTP_STATUS.OK).json(
-    ApiResponse.success(Array.isArray(banners) ? addISTToList(banners) : addISTToDocument(banners), 'Active banners retrieved')
-  );
+  const { pumpId = null, page = 1, limit = 10 } = req.validated || req.query;
+  const result = await bannerService.getActiveBanners(pumpId || null, {
+    page: parseInt(page, 10),
+    limit: parseInt(limit, 10),
+  });
+  return res.sendPaginated(result, 'Active banners retrieved', HTTP_STATUS.OK);
 });
 
 /**
