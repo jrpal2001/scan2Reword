@@ -71,13 +71,10 @@ export const staffAssignmentService = {
       throw new ApiError(HTTP_STATUS.NOT_FOUND, 'Assignment not found');
     }
 
-    // Soft delete: set status to inactive
-    const updated = await staffAssignmentRepository.update(assignmentId, {
-      status: 'inactive',
-      endDate: new Date(),
-    });
+    // Hard delete the assignment
+    await staffAssignmentRepository.delete(assignmentId);
 
-    return updated;
+    return true; // Indicate success
   },
 
   /**

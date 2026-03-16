@@ -93,7 +93,8 @@ export const getAssignmentsByStaff = asyncHandler(async (req, res) => {
  */
 export const getStaffByPump = asyncHandler(async (req, res) => {
   const { pumpId } = req.params;
-  const staff = await staffAssignmentService.getStaffByPump(pumpId);
+    const staff = await staffAssignmentService.getStaffByPump(pumpId);
+  // const staff = await staffAssignmentService.getStaffByPump(pumpId, { status: 'active' });
   return res.status(HTTP_STATUS.OK).json(
     ApiResponse.success(Array.isArray(staff) ? addISTToList(staff) : addISTToDocument(staff), 'Pump staff retrieved successfully')
   );
