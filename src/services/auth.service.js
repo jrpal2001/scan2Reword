@@ -563,11 +563,7 @@ export const authService = {
     }
     const normalizedType = (typeof userType === 'string' ? userType : (userType || '')).toLowerCase();
     if (normalizedType === 'admin') {
-      const admin = await Admin.findById(userId);
-      if (!admin) throw new ApiError(HTTP_STATUS.NOT_FOUND, 'Admin not found', null, ERROR_CODES.NOT_FOUND);
-      admin.password = newPassword;
-      await admin.save();
-      return { message: 'Password changed successfully' };
+      throw new ApiError(HTTP_STATUS.FORBIDDEN, 'Admin password cannot be reset through this endpoint', null, ERROR_CODES.FORBIDDEN);
     }
     if (normalizedType === 'manager') {
       const manager = await managerRepository.findByIdWithPassword(userId);
@@ -618,13 +614,7 @@ export const authService = {
           $or: [{ email: trimmed.toLowerCase() }, { phone: trimmed }],
         });
         if (admin) {
-          const isMatch = await admin.comparePassword(oldPassword);
-          if (!isMatch) {
-            throw new ApiError(HTTP_STATUS.UNAUTHORIZED, 'Invalid identifier or password', null, ERROR_CODES.INVALID_CREDENTIALS);
-          }
-          admin.password = newPassword;
-          await admin.save();
-          return { message: 'Password changed successfully' };
+          throw new ApiError(HTTP_STATUS.FORBIDDEN, 'Admin password cannot be reset', null, ERROR_CODES.FORBIDDEN);
         }
       }
       if (!entity) {
@@ -650,12 +640,10 @@ export const authService = {
       // Verify OTP for purpose 'change-password', then find entity by mobile and update password
       await this.verifyOtpOnly(mobile, otp, 'change-password');
       const trimmed = String(mobile).trim();
-      // Admin uses phone field
+      // Admin uses phone field — block password reset for admin
       const admin = await Admin.findOne({ phone: trimmed });
       if (admin) {
-        admin.password = newPassword;
-        await admin.save();
-        return { message: 'Password changed successfully' };
+        throw new ApiError(HTTP_STATUS.FORBIDDEN, 'Admin password cannot be reset', null, ERROR_CODES.FORBIDDEN);
       }
       const user = await userRepository.findByMobileWithPassword(trimmed);
       if (user) {
@@ -679,5 +667,38 @@ export const authService = {
     }
 
     throw new ApiError(HTTP_STATUS.BAD_REQUEST, 'Provide either (identifier + oldPassword) or (mobile + otp) to verify identity', null, ERROR_CODES.BAD_REQUEST);
+  },
+
+  /**
+   * Delete account for User, Manager, or Staff. Admin accounts cannot be deleted.
+   */
+  async deleteAccount(userId, userType) {
+    if (!userId) {
+      throw new ApiError(HTTP_STATUS.BAD_REQUEST, 'User ID is required', null, ERROR_CODES.BAD_REQUEST);
+    }
+    const normalizedType = (typeof userType === 'string' ? userType : '').toLowerCase();
+    if (normalizedType === 'admin') {
+      throw new ApiError(HTTP_STATUS.FORBIDDEN, 'Admin account cannot be deleted', null, ERROR_CODES.FORBIDDEN);
+    }
+
+    // Revoke all refresh tokens for this user
+    await refreshTokenRepository.revokeAllUserTokens(userId, userType);
+
+    if (normalizedType === 'manager') {
+      const manager = await Manager.findByIdAndDelete(userId);
+      if (!manager) throw new ApiError(HTTP_STATUS.NOT_FOUND, 'Manager not found', null, ERROR_CODES.NOT_FOUND);
+      return { message: 'Manager account deleted successfully' };
+    }
+    if (normalizedType === 'staff') {
+      const staff = await Staff.findByIdAndDelete(userId);
+      if (!staff) throw new ApiError(HTTP_STATUS.NOT_FOUND, 'Staff not found', null, ERROR_CODES.NOT_FOUND);
+      return { message: 'Staff account deleted successfully' };
+    }
+    // Default: UserLoyalty
+    const user = await userRepository.findById(userId);
+    if (!user) throw new ApiError(HTTP_STATUS.NOT_FOUND, 'User not found', null, ERROR_CODES.NOT_FOUND);
+    const User = (await import('../models/User.model.js')).default;
+    await User.findByIdAndDelete(userId);
+    return { message: 'User account deleted successfully' };
   },
 };

@@ -214,6 +214,9 @@ export const authValidation = {
     // If neither provided, logs out from all devices
   }),
 
+  /** DELETE /api/auth/delete-account — no body needed, account identified from JWT */
+  deleteAccount: Joi.object({}),
+
   verifyOtp: Joi.object({
     mobile: mobileSchema,
     otp: Joi.string().trim().min(4).max(8).required(),

@@ -32,5 +32,6 @@ router.post('/set-password', verifyJWT, validateRequest(authValidation.setPasswo
 router.post('/change-password', verifyJWT, validateRequest(authValidation.changePassword), authController.changePassword);
 router.post('/change-password-with-verification', validateRequest(authValidation.changePasswordWithVerification), authController.changePasswordWithVerification);
 router.post('/logout', verifyJWT, validateRequest(authValidation.logout), authController.logout);
+router.delete('/delete-account', verifyJWT, authController.deleteAccount);
 
 export default router;

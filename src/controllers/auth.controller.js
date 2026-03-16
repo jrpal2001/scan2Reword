@@ -206,6 +206,9 @@ export const setPassword = asyncHandler(async (req, res) => {
 export const changePassword = asyncHandler(async (req, res) => {
   const value = req.validated;
   const userType = req.userType || req.user?.role;
+  if (userType === 'admin' || userType === 'Admin') {
+    throw new ApiError(HTTP_STATUS.FORBIDDEN, 'Admin password cannot be reset through this endpoint');
+  }
   const result = await authService.changePassword(req.user._id, userType, value.newPassword);
   return res.status(HTTP_STATUS.OK).json(ApiResponse.success(result, result.message));
 });
@@ -257,4 +260,21 @@ export const logout = asyncHandler(async (req, res) => {
   return res.status(HTTP_STATUS.OK).json(
     ApiResponse.success(result, result.message)
   );
+});
+
+/**
+ * DELETE /api/auth/delete-account
+ * Requires: Authorization header with access token
+ * Deletes the authenticated user's account (User, Manager, Staff). Admin accounts cannot be deleted.
+ */
+export const deleteAccount = asyncHandler(async (req, res) => {
+  const userId = req.user?._id;
+  const userType = req.userType || req.user?.role;
+
+  if (!userId) {
+    throw new ApiError(HTTP_STATUS.UNAUTHORIZED, 'Unauthorized');
+  }
+
+  const result = await authService.deleteAccount(userId, userType);
+  return res.status(HTTP_STATUS.OK).json(ApiResponse.success(result, result.message));
 });
