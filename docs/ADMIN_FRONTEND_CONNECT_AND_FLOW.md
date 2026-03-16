@@ -527,6 +527,148 @@ Onboarding stores **multiple images per document** in `onboardImage` (array). Ad
 
 ---
 
+### 4.12 User Registration + User Detail (Admin 360 Page)
+
+Use this section to build one admin page where you can:
+- register user in all customer account types,
+- open user by ID and show full details,
+- show user transactions and redemptions,
+- create redemption for that user from admin,
+- if user is owner, show full fleet and drill down to a specific vehicle.
+
+#### 4.12.1 Registration APIs (all user account types)
+
+You can use either:
+- `POST /api/admin/users` (Admin JWT, recommended for admin panel).
+- `POST /api/auth/register` (public app registration flow).
+
+For admin frontend, use `POST /api/admin/users`.
+
+**Content-Type:** `multipart/form-data` (supports photos and vehicle docs).
+
+**A) Individual customer (admin create):**
+```json
+{
+  "role": "user",
+  "accountType": "individual",
+  "mobile": "9876543210",
+  "fullName": "Individual User",
+  "email": "ind@example.com",
+  "registeredPumpId": "<optionalPumpId>",
+  "vehicle": {
+    "vehicleNumber": "OD02AB1234",
+    "vehicleType": "Four-Wheeler",
+    "fuelType": "Petrol"
+  }
+}
+```
+
+**B) Organization customer (registered owner):**
+```json
+{
+  "role": "user",
+  "accountType": "organization",
+  "ownerType": "registered",
+  "ownerIdentifier": "<existingOwnerId_or_mobile>",
+  "mobile": "9876500001",
+  "fullName": "Fleet Driver 1",
+  "vehicle": {
+    "vehicleNumber": "OD02CD5678",
+    "vehicleType": "Commercial",
+    "fuelType": "Diesel"
+  }
+}
+```
+
+**C) Organization customer (non-registered owner):**
+```json
+{
+  "role": "user",
+  "accountType": "organization",
+  "ownerType": "non-registered",
+  "owner": {
+    "fullName": "Fleet Owner Name",
+    "mobile": "9876500002",
+    "email": "owner@example.com"
+  },
+  "mobile": "9876500003",
+  "fullName": "Fleet Driver 2",
+  "vehicle": {
+    "vehicleNumber": "OD02EF9012",
+    "vehicleType": "Commercial",
+    "fuelType": "Diesel"
+  }
+}
+```
+
+**D) Owner only (no driver, no vehicle):**
+```json
+{
+  "role": "user",
+  "accountType": "organization",
+  "ownerType": "non-registered",
+  "ownerOnly": true,
+  "owner": {
+    "fullName": "New Fleet Owner",
+    "mobile": "9876500004",
+    "email": "newowner@example.com"
+  }
+}
+```
+
+#### 4.12.2 User detail page (by userId) — recommended API call order
+
+1. Base profile:
+   - `GET /api/admin/users/:userId`
+2. Wallet:
+   - `GET /api/user/:userId/wallet`
+3. Transactions:
+   - `GET /api/transactions?userId=:userId&page=1&limit=10`
+4. Redemptions:
+   - `GET /api/redeem?userId=:userId&page=1&limit=10`
+
+Use the same Admin JWT for all above calls.
+
+#### 4.12.3 Create redemption for user from Admin page
+
+Use direct redemption API:
+- `POST /api/admin/redemptions/direct`
+
+**Body:**
+```json
+{
+  "userId": "<userId>",
+  "pointsToDeduct": 100,
+  "pumpId": "<pumpId>"
+}
+```
+
+This deducts points immediately and returns `redemption`, `redemptionCode`, and message.
+
+#### 4.12.4 Owner full fleet details + specific vehicle drill-down
+
+For owner users, the backend already supports fleet shape through lookup:
+- `GET /api/user/scan/lookup?mobile=<ownerMobile>`
+- or `GET /api/user/scan/lookup?loyaltyId=<ownerLoyaltyId>`
+
+Response includes owner profile plus:
+- `fleetVehicles` (vehicle objects + `driverId`, `driverFullName`, `driverMobile`)
+- `totalFleetPoints`
+
+To open a specific vehicle:
+1. Pick one item from `fleetVehicles`.
+2. Use `driverId` and vehicle identifiers from that item.
+3. Fetch that driver vehicle list (or one vehicle):
+   - `GET /api/user/vehicles?userId=<driverId>&vehicleId=<vehicleId>`
+   - or `GET /api/user/vehicles?userId=<driverId>&vehicleNumber=<vehicleNumber>`
+4. Fetch driver transactions/redemptions:
+   - `GET /api/transactions?userId=<driverId>&page=1&limit=10`
+   - `GET /api/redeem?userId=<driverId>&page=1&limit=10`
+
+Note: admin transactions API filters by `userId` (not `vehicleId`). For vehicle-level screen, use selected driver + frontend filtering by `vehicleId` from transaction rows.
+
+---
+
 ## 5. Quick Reference – All Admin Endpoints
 
 | Method | Path | Purpose |
