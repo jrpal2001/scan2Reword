@@ -295,7 +295,7 @@ export const userValidation = {
     managerCode: Joi.string().trim().max(50).allow('', null).optional(),
     referralCode: Joi.string().trim().max(50).allow('', null).optional(),
     password: Joi.string().trim().min(4).max(100).optional(),
-  }).min(1),
+  }).min(1).required(),
 
   /** Admin: update staff by id (more fields than generic /users?type=staff) */
   adminUpdateStaff: Joi.object({
@@ -308,7 +308,7 @@ export const userValidation = {
     referralCode: Joi.string().trim().max(50).allow('', null).optional(),
     assignedManagerId: objectIdSchema.optional(),
     password: Joi.string().trim().min(4).max(100).optional(),
-  }).min(1),
+  }).min(1).required(),
 
   /** GET /api/user/lookup - look up customer by loyaltyId, vehicleNumber, or mobile (at least one non-empty required). All roles. */
   lookupCustomer: Joi.object({

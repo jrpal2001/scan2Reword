@@ -508,7 +508,8 @@ export const getStaffById = asyncHandler(async (req, res) => {
  */
 export const updateManagerById = asyncHandler(async (req, res) => {
   const { managerId } = req.params;
-  const updated = await userService.updateManagerByAdmin(managerId, req.validated);
+  const updateData = req.validated || req.body || {};
+  const updated = await userService.updateManagerByAdmin(managerId, updateData);
   return res.status(HTTP_STATUS.OK).json(
     ApiResponse.success(addISTToDocument(updated), 'Manager updated successfully')
   );
@@ -520,7 +521,8 @@ export const updateManagerById = asyncHandler(async (req, res) => {
  */
 export const updateStaffById = asyncHandler(async (req, res) => {
   const { staffId } = req.params;
-  const updated = await userService.updateStaffByAdmin(staffId, req.validated);
+  const updateData = req.validated || req.body || {};
+  const updated = await userService.updateStaffByAdmin(staffId, updateData);
   return res.status(HTTP_STATUS.OK).json(
     ApiResponse.success(addISTToDocument(updated), 'Staff updated successfully')
   );

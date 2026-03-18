@@ -182,6 +182,8 @@ router.patch(
   '/managers/:managerId',
   verifyJWT,
   requireRoles([ROLES.ADMIN]),
+  upload.none(),
+  parseBodyJson,
   validateRequest(userValidation.adminUpdateManager),
   adminController.updateManagerById
 );
@@ -203,6 +205,8 @@ router.patch(
   '/staff/:staffId',
   verifyJWT,
   requireRoles([ROLES.ADMIN]),
+  upload.none(),
+  parseBodyJson,
   validateRequest(userValidation.adminUpdateStaff),
   adminController.updateStaffById
 );

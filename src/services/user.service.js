@@ -1102,12 +1102,13 @@ export const userService = {
   async updateManagerByAdmin(managerId, updateData) {
     const manager = await managerRepository.findById(managerId);
     if (!manager) throw new ApiError(HTTP_STATUS.NOT_FOUND, 'Manager not found');
+    const payload = updateData && typeof updateData === 'object' ? updateData : {};
     const allowed = ['fullName', 'mobile', 'email', 'address', 'profilePhoto', 'managerCode', 'referralCode'];
     const safe = {};
     for (const key of allowed) {
-      if (updateData[key] !== undefined) safe[key] = updateData[key];
+      if (payload[key] !== undefined) safe[key] = payload[key];
     }
-    const password = updateData?.password;
+    const password = payload.password;
     if (Object.keys(safe).length === 0 && (password == null || String(password).trim() === '')) return manager;
     const updated = await managerRepository.updateWithPassword(managerId, safe, password);
     if (!updated) throw new ApiError(HTTP_STATUS.NOT_FOUND, 'Manager not found');
@@ -1120,17 +1121,18 @@ export const userService = {
   async updateStaffByAdmin(staffId, updateData) {
     const staff = await staffRepository.findById(staffId);
     if (!staff) throw new ApiError(HTTP_STATUS.NOT_FOUND, 'Staff not found');
+    const payload = updateData && typeof updateData === 'object' ? updateData : {};
     const allowed = ['fullName', 'mobile', 'email', 'address', 'profilePhoto', 'staffCode', 'referralCode', 'assignedManagerId'];
     const safe = {};
     for (const key of allowed) {
-      if (updateData[key] !== undefined) safe[key] = updateData[key];
+      if (payload[key] !== undefined) safe[key] = payload[key];
     }
     if (safe.assignedManagerId === '') safe.assignedManagerId = null;
     if (safe.assignedManagerId) {
       const manager = await managerRepository.findById(safe.assignedManagerId);
       if (!manager) throw new ApiError(HTTP_STATUS.BAD_REQUEST, 'assignedManagerId must be a valid manager');
     }
-    const password = updateData?.password;
+    const password = payload.password;
     if (Object.keys(safe).length === 0 && (password == null || String(password).trim() === '')) return staff;
     const updated = await staffRepository.updateWithPassword(staffId, safe, password);
     if (!updated) throw new ApiError(HTTP_STATUS.NOT_FOUND, 'Staff not found');
