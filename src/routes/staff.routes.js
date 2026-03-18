@@ -3,6 +3,7 @@ import * as adminController from '../controllers/admin.controller.js';
 import * as redemptionController from '../controllers/redemption.controller.js';
 import * as dashboardController from '../controllers/dashboard.controller.js';
 import * as staffController from '../controllers/staff.controller.js';
+import * as referralController from '../controllers/referral.controller.js';
 import { verifyJWT } from '../middlewares/auth.middleware.js';
 import { requireRoles, attachPumpScope } from '../middlewares/rbac.middleware.js';
 import { validateRequest } from '../middlewares/validateRequest.js';
@@ -35,6 +36,20 @@ router.get(
   requireRoles([ROLES.STAFF]),
   attachPumpScope,
   dashboardController.getStaffDashboard
+);
+
+// Referral summary + points/redemption history (staff's own points)
+router.get(
+  '/referrals/summary',
+  verifyJWT,
+  requireRoles([ROLES.STAFF]),
+  referralController.getMyReferralSummary
+);
+router.get(
+  '/referrals/history',
+  verifyJWT,
+  requireRoles([ROLES.STAFF]),
+  referralController.getMyReferralHistory
 );
 
 router.post(

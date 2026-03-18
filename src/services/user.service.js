@@ -1023,7 +1023,8 @@ export const userService = {
    */
   async listUsers(filter = {}, options = {}, allowedPumpIds = null) {
     if (allowedPumpIds && Array.isArray(allowedPumpIds) && allowedPumpIds.length > 0) {
-      filter.registeredPumpId = { $in: allowedPumpIds.map((id) => String(id)) };
+      // Ensure we query with ObjectIds (registeredPumpId is stored as ObjectId)
+      filter.registeredPumpId = { $in: allowedPumpIds };
     }
     const result = await userRepository.list(filter, options);
     if (!result.list || result.list.length === 0) {
@@ -1096,6 +1097,47 @@ export const userService = {
   },
 
   /**
+   * Admin: update manager with extended fields (mobile, codes, referralCode, profilePhoto).
+   */
+  async updateManagerByAdmin(managerId, updateData) {
+    const manager = await managerRepository.findById(managerId);
+    if (!manager) throw new ApiError(HTTP_STATUS.NOT_FOUND, 'Manager not found');
+    const allowed = ['fullName', 'mobile', 'email', 'address', 'profilePhoto', 'managerCode', 'referralCode'];
+    const safe = {};
+    for (const key of allowed) {
+      if (updateData[key] !== undefined) safe[key] = updateData[key];
+    }
+    const password = updateData?.password;
+    if (Object.keys(safe).length === 0 && (password == null || String(password).trim() === '')) return manager;
+    const updated = await managerRepository.updateWithPassword(managerId, safe, password);
+    if (!updated) throw new ApiError(HTTP_STATUS.NOT_FOUND, 'Manager not found');
+    return { ...updated, role: ROLES.MANAGER };
+  },
+
+  /**
+   * Admin: update staff with extended fields (mobile, codes, referralCode, profilePhoto, assignedManagerId).
+   */
+  async updateStaffByAdmin(staffId, updateData) {
+    const staff = await staffRepository.findById(staffId);
+    if (!staff) throw new ApiError(HTTP_STATUS.NOT_FOUND, 'Staff not found');
+    const allowed = ['fullName', 'mobile', 'email', 'address', 'profilePhoto', 'staffCode', 'referralCode', 'assignedManagerId'];
+    const safe = {};
+    for (const key of allowed) {
+      if (updateData[key] !== undefined) safe[key] = updateData[key];
+    }
+    if (safe.assignedManagerId === '') safe.assignedManagerId = null;
+    if (safe.assignedManagerId) {
+      const manager = await managerRepository.findById(safe.assignedManagerId);
+      if (!manager) throw new ApiError(HTTP_STATUS.BAD_REQUEST, 'assignedManagerId must be a valid manager');
+    }
+    const password = updateData?.password;
+    if (Object.keys(safe).length === 0 && (password == null || String(password).trim() === '')) return staff;
+    const updated = await staffRepository.updateWithPassword(staffId, safe, password);
+    if (!updated) throw new ApiError(HTTP_STATUS.NOT_FOUND, 'Staff not found');
+    return { ...updated, role: ROLES.STAFF };
+  },
+
+  /**
    * Block/unblock user (admin) - customers only
    */
   async updateUserStatus(userId, status, adminId) {
@@ -1106,6 +1148,32 @@ export const userService = {
 
     const updated = await userRepository.update(userId, { status });
     return updated;
+  },
+
+  /**
+   * Admin: block/unblock any account type (user/manager/staff) by id.
+   * @param {string} id
+   * @param {'user'|'manager'|'staff'} type
+   * @param {string} status - active|inactive|blocked
+   */
+  async updateAccountStatus(id, type, status) {
+    const t = String(type || '').toLowerCase();
+    if (t === 'user') {
+      const user = await userRepository.findById(id);
+      if (!user) throw new ApiError(HTTP_STATUS.NOT_FOUND, 'User not found');
+      return await userRepository.update(id, { status });
+    }
+    if (t === 'manager') {
+      const manager = await managerRepository.findById(id);
+      if (!manager) throw new ApiError(HTTP_STATUS.NOT_FOUND, 'Manager not found');
+      return await managerRepository.update(id, { status });
+    }
+    if (t === 'staff') {
+      const staff = await staffRepository.findById(id);
+      if (!staff) throw new ApiError(HTTP_STATUS.NOT_FOUND, 'Staff not found');
+      return await staffRepository.update(id, { status });
+    }
+    throw new ApiError(HTTP_STATUS.BAD_REQUEST, 'type must be one of: user, manager, staff');
   },
 
   /**

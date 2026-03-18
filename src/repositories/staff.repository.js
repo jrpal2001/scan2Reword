@@ -59,6 +59,23 @@ export const staffRepository = {
     return Staff.findByIdAndUpdate(id, { $set: data }, { new: true }).select('-passwordHash').lean();
   },
 
+  /**
+   * Update staff fields and optionally set a new password (uses pre-save hook for hash/encrypt).
+   * Note: uses doc.save() so hooks run.
+   */
+  async updateWithPassword(id, data, password = null) {
+    const doc = await Staff.findById(id);
+    if (!doc) return null;
+    if (data && typeof data === 'object') {
+      Object.assign(doc, data);
+    }
+    if (password != null && String(password).trim() !== '') {
+      doc.password = String(password).trim();
+    }
+    await doc.save();
+    return Staff.findById(id).select('-passwordHash').lean();
+  },
+
   async list(filter = {}, options = {}) {
     const { page = 1, limit = 10, sort = { createdAt: -1 } } = options;
     const skip = (page - 1) * limit;

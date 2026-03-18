@@ -106,13 +106,10 @@ export const bannerService = {
   },
 
   async listBanners(filter = {}, options = {}, userId, userRole, allowedPumpIds = null) {
-    // Apply pump scope for manager
-    if (userRole === ROLES.MANAGER && allowedPumpIds !== null) {
-      filter.$or = [
-        { pumpIds: { $size: 0 } }, // Global banners
-        { pumpIds: { $in: allowedPumpIds } }, // Banners for manager's pumps
-        { createdBy: userId }, // Banners created by this manager
-      ];
+    // Manager: list only banners created by this manager
+    if (userRole === ROLES.MANAGER) {
+      filter = { ...filter, createdBy: userId };
+      // For manager list view, we intentionally do not include global/other banners.
     }
 
     return bannerRepository.list(filter, options);

@@ -196,11 +196,14 @@ export const listUsers = asyncHandler(async (req, res) => {
   const { page = 1, limit = 10, status, search } = req.query;
   const filter = {};
   if (status) filter.status = status;
-  if (search) {
+  if (search && String(search).trim()) {
+    const term = String(search).trim().replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    const regex = new RegExp(term, 'i');
     filter.$or = [
-      { fullName: { $regex: search, $options: 'i' } },
-      { mobile: { $regex: search, $options: 'i' } },
-      { email: { $regex: search, $options: 'i' } },
+      { fullName: regex },
+      { mobile: regex },
+      { email: regex },
+      { loyaltyId: regex },
     ];
   }
   const result = await userService.listUsers(
@@ -360,6 +363,21 @@ export const updateUserStatus = asyncHandler(async (req, res) => {
 });
 
 /**
+ * PATCH /api/admin/accounts/:id/status
+ * Query: type=user|manager|staff
+ * Body: { status: 'active'|'inactive'|'blocked', reason?: string }
+ */
+export const updateAccountStatus = asyncHandler(async (req, res) => {
+  const { id } = req.params;
+  const { status } = req.validated;
+  const type = String(req.query.type || '').toLowerCase();
+  const updated = await userService.updateAccountStatus(id, type, status);
+  return res.status(HTTP_STATUS.OK).json(
+    ApiResponse.success(addISTToDocument(updated), `${type} status updated successfully`)
+  );
+});
+
+/**
  * DELETE /api/admin/users/:userId
  * Query: type (optional) - 'manager' | 'staff' | 'user'. If omitted, resolves by checking Manager, then Staff, then User.
  * Delete any user (manager, staff, or customer). Admin only.
@@ -481,5 +499,29 @@ export const getStaffById = asyncHandler(async (req, res) => {
   staff.referredUserCount = referredUserCount;
   return res.status(HTTP_STATUS.OK).json(
     ApiResponse.success(addISTToDocument(staff), 'Staff retrieved')
+  );
+});
+
+/**
+ * PATCH /api/admin/managers/:managerId
+ * Admin: update manager details (extended fields).
+ */
+export const updateManagerById = asyncHandler(async (req, res) => {
+  const { managerId } = req.params;
+  const updated = await userService.updateManagerByAdmin(managerId, req.validated);
+  return res.status(HTTP_STATUS.OK).json(
+    ApiResponse.success(addISTToDocument(updated), 'Manager updated successfully')
+  );
+});
+
+/**
+ * PATCH /api/admin/staff/:staffId
+ * Admin: update staff details (extended fields).
+ */
+export const updateStaffById = asyncHandler(async (req, res) => {
+  const { staffId } = req.params;
+  const updated = await userService.updateStaffByAdmin(staffId, req.validated);
+  return res.status(HTTP_STATUS.OK).json(
+    ApiResponse.success(addISTToDocument(updated), 'Staff updated successfully')
   );
 });

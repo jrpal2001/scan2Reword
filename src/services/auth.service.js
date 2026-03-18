@@ -92,6 +92,9 @@ export const authService = {
     const trimmed = String(mobile).trim();
     const user = await userRepository.findByMobile(trimmed);
     if (user) {
+      if (user.status !== 'active') {
+        throw new ApiError(HTTP_STATUS.FORBIDDEN, 'Account is inactive or blocked', null, ERROR_CODES.FORBIDDEN);
+      }
       const userType = 'UserLoyalty';
       const accessToken = this.issueJwt(user, userType);
       const refreshToken = this.issueRefreshToken(user, userType);
@@ -119,6 +122,9 @@ export const authService = {
     // Manager/Staff: first-time login via OTP (no password set); later they use password
     const manager = await managerRepository.findByMobile(trimmed);
     if (manager) {
+      if (manager.status !== 'active') {
+        throw new ApiError(HTTP_STATUS.FORBIDDEN, 'Account is inactive or blocked', null, ERROR_CODES.FORBIDDEN);
+      }
       const userType = 'Manager';
       const accessToken = this.issueJwt(manager, userType);
       const refreshToken = this.issueRefreshToken(manager, userType);
@@ -139,6 +145,9 @@ export const authService = {
 
     const staff = await staffRepository.findByMobile(trimmed);
     if (staff) {
+      if (staff.status !== 'active') {
+        throw new ApiError(HTTP_STATUS.FORBIDDEN, 'Account is inactive or blocked', null, ERROR_CODES.FORBIDDEN);
+      }
       const userType = 'Staff';
       const accessToken = this.issueJwt(staff, userType);
       const refreshToken = this.issueRefreshToken(staff, userType);
@@ -190,6 +199,9 @@ export const authService = {
 
     const manager = await managerRepository.findByIdentifier(identifier);
     if (manager) {
+      if (manager.status !== 'active') {
+        throw new ApiError(HTTP_STATUS.FORBIDDEN, 'Account is inactive or blocked', null, ERROR_CODES.FORBIDDEN);
+      }
       return {
         isAdmin: false,
         isManager: true,
@@ -203,6 +215,9 @@ export const authService = {
 
     const staff = await staffRepository.findByIdentifier(identifier);
     if (staff) {
+      if (staff.status !== 'active') {
+        throw new ApiError(HTTP_STATUS.FORBIDDEN, 'Account is inactive or blocked', null, ERROR_CODES.FORBIDDEN);
+      }
       return {
         isAdmin: false,
         isManager: false,
@@ -216,6 +231,9 @@ export const authService = {
 
     const user = await userRepository.findByIdentifier(identifier);
     if (user) {
+      if (user.status !== 'active') {
+        throw new ApiError(HTTP_STATUS.FORBIDDEN, 'Account is inactive or blocked', null, ERROR_CODES.FORBIDDEN);
+      }
       return {
         isAdmin: false,
         isManager: false,
@@ -242,6 +260,11 @@ export const authService = {
     if (!entity) {
       entity = await staffRepository.findByIdentifier(identifier);
       userType = 'Staff';
+    }
+    if (entity && (userType === 'Manager' || userType === 'Staff')) {
+      if (entity.status !== 'active') {
+        throw new ApiError(HTTP_STATUS.FORBIDDEN, 'Account is inactive or blocked', null, ERROR_CODES.FORBIDDEN);
+      }
     }
     if (!entity) {
       const trimmed = identifier.trim();

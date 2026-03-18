@@ -105,7 +105,8 @@ export const getPublicPumpList = asyncHandler(async (req, res) => {
   const validated = req.validated || req.query;
   const lat = validated.lat != null ? Number(validated.lat) : null;
   const lng = validated.lng != null ? Number(validated.lng) : null;
-  const result = await pumpService.getPublicPumpList(lat, lng);
+  const search = validated.search != null ? String(validated.search).trim() : '';
+  const result = await pumpService.getPublicPumpList(lat, lng, search);
   return res.status(HTTP_STATUS.OK).json(
     ApiResponse.success(result, 'Pumps retrieved')
   );

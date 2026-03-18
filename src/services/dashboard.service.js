@@ -392,6 +392,9 @@ export const dashboardService = {
     const now = new Date();
     const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 0, 0, 0, 0);
     const thisMonthStart = new Date(now.getFullYear(), now.getMonth(), 1);
+    const day = now.getDay(); // 0=Sun..6=Sat
+    const diffToMonday = (day + 6) % 7; // Mon=0
+    const weekStart = new Date(now.getFullYear(), now.getMonth(), now.getDate() - diffToMonday, 0, 0, 0, 0);
 
     if (!pumpIds || pumpIds.length === 0) {
       return {
@@ -500,6 +503,46 @@ export const dashboardService = {
       createdAt: { $gte: thisMonthStart },
     });
 
+    // My totals (created by this staff): liters (Fuel only), amount, points - today/thisWeek/thisMonth
+    const [myTotalsToday, myTotalsThisWeek, myTotalsThisMonth] = await Promise.all([
+      Transaction.aggregate([
+        { $match: { pumpId: { $in: pumpIdList }, operatorId: staffId, status: 'completed', createdAt: { $gte: todayStart } } },
+        {
+          $group: {
+            _id: null,
+            totalAmount: { $sum: '$amount' },
+            totalPoints: { $sum: '$pointsEarned' },
+            totalFuelLiters: { $sum: { $cond: [{ $eq: ['$category', 'Fuel'] }, { $ifNull: ['$liters', 0] }, 0] } },
+          },
+        },
+      ]),
+      Transaction.aggregate([
+        { $match: { pumpId: { $in: pumpIdList }, operatorId: staffId, status: 'completed', createdAt: { $gte: weekStart } } },
+        {
+          $group: {
+            _id: null,
+            totalAmount: { $sum: '$amount' },
+            totalPoints: { $sum: '$pointsEarned' },
+            totalFuelLiters: { $sum: { $cond: [{ $eq: ['$category', 'Fuel'] }, { $ifNull: ['$liters', 0] }, 0] } },
+          },
+        },
+      ]),
+      Transaction.aggregate([
+        { $match: { pumpId: { $in: pumpIdList }, operatorId: staffId, status: 'completed', createdAt: { $gte: thisMonthStart } } },
+        {
+          $group: {
+            _id: null,
+            totalAmount: { $sum: '$amount' },
+            totalPoints: { $sum: '$pointsEarned' },
+            totalFuelLiters: { $sum: { $cond: [{ $eq: ['$category', 'Fuel'] }, { $ifNull: ['$liters', 0] }, 0] } },
+          },
+        },
+      ]),
+    ]);
+    const tDay = myTotalsToday?.[0] || {};
+    const tWeek = myTotalsThisWeek?.[0] || {};
+    const tMonth = myTotalsThisMonth?.[0] || {};
+
     return {
       assignedPumps,
       manager,
@@ -510,6 +553,23 @@ export const dashboardService = {
       myTransactions: {
         today: myTransactionsToday,
         thisMonth: myTransactionsThisMonth,
+      },
+      myTotals: {
+        today: {
+          fuelLiters: tDay.totalFuelLiters || 0,
+          amount: tDay.totalAmount || 0,
+          points: tDay.totalPoints || 0,
+        },
+        thisWeek: {
+          fuelLiters: tWeek.totalFuelLiters || 0,
+          amount: tWeek.totalAmount || 0,
+          points: tWeek.totalPoints || 0,
+        },
+        thisMonth: {
+          fuelLiters: tMonth.totalFuelLiters || 0,
+          amount: tMonth.totalAmount || 0,
+          points: tMonth.totalPoints || 0,
+        },
       },
       revenue: {
         today: revenueToday[0]?.total || 0,

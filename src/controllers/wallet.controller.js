@@ -92,3 +92,39 @@ export const adjustWallet = asyncHandler(async (req, res) => {
     ApiResponse.success(addISTToDocument(ledgerEntry), 'Wallet adjusted successfully')
   );
 });
+
+/**
+ * POST /api/admin/referrals/redeem
+ * Body: { ownerId, ownerType: 'Manager'|'Staff', points, reason? }
+ * Admin only. Debits points from the manager/staff wallet (referral earnings).
+ */
+export const redeemEmployeePoints = asyncHandler(async (req, res) => {
+  const { ownerId, ownerType, points, reason } = req.validated;
+
+  const walletBefore = await pointsService.getWallet(ownerId, { ownerType, page: 1, limit: 1 });
+  const ledgerEntry = await pointsService.debitPoints({
+    userId: ownerId,
+    ownerType,
+    points,
+    type: 'debit',
+    reason: reason || `Referral points redeemed by admin`,
+    createdBy: req.user._id,
+  });
+  const walletAfter = await pointsService.getWallet(ownerId, { ownerType, page: 1, limit: 1 });
+
+  await auditLogService.log({
+    userId: req.user._id,
+    action: 'referrals.redeem',
+    entityType: ownerType,
+    entityId: ownerId,
+    before: { availablePoints: walletBefore.walletSummary.availablePoints },
+    after: { availablePoints: walletAfter.walletSummary.availablePoints },
+    metadata: { ownerType, points, reason: reason || null },
+    ipAddress: req.ip,
+    userAgent: req.get('user-agent'),
+  });
+
+  return res.status(HTTP_STATUS.OK).json(
+    ApiResponse.success(addISTToDocument(ledgerEntry), 'Employee points redeemed successfully')
+  );
+});

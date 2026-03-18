@@ -13,7 +13,7 @@ try {
   
   try {
     // Try to import service account file
-    const serviceAccountModule = await import("./my-reword-firebase-adminsdk-fbsvc-82c021b752.json.js");
+    const serviceAccountModule = await import("./yspfuelplus-785a9-firebase-adminsdk-fbsvc-50b72d2db7.js");
     serviceAccount = serviceAccountModule.serviceAccount;
     
     // Check if service account is valid (has required fields)

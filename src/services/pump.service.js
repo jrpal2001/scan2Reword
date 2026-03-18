@@ -124,20 +124,30 @@ export const pumpService = {
    * @param {number|null} lat - Optional user latitude
    * @param {number|null} lng - Optional user longitude
    */
-  async getPublicPumpList(lat, lng) {
+  async getPublicPumpList(lat, lng, search = '') {
     const pumps = await pumpRepository.listActiveForPublic();
+    const term = typeof search === 'string' ? search.trim() : '';
+    const regex = term ? new RegExp(term.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'i') : null;
     const hasCoords =
       typeof lat === 'number' &&
       !Number.isNaN(lat) &&
       typeof lng === 'number' &&
       !Number.isNaN(lng);
-    const list = pumps.map((p) => {
+    let list = pumps.map((p) => {
       const pump = { _id: p._id, name: p.name, code: p.code, location: p.location, status: p.status, pumpImages: p.pumpImages ?? [] };
       if (hasCoords && p.location?.lat != null && p.location?.lng != null) {
         pump.distanceKm = Math.round(haversineDistanceKm(lat, lng, p.location.lat, p.location.lng) * 100) / 100;
       }
       return pump;
     });
+    if (regex) {
+      list = list.filter((p) => {
+        const addr = p.location?.address || '';
+        const city = p.location?.city || '';
+        const state = p.location?.state || '';
+        return regex.test(p.name || '') || regex.test(p.code || '') || regex.test(addr) || regex.test(city) || regex.test(state);
+      });
+    }
     if (hasCoords) {
       list.sort((a, b) => (a.distanceKm ?? Infinity) - (b.distanceKm ?? Infinity));
     }

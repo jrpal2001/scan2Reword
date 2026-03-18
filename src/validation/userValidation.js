@@ -285,6 +285,31 @@ export const userValidation = {
     profilePhoto: Joi.string().trim().allow('', null).optional(),
   }),
 
+  /** Admin: update manager by id (more fields than generic /users?type=manager) */
+  adminUpdateManager: Joi.object({
+    fullName: Joi.string().trim().min(2).max(100).optional(),
+    mobile: Joi.string().trim().pattern(/^[6-9]\d{9}$/).optional(),
+    email: Joi.string().email().trim().lowercase().allow('', null).optional(),
+    address: addressSchema,
+    profilePhoto: Joi.string().trim().allow('', null).optional(),
+    managerCode: Joi.string().trim().max(50).allow('', null).optional(),
+    referralCode: Joi.string().trim().max(50).allow('', null).optional(),
+    password: Joi.string().trim().min(4).max(100).optional(),
+  }).min(1),
+
+  /** Admin: update staff by id (more fields than generic /users?type=staff) */
+  adminUpdateStaff: Joi.object({
+    fullName: Joi.string().trim().min(2).max(100).optional(),
+    mobile: Joi.string().trim().pattern(/^[6-9]\d{9}$/).optional(),
+    email: Joi.string().email().trim().lowercase().allow('', null).optional(),
+    address: addressSchema,
+    profilePhoto: Joi.string().trim().allow('', null).optional(),
+    staffCode: Joi.string().trim().max(50).allow('', null).optional(),
+    referralCode: Joi.string().trim().max(50).allow('', null).optional(),
+    assignedManagerId: objectIdSchema.optional(),
+    password: Joi.string().trim().min(4).max(100).optional(),
+  }).min(1),
+
   /** GET /api/user/lookup - look up customer by loyaltyId, vehicleNumber, or mobile (at least one non-empty required). All roles. */
   lookupCustomer: Joi.object({
     loyaltyId: Joi.string().trim().allow('').optional(),

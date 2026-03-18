@@ -32,6 +32,7 @@ export const pumpValidation = {
   publicList: Joi.object({
     lat: optionalLat,
     lng: optionalLng,
+    search: Joi.string().trim().allow('').optional(),
   }),
 
   create: Joi.object({

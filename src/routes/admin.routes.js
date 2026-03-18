@@ -122,10 +122,45 @@ router.patch(
   adminController.updateUserStatus
 );
 
+// Block/unblock any account (user/manager/staff)
+router.patch(
+  '/accounts/:id/status',
+  verifyJWT,
+  requireRoles([ROLES.ADMIN]),
+  validateRequest(userValidation.updateUserStatus),
+  adminController.updateAccountStatus
+);
+
 router.delete(
   '/users/:userId',
   verifyJWT,
   requireRoles([ROLES.ADMIN]),
+  validateRequest(userValidation.deleteUser, 'query'),
+  adminController.deleteUser
+);
+
+// Explicit delete endpoints for manager/staff accounts (same logic as DELETE /users/:userId?type=...)
+router.delete(
+  '/managers/:managerId',
+  verifyJWT,
+  requireRoles([ROLES.ADMIN]),
+  async (req, _res, next) => {
+    req.params.userId = req.params.managerId;
+    req.query.type = 'manager';
+    next();
+  },
+  validateRequest(userValidation.deleteUser, 'query'),
+  adminController.deleteUser
+);
+router.delete(
+  '/staff/:staffId',
+  verifyJWT,
+  requireRoles([ROLES.ADMIN]),
+  async (req, _res, next) => {
+    req.params.userId = req.params.staffId;
+    req.query.type = 'staff';
+    next();
+  },
   validateRequest(userValidation.deleteUser, 'query'),
   adminController.deleteUser
 );
@@ -143,6 +178,13 @@ router.get(
   requireRoles([ROLES.ADMIN]),
   adminController.getManagerById
 );
+router.patch(
+  '/managers/:managerId',
+  verifyJWT,
+  requireRoles([ROLES.ADMIN]),
+  validateRequest(userValidation.adminUpdateManager),
+  adminController.updateManagerById
+);
 
 // Staff (list + get by ID; no password in response)
 router.get(
@@ -156,6 +198,13 @@ router.get(
   verifyJWT,
   requireRoles([ROLES.ADMIN]),
   adminController.getStaffById
+);
+router.patch(
+  '/staff/:staffId',
+  verifyJWT,
+  requireRoles([ROLES.ADMIN]),
+  validateRequest(userValidation.adminUpdateStaff),
+  adminController.updateStaffById
 );
 
 // Pumps CRUD (create/update support multipart with pumpImages)
@@ -209,6 +258,15 @@ router.post(
   requireRoles([ROLES.ADMIN]),
   validateRequest(walletValidation.adjust),
   walletController.adjustWallet
+);
+
+// Redeem manager/staff referral points
+router.post(
+  '/referrals/redeem',
+  verifyJWT,
+  requireRoles([ROLES.ADMIN]),
+  validateRequest(walletValidation.redeemEmployeePoints),
+  walletController.redeemEmployeePoints
 );
 
 // Campaigns CRUD
