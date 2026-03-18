@@ -5,10 +5,20 @@
 import dotenv from 'dotenv';
 dotenv.config();
 
+const productionModeRaw = (process.env.production || 'dev').trim().toLowerCase();
+const isProductionModeValid = productionModeRaw === 'dev' || productionModeRaw === 'prod';
+const productionMode = isProductionModeValid ? productionModeRaw : 'dev';
+const mongoEnvKey = productionMode === 'prod' ? 'MONGODB_URI' : 'MONGODB_URI_TEST';
+const mongoUri = process.env[mongoEnvKey] || '';
+
 export const config = Object.freeze({
-  nodeEnv: process.env.NODE_ENV || (process.env.production === 'prod' ? 'production' : 'development'),
+  nodeEnv: process.env.NODE_ENV || (productionMode === 'prod' ? 'production' : 'development'),
   port: parseInt(process.env.PORT, 10) || 3000,
-  mongoUri: process.env.MONGODB_URI || process.env.MONGODB_URI_TEST || '',
+  productionModeRaw,
+  productionMode,
+  isProductionModeValid,
+  mongoEnvKey,
+  mongoUri,
   dbName: process.env.DB_NAME || 'scan2reward',
 
   jwt: {
