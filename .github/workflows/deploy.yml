@@ -3,7 +3,7 @@ name: Deploy to AWS EC2
 on:
   push:
     branches:
-      - main   # change if your branch is different
+      - main
 
 jobs:
   deploy:
@@ -22,11 +22,16 @@ jobs:
           script: |
             cd /home/ubuntu/YSP-backend
 
-            echo "Pull latest code"
+            echo "Creating .env file"
+            echo "${{ secrets.ENV_FILE }}" > .env
+
+            git reset --hard
+            git clean -fd
+
             git pull origin main
 
-            echo "Install dependencies"
             npm install
 
-            echo "Restart app"
-            pm2 restart ysp-backend || pm2 start server.js --name ysp-backend
+            pm2 delete ysp-backend || true
+            pm2 start server.js --name ysp-backend
+            pm2 save
