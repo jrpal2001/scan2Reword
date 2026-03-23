@@ -16,6 +16,7 @@ import { ROLES } from '../constants/roles.js';
 import { USER_TYPES } from '../models/User.model.js';
 import ApiError from '../utils/ApiError.js';
 import { HTTP_STATUS } from '../constants/errorCodes.js';
+import { assertMobileIsGloballyUnique } from '../utils/mobileUniqueness.js';
 
 /**
  * Generate unique referral code for manager/staff (e.g. REF + 8 digits)
@@ -141,11 +142,8 @@ export const userService = {
       resolvedPump = pump;
     }
 
-    // Check if mobile already exists
-    const existing = await userRepository.findByMobile(mobile);
-    if (existing) {
-      throw new ApiError(HTTP_STATUS.CONFLICT, 'User with this mobile number already exists');
-    }
+    // Enforce global uniqueness across Admin/Manager/Staff/User.
+    await assertMobileIsGloballyUnique(mobile);
 
     // Validate referral code if provided (referrer must be Manager or Staff)
     let referrer = null;
@@ -164,10 +162,7 @@ export const userService = {
     // Owner-only registration: create only fleet owner (no driver, no vehicle)
     if (registrationData.ownerOnly && accountType === 'organization' && ownerType === 'non-registered' && owner) {
       const ownerMobile = owner.mobile;
-      const existingOwner = await userRepository.findByMobile(ownerMobile);
-      if (existingOwner) {
-        throw new ApiError(HTTP_STATUS.CONFLICT, 'Owner with this mobile number already exists');
-      }
+      await assertMobileIsGloballyUnique(ownerMobile);
       const newOwner = await userRepository.create({
         fullName: owner.fullName,
         mobile: ownerMobile,
@@ -211,10 +206,7 @@ export const userService = {
       } else if (ownerType === 'non-registered') {
         // Create new owner
         const ownerMobile = owner.mobile;
-        const existingOwner = await userRepository.findByMobile(ownerMobile);
-        if (existingOwner) {
-          throw new ApiError(HTTP_STATUS.CONFLICT, 'Owner with this mobile number already exists');
-        }
+        await assertMobileIsGloballyUnique(ownerMobile);
 
         const newOwner = await userRepository.create({
           fullName: owner.fullName,
@@ -346,10 +338,7 @@ export const userService = {
     // Owner-only: create only fleet owner (no driver, no vehicle)
     if (userData.ownerOnly && role === ROLES.USER && accountType === 'organization' && userData.ownerType === 'non-registered' && userData.owner) {
       const ownerMobile = userData.owner.mobile;
-      const existingOwner = await userRepository.findByMobile(ownerMobile);
-      if (existingOwner) {
-        throw new ApiError(HTTP_STATUS.CONFLICT, 'Owner with this mobile number already exists');
-      }
+      await assertMobileIsGloballyUnique(ownerMobile);
       const newOwner = await userRepository.create({
         fullName: userData.owner.fullName,
         mobile: ownerMobile,
@@ -374,10 +363,7 @@ export const userService = {
       };
     }
 
-    const existing = await userRepository.findByMobile(userData.mobile);
-    if (existing) {
-      throw new ApiError(HTTP_STATUS.CONFLICT, 'User with this mobile number already exists');
-    }
+    await assertMobileIsGloballyUnique(userData.mobile);
     
     // Organization accounts only supported for USER role
     if (accountType === 'organization' && role !== ROLES.USER) {
@@ -402,10 +388,7 @@ export const userService = {
       } else if (userData.ownerType === 'non-registered') {
         // Create new owner
         const ownerMobile = userData.owner.mobile;
-        const existingOwner = await userRepository.findByMobile(ownerMobile);
-        if (existingOwner) {
-          throw new ApiError(HTTP_STATUS.CONFLICT, 'Owner with this mobile number already exists');
-        }
+        await assertMobileIsGloballyUnique(ownerMobile);
 
         const newOwner = await userRepository.create({
           fullName: userData.owner.fullName,
@@ -637,10 +620,7 @@ export const userService = {
     // Owner-only: create only fleet owner (no driver, no vehicle)
     if (userData.ownerOnly && userRole === ROLES.USER && accountType === 'organization' && userData.ownerType === 'non-registered' && userData.owner) {
       const ownerMobile = userData.owner.mobile;
-      const existingOwner = await userRepository.findByMobile(ownerMobile);
-      if (existingOwner) {
-        throw new ApiError(HTTP_STATUS.CONFLICT, 'Owner with this mobile number already exists');
-      }
+      await assertMobileIsGloballyUnique(ownerMobile);
       const operatorType = operatorRole === ROLES.MANAGER ? 'Manager' : 'Staff';
       const newOwner = await userRepository.create({
         fullName: userData.owner.fullName,
@@ -666,10 +646,7 @@ export const userService = {
       };
     }
 
-    const existing = await userRepository.findByMobile(userData.mobile);
-    if (existing) {
-      throw new ApiError(HTTP_STATUS.CONFLICT, 'User with this mobile number already exists');
-    }
+    await assertMobileIsGloballyUnique(userData.mobile);
     
     // Organization accounts only supported for USER role
     if (accountType === 'organization' && userRole !== ROLES.USER) {
@@ -699,10 +676,7 @@ export const userService = {
       } else if (userData.ownerType === 'non-registered') {
         // Create new owner
         const ownerMobile = userData.owner.mobile;
-        const existingOwner = await userRepository.findByMobile(ownerMobile);
-        if (existingOwner) {
-          throw new ApiError(HTTP_STATUS.CONFLICT, 'Owner with this mobile number already exists');
-        }
+        await assertMobileIsGloballyUnique(ownerMobile);
 
         const newOwner = await userRepository.create({
           fullName: userData.owner.fullName,
@@ -1051,6 +1025,10 @@ export const userService = {
       throw new ApiError(HTTP_STATUS.NOT_FOUND, 'User not found');
     }
     const { passwordHash, assignedManagerId, managerCode, staffCode, role, ...safeUpdateData } = updateData;
+    if (typeof safeUpdateData.mobile === 'string') {
+      safeUpdateData.mobile = safeUpdateData.mobile.trim();
+      await assertMobileIsGloballyUnique(safeUpdateData.mobile, { excludeRole: ROLES.USER, excludeId: userId });
+    }
     const updated = await userRepository.update(userId, safeUpdateData);
     return updated;
   },
@@ -1108,6 +1086,10 @@ export const userService = {
     for (const key of allowed) {
       if (payload[key] !== undefined) safe[key] = payload[key];
     }
+    if (typeof safe.mobile === 'string') {
+      safe.mobile = safe.mobile.trim();
+      await assertMobileIsGloballyUnique(safe.mobile, { excludeRole: ROLES.MANAGER, excludeId: managerId });
+    }
     const password = payload.password;
     if (Object.keys(safe).length === 0 && (password == null || String(password).trim() === '')) return manager;
     const updated = await managerRepository.updateWithPassword(managerId, safe, password);
@@ -1126,6 +1108,10 @@ export const userService = {
     const safe = {};
     for (const key of allowed) {
       if (payload[key] !== undefined) safe[key] = payload[key];
+    }
+    if (typeof safe.mobile === 'string') {
+      safe.mobile = safe.mobile.trim();
+      await assertMobileIsGloballyUnique(safe.mobile, { excludeRole: ROLES.STAFF, excludeId: staffId });
     }
     if (safe.assignedManagerId === '') safe.assignedManagerId = null;
     if (safe.assignedManagerId) {

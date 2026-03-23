@@ -4,6 +4,7 @@ import { vehicleService } from './vehicle.service.js';
 import { USER_TYPES } from '../models/User.model.js';
 import ApiError from '../utils/ApiError.js';
 import { HTTP_STATUS } from '../constants/errorCodes.js';
+import { assertMobileIsGloballyUnique } from '../utils/mobileUniqueness.js';
 
 export const ownerService = {
   /**
@@ -42,11 +43,8 @@ export const ownerService = {
       throw new ApiError(HTTP_STATUS.NOT_FOUND, 'Owner not found');
     }
 
-    // Check if driver mobile already exists
-    const existing = await userRepository.findByMobile(userData.mobile);
-    if (existing) {
-      throw new ApiError(HTTP_STATUS.CONFLICT, 'User with this mobile number already exists');
-    }
+    // Enforce global uniqueness across Admin/Manager/Staff/User.
+    await assertMobileIsGloballyUnique(userData.mobile);
 
     if (vehicleData?.vehicleNumber) {
       const existingVehicle = await vehicleRepository.findByVehicleNumber(vehicleData.vehicleNumber);

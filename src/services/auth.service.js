@@ -668,24 +668,48 @@ export const authService = {
       if (admin) {
         throw new ApiError(HTTP_STATUS.FORBIDDEN, 'Admin password cannot be reset', null, ERROR_CODES.FORBIDDEN);
       }
-      const user = await userRepository.findByMobileWithPassword(trimmed);
-      if (user) {
+      const [user, manager, staff] = await Promise.all([
+        userRepository.findByMobileWithPassword(trimmed),
+        Manager.findOne({ mobile: trimmed }).select('+passwordEncrypted'),
+        Staff.findOne({ mobile: trimmed }).select('+passwordEncrypted'),
+      ]);
+
+      const matches = [
+        user ? { role: ROLES.USER, doc: user } : null,
+        manager ? { role: ROLES.MANAGER, doc: manager } : null,
+        staff ? { role: ROLES.STAFF, doc: staff } : null,
+      ].filter(Boolean);
+
+      if (matches.length > 1) {
+        throw new ApiError(
+          HTTP_STATUS.CONFLICT,
+          'Multiple accounts found for this mobile number. Use identifier + oldPassword for password reset.',
+          null,
+          ERROR_CODES.CONFLICT
+        );
+      }
+
+      if (matches.length === 0) {
+        throw new ApiError(HTTP_STATUS.NOT_FOUND, 'No account found for this mobile number', null, ERROR_CODES.NOT_FOUND);
+      }
+
+      const match = matches[0];
+      if (match.role === ROLES.USER) {
         const passwordHash = await this.hashPassword(newPassword);
-        await userRepository.update(user._id, { passwordHash });
+        await userRepository.update(match.doc._id, { passwordHash });
         return { message: 'Password changed successfully' };
       }
-      let manager = await Manager.findOne({ mobile: trimmed }).select('+passwordEncrypted');
-      if (manager) {
-        manager.password = newPassword;
-        await manager.save();
+      if (match.role === ROLES.MANAGER) {
+        match.doc.password = newPassword;
+        await match.doc.save();
         return { message: 'Password changed successfully' };
       }
-      const staff = await Staff.findOne({ mobile: trimmed }).select('+passwordEncrypted');
-      if (staff) {
-        staff.password = newPassword;
-        await staff.save();
+      if (match.role === ROLES.STAFF) {
+        match.doc.password = newPassword;
+        await match.doc.save();
         return { message: 'Password changed successfully' };
       }
+
       throw new ApiError(HTTP_STATUS.NOT_FOUND, 'No account found for this mobile number', null, ERROR_CODES.NOT_FOUND);
     }
 
