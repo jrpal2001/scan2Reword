@@ -92,6 +92,14 @@ router.get(
   adminController.listUsers
 );
 
+// List all users for manager (same response shape as listUsers API)
+router.get(
+  '/users/all',
+  verifyJWT,
+  requireRoles([ROLES.MANAGER]),
+  adminController.listUsers
+);
+
 router.get(
   '/users/:userId',
   verifyJWT,
