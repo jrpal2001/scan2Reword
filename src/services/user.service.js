@@ -1172,14 +1172,14 @@ export const userService = {
    * @returns {{ deleted: true, type: string }}
    */
   async deleteUser(userId, type = null) {
-    let ownerType = type;
+    let ownerType = type ? String(type).trim().toLowerCase() : null;
     if (!ownerType) {
-      if (await managerRepository.findById(userId)) ownerType = 'Manager';
-      else if (await staffRepository.findById(userId)) ownerType = 'Staff';
-      else if (await userRepository.findById(userId)) ownerType = 'User';
+      if (await managerRepository.findById(userId)) ownerType = 'manager';
+      else if (await staffRepository.findById(userId)) ownerType = 'staff';
+      else if (await userRepository.findById(userId)) ownerType = 'user';
     }
 
-    if (ownerType === 'Manager') {
+    if (ownerType === 'manager') {
       const manager = await managerRepository.findById(userId);
       if (!manager) throw new ApiError(HTTP_STATUS.NOT_FOUND, 'Manager not found');
       await pumpRepository.unsetManagerId(userId);
@@ -1188,7 +1188,7 @@ export const userService = {
       return { deleted: true, type: 'manager' };
     }
 
-    if (ownerType === 'Staff') {
+    if (ownerType === 'staff') {
       const staff = await staffRepository.findById(userId);
       if (!staff) throw new ApiError(HTTP_STATUS.NOT_FOUND, 'Staff not found');
       await staffAssignmentRepository.deleteByStaffId(userId);
@@ -1197,7 +1197,7 @@ export const userService = {
       return { deleted: true, type: 'staff' };
     }
 
-    if (ownerType === 'User') {
+    if (ownerType === 'user') {
       const user = await userRepository.findById(userId);
       if (!user) throw new ApiError(HTTP_STATUS.NOT_FOUND, 'User not found');
       await userRepository.delete(userId);
