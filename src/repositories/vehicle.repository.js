@@ -37,6 +37,14 @@ export const vehicleRepository = {
     return Vehicle.findOne({ loyaltyId: loyaltyId?.trim() }).lean();
   },
 
+  /** Find distinct user IDs whose vehicle loyaltyId matches the given search term (case-insensitive, partial). */
+  async findUserIdsByLoyaltyIdSearch(search) {
+    if (!search || typeof search !== 'string' || !search.trim()) return [];
+    const term = search.trim().replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    const regex = new RegExp(term, 'i');
+    return Vehicle.distinct('userId', { loyaltyId: regex });
+  },
+
   async findByVehicleNumber(vehicleNumber) {
     return Vehicle.findOne({ vehicleNumber: vehicleNumber?.trim().toUpperCase() }).lean();
   },

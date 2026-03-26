@@ -10,6 +10,7 @@ import { managerRepository } from '../repositories/manager.repository.js';
 import { staffRepository } from '../repositories/staff.repository.js';
 import { staffAssignmentRepository } from '../repositories/staffAssignment.repository.js';
 import { pumpRepository } from '../repositories/pump.repository.js';
+import { vehicleRepository } from '../repositories/vehicle.repository.js';
 import { auditLogService } from '../services/auditLog.service.js';
 import { HTTP_STATUS } from '../constants/errorCodes.js';
 import { ROLES } from '../constants/roles.js';
@@ -199,14 +200,20 @@ export const listUsers = asyncHandler(async (req, res) => {
   const filter = {};
   if (status) filter.status = status;
   if (search && String(search).trim()) {
-    const term = String(search).trim().replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    const rawSearch = String(search).trim();
+    const term = rawSearch.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
     const regex = new RegExp(term, 'i');
-    filter.$or = [
+    const vehicleUserIds = await vehicleRepository.findUserIdsByLoyaltyIdSearch(rawSearch);
+    const or = [
       { fullName: regex },
       { mobile: regex },
       { email: regex },
       { loyaltyId: regex },
     ];
+    if (vehicleUserIds.length > 0) {
+      or.push({ _id: { $in: vehicleUserIds } });
+    }
+    filter.$or = or;
   }
   const result = await userService.listUsers(
     filter,
