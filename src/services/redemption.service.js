@@ -3,6 +3,7 @@ import { rewardRepository } from '../repositories/reward.repository.js';
 import { pumpRepository } from '../repositories/pump.repository.js';
 import { userRepository } from '../repositories/user.repository.js';
 import { vehicleRepository } from '../repositories/vehicle.repository.js';
+import { managerRepository } from '../repositories/manager.repository.js';
 import { pointsService } from './points.service.js';
 import { scanService } from './scan.service.js';
 import { notificationService } from './notification.service.js';
@@ -425,20 +426,66 @@ export const redemptionService = {
 
   /**
    * List redemptions. Optionally enriches each item with userDisplay: { fullName, loyaltyId, mobile } for the redeemer (userId).
+   * Also enriches each item with:
+   * - pump: { pumpId, name, code } from usedAtPump
+   * - manager: { managerId, name, managerCode } (prefers pump.managerId; fallback to createdBy when createdByModel='Manager')
    */
   async listRedemptions(filter = {}, options = {}, enrichWithUserDisplay = true) {
     const result = await redemptionRepository.list(filter, options);
-    if (!enrichWithUserDisplay || !result?.list?.length) return result;
-    const userIds = [...new Set(result.list.map((r) => r.userId).filter(Boolean))];
-    const displayMap = {};
-    await Promise.all(
-      userIds.map(async (uid) => {
-        displayMap[String(uid)] = await getUserDisplayInfo(uid);
-      })
+    if (!result?.list?.length) return result;
+
+    const userDisplayMap = {};
+    if (enrichWithUserDisplay) {
+      const userIds = [...new Set(result.list.map((r) => r.userId).filter(Boolean))];
+      await Promise.all(
+        userIds.map(async (uid) => {
+          userDisplayMap[String(uid)] = await getUserDisplayInfo(uid);
+        })
+      );
+    }
+
+    const pumpIds = [...new Set(result.list.map((r) => r.usedAtPump).filter(Boolean).map(String))];
+    const pumps = await Promise.all(pumpIds.map((pid) => pumpRepository.findById(pid)));
+    const pumpMap = new Map(
+      pumps
+        .filter(Boolean)
+        .map((p) => [String(p._id), { pumpId: p._id, name: p.name ?? null, code: p.code ?? null, managerId: p.managerId ?? null }])
     );
+
+    const managerIdsFromPumps = pumps
+      .filter(Boolean)
+      .map((p) => p.managerId)
+      .filter(Boolean)
+      .map(String);
+    const managerIdsFromCreator = result.list
+      .filter((r) => r.createdByModel === 'Manager' && r.createdBy)
+      .map((r) => String(r.createdBy));
+    const managerIds = [...new Set([...managerIdsFromPumps, ...managerIdsFromCreator])];
+    const managerList = managerIds.length ? await managerRepository.listByIds(managerIds) : [];
+    const managerMap = new Map(
+      managerList.map((m) => [String(m._id), { managerId: m._id, name: m.fullName ?? null, managerCode: m.managerCode ?? null }])
+    );
+
     result.list = result.list.map((r) => ({
       ...r,
-      userDisplay: r.userId ? displayMap[String(r.userId)] || { fullName: null, loyaltyId: null, mobile: null } : { fullName: null, loyaltyId: null, mobile: null },
+      ...(enrichWithUserDisplay && {
+        userDisplay: r.userId
+          ? userDisplayMap[String(r.userId)] || { fullName: null, loyaltyId: null, mobile: null }
+          : { fullName: null, loyaltyId: null, mobile: null },
+      }),
+      pump: (() => {
+        const pump = r.usedAtPump ? pumpMap.get(String(r.usedAtPump)) : null;
+        return pump ? { pumpId: pump.pumpId, name: pump.name, code: pump.code } : null;
+      })(),
+      manager: (() => {
+        const pump = r.usedAtPump ? pumpMap.get(String(r.usedAtPump)) : null;
+        const managerId = pump?.managerId
+          ? String(pump.managerId)
+          : r.createdByModel === 'Manager' && r.createdBy
+            ? String(r.createdBy)
+            : null;
+        return managerId ? (managerMap.get(managerId) ?? null) : null;
+      })(),
     }));
     return result;
   },
