@@ -8,6 +8,8 @@ import { managerService } from '../services/manager.service.js';
 import { staffService } from '../services/staff.service.js';
 import { managerRepository } from '../repositories/manager.repository.js';
 import { staffRepository } from '../repositories/staff.repository.js';
+import { staffAssignmentRepository } from '../repositories/staffAssignment.repository.js';
+import { pumpRepository } from '../repositories/pump.repository.js';
 import { auditLogService } from '../services/auditLog.service.js';
 import { HTTP_STATUS } from '../constants/errorCodes.js';
 import { ROLES } from '../constants/roles.js';
@@ -492,6 +494,28 @@ export const getStaffById = asyncHandler(async (req, res) => {
     throw new ApiError(HTTP_STATUS.NOT_FOUND, 'Staff not found');
   }
   const staff = staffDoc.toObject ? staffDoc.toObject() : { ...staffDoc };
+  const activeAssignment = await staffAssignmentRepository.findActiveAssignmentByStaff(staffId);
+  const [assignedPump, assignedManager] = await Promise.all([
+    activeAssignment?.pumpId ? pumpRepository.findById(activeAssignment.pumpId) : null,
+    staff.assignedManagerId ? managerRepository.findById(staff.assignedManagerId) : null,
+  ]);
+
+  staff.assignedPump = assignedPump
+    ? {
+        pumpId: assignedPump._id,
+        name: assignedPump.name ?? null,
+        code: assignedPump.code ?? null,
+      }
+    : null;
+
+  staff.assignedManager = assignedManager
+    ? {
+        managerId: assignedManager._id,
+        name: assignedManager.fullName ?? null,
+        managerCode: assignedManager.managerCode ?? null,
+      }
+    : null;
+
   staff.passwordViewable = decryptPassword(staff.passwordEncrypted) ?? null;
   delete staff.passwordHash;
   delete staff.passwordEncrypted;
