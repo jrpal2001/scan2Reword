@@ -71,7 +71,8 @@ export const transactionService = {
       pumpId,
       category,
       amount,
-      category === 'Fuel' ? liters : null
+      category === 'Fuel' ? liters : null,
+      category === 'Fuel' ? fuelType || null : null
     );
 
     // Calculate base points (uses SystemConfig: points.fuel.pointsPerLiter, etc.)

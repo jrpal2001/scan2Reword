@@ -19,6 +19,7 @@ const campaignSchema = new mongoose.Schema(
       minAmount: { type: Number, min: 0, default: null },
       minliters: { type: Number, min: 0, default: null },
       categories: [{ type: String, enum: ['Fuel', 'Lubricant', 'Store', 'Service'] }],
+      fuelType: { type: String, enum: ['Petrol', 'Diesel', 'CNG'], default: null },
       userSegment: { type: String, default: null }, // e.g., 'new', 'loyal', null = all
       frequencyLimit: { type: Number, default: null }, // Max times a user can use this campaign
     },

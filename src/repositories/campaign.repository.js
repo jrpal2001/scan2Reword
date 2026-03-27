@@ -35,12 +35,12 @@ export const campaignRepository = {
 
   /**
    * Find active campaigns matching criteria
-   * @param {Object} criteria - { pumpId?, category?, amount?, liters?, userId? }
+   * @param {Object} criteria - { pumpId?, category?, amount?, liters?, fuelType?, userId? }
    * @returns {Array} Active campaigns
    */
   async findActiveCampaigns(criteria = {}) {
     const now = new Date();
-    const { pumpId, category, amount, liters, userId } = criteria;
+    const { pumpId, category, amount, liters, fuelType, userId } = criteria;
 
     const filter = {
       status: 'active',
@@ -60,7 +60,7 @@ export const campaignRepository = {
 
     // Filter by conditions
     const filtered = campaigns.filter((campaign) => {
-      const { conditions } = campaign;
+      const conditions = campaign.conditions || {};
 
       // Check min amount
       if (conditions.minAmount && amount != null && amount < conditions.minAmount) {
@@ -77,6 +77,13 @@ export const campaignRepository = {
       // Check category
       if (conditions.categories && conditions.categories.length > 0 && category) {
         if (!conditions.categories.includes(category)) {
+          return false;
+        }
+      }
+
+      // Check fuel type (for Fuel campaigns): if campaign specifies fuelType, transaction fuelType must match
+      if (conditions.fuelType) {
+        if (!fuelType || conditions.fuelType !== fuelType) {
           return false;
         }
       }

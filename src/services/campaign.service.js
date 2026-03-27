@@ -169,14 +169,15 @@ export const campaignService = {
 
   /**
    * Find active campaigns for a transaction
-   * Used in transaction points calculation. Pass liters so minliters condition can be applied (e.g. Fuel).
+   * Used in transaction points calculation. Pass liters/fuelType so Fuel-specific conditions can be applied.
    */
-  async findActiveCampaignsForTransaction(pumpId, category, amount, liters = null) {
+  async findActiveCampaignsForTransaction(pumpId, category, amount, liters = null, fuelType = null) {
     return campaignRepository.findActiveCampaigns({
       pumpId,
       category,
       amount,
       liters,
+      fuelType,
     });
   },
 };
