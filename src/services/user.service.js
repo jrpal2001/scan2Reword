@@ -1009,9 +1009,16 @@ export const userService = {
       ? await Promise.all(pumpIds.map((id) => pumpRepository.findById(id)))
       : [];
     const pumpMap = Object.fromEntries(pumps.filter(Boolean).map((p) => [String(p._id), { _id: p._id, name: p.name, code: p.code }]));
+
+    // Fetch vehicles for all users in the list
+    const userIds = result.list.map((u) => u._id);
+    const allVehicles = await Promise.all(userIds.map((id) => vehicleRepository.findByUserId(id)));
+    const vehicleMap = Object.fromEntries(userIds.map((id, i) => [String(id), allVehicles[i] || []]));
+
     result.list = result.list.map((u) => ({
       ...u,
       registeredPump: u.registeredPumpId ? pumpMap[String(u.registeredPumpId)] || null : null,
+      vehicles: vehicleMap[String(u._id)] || [],
     }));
     return result;
   },
