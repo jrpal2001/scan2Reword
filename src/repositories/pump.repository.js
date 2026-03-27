@@ -43,11 +43,15 @@ export const pumpRepository = {
   },
 
   async update(id, data) {
-    // Ensure managerId is null if empty string
-    const updateData = {
-      ...data,
-      managerId: data.managerId === '' || data.managerId === undefined ? null : data.managerId,
-    };
+    const updateData = { ...data };
+    // Only clear manager assignment when managerId is explicitly sent as empty string.
+    if (Object.prototype.hasOwnProperty.call(updateData, 'managerId') && updateData.managerId === '') {
+      updateData.managerId = null;
+    }
+    // If managerId is omitted/undefined in update payload, keep existing manager assignment unchanged.
+    if (Object.prototype.hasOwnProperty.call(updateData, 'managerId') && updateData.managerId === undefined) {
+      delete updateData.managerId;
+    }
     const pump = await Pump.findByIdAndUpdate(id, { $set: updateData }, { new: true }).lean();
     return pump;
   },

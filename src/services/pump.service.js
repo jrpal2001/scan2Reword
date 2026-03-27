@@ -75,24 +75,24 @@ export const pumpService = {
       }
     }
 
-    // Convert empty string managerId to null
-    if (data.managerId === '' || data.managerId === undefined) {
+    const hasManagerIdField = Object.prototype.hasOwnProperty.call(data, 'managerId');
+    if (hasManagerIdField && data.managerId === '') {
       data.managerId = null;
     }
 
-    // Validate managerId if provided (Manager model, not User). A manager can be assigned to multiple pumps.
-    if (data.managerId !== undefined && data.managerId !== null) {
+    // Validate managerId only when managerId is explicitly provided and not null.
+    if (hasManagerIdField && data.managerId !== undefined && data.managerId !== null) {
       const manager = await managerRepository.findById(data.managerId);
       if (!manager) {
         throw new ApiError(HTTP_STATUS.NOT_FOUND, 'Manager not found');
       }
     }
 
-    // Ensure managerId is explicitly set to null if empty
-    const updateData = {
-      ...data,
-      managerId: data.managerId !== undefined ? (data.managerId || null) : undefined,
-    };
+    const updateData = { ...data };
+    // If managerId is not provided in payload, do not touch existing assignment.
+    if (!hasManagerIdField || updateData.managerId === undefined) {
+      delete updateData.managerId;
+    }
 
     const pump = await pumpRepository.update(pumpId, updateData);
     return pump;

@@ -38,7 +38,7 @@ export const createCampaign = asyncHandler(async (req, res) => {
 });
 
 /**
- * PUT /api/admin/campaigns/:campaignId or PUT /api/manager/campaigns/:campaignId
+ * PATCH /api/admin/campaigns/:campaignId or PUT /api/manager/campaigns/:campaignId
  * Body: req.validated (partial campaign data)
  * Admin/Manager only.
  */
