@@ -27,7 +27,7 @@ export const requireRoles = (allowedRoles) => {
 /**
  * Attach pump scope to request for manager/staff.
  * - Admin: req.allowedPumpIds = null (means all pumps)
- * - Manager: req.allowedPumpIds = [pumpIds where pump.managerId = req.user._id]
+ * - Manager: req.allowedPumpIds = [pumpIds where pump.managerIds includes req.user._id]
  * - Staff: req.allowedPumpIds = [pumpIds from StaffAssignment where userId = req.user._id]
  * - User (customer): req.allowedPumpIds = [] (no pump-scoped access for data)
  *

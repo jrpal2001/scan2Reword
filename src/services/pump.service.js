@@ -9,6 +9,49 @@ import { PUMP_STATUS } from '../constants/status.js';
 const PUMP_CODE_PREFIX = 'PUMP';
 /** Number of digits for the numeric part (4–6 digit padded) */
 const PUMP_CODE_DIGITS = 5;
+const hasOwn = (obj, key) => Object.prototype.hasOwnProperty.call(obj || {}, key);
+
+function uniqueIds(ids = []) {
+  const out = [];
+  const seen = new Set();
+  for (const id of ids) {
+    if (id == null || id === '') continue;
+    const key = String(id);
+    if (seen.has(key)) continue;
+    seen.add(key);
+    out.push(id);
+  }
+  return out;
+}
+
+function resolveManagerIdsInput(data = {}) {
+  const hasManagerIds = hasOwn(data, 'managerIds');
+  const hasManagerId = hasOwn(data, 'managerId');
+  if (!hasManagerIds && !hasManagerId) {
+    return { hasAssignmentField: false, managerIds: [] };
+  }
+
+  if (hasManagerIds) {
+    const raw = data.managerIds;
+    if (raw == null || raw === '') return { hasAssignmentField: true, managerIds: [] };
+    const ids = Array.isArray(raw) ? raw : [raw];
+    return { hasAssignmentField: true, managerIds: uniqueIds(ids) };
+  }
+
+  if (data.managerId == null || data.managerId === '') {
+    return { hasAssignmentField: true, managerIds: [] };
+  }
+  return { hasAssignmentField: true, managerIds: [data.managerId] };
+}
+
+async function validateManagerIds(managerIds = []) {
+  if (!managerIds.length) return;
+  const checks = await Promise.all(managerIds.map((id) => managerRepository.findById(id)));
+  const missing = checks.findIndex((doc) => !doc);
+  if (missing !== -1) {
+    throw new ApiError(HTTP_STATUS.NOT_FOUND, 'One or more managers not found');
+  }
+}
 
 /**
  * Generate next pump code: PREFIX + padded number (e.g. PUMP00001, PUMP00002).
@@ -39,23 +82,14 @@ export const pumpService = {
       throw new ApiError(HTTP_STATUS.CONFLICT, 'Pump code already exists');
     }
 
-    // Convert empty string managerId to null
-    if (data.managerId === '' || data.managerId === undefined) {
-      data.managerId = null;
-    }
-
-    // Validate managerId if provided (Manager model, not User). A manager can be assigned to multiple pumps.
-    if (data.managerId) {
-      const manager = await managerRepository.findById(data.managerId);
-      if (!manager) {
-        throw new ApiError(HTTP_STATUS.NOT_FOUND, 'Manager not found');
-      }
-    }
+    const { managerIds } = resolveManagerIdsInput(data);
+    await validateManagerIds(managerIds);
 
     const pump = await pumpRepository.create({
       ...data,
       code,
-      managerId: data.managerId || null, // Ensure null if empty
+      managerIds,
+      managerId: managerIds[0] ?? null, // Legacy sync for old clients
       status: data.status || PUMP_STATUS.ACTIVE,
     });
     return pump;
@@ -75,23 +109,19 @@ export const pumpService = {
       }
     }
 
-    const hasManagerIdField = Object.prototype.hasOwnProperty.call(data, 'managerId');
-    if (hasManagerIdField && data.managerId === '') {
-      data.managerId = null;
-    }
-
-    // Validate managerId only when managerId is explicitly provided and not null.
-    if (hasManagerIdField && data.managerId !== undefined && data.managerId !== null) {
-      const manager = await managerRepository.findById(data.managerId);
-      if (!manager) {
-        throw new ApiError(HTTP_STATUS.NOT_FOUND, 'Manager not found');
-      }
+    const { hasAssignmentField, managerIds } = resolveManagerIdsInput(data);
+    if (hasAssignmentField) {
+      await validateManagerIds(managerIds);
     }
 
     const updateData = { ...data };
-    // If managerId is not provided in payload, do not touch existing assignment.
-    if (!hasManagerIdField || updateData.managerId === undefined) {
+    if (hasAssignmentField) {
+      updateData.managerIds = managerIds;
+      updateData.managerId = managerIds[0] ?? null; // Legacy sync
+    } else {
+      // If assignment fields are not provided in payload, do not touch existing assignment.
       delete updateData.managerId;
+      delete updateData.managerIds;
     }
 
     const pump = await pumpRepository.update(pumpId, updateData);

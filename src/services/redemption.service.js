@@ -52,6 +52,13 @@ async function getUserDisplayInfo(userId) {
   };
 }
 
+function getPumpManagerIds(pump) {
+  if (Array.isArray(pump?.managerIds) && pump.managerIds.length > 0) {
+    return [...new Set(pump.managerIds.filter(Boolean).map((id) => String(id?._id ?? id)))];
+  }
+  return pump?.managerId ? [String(pump.managerId?._id ?? pump.managerId)] : [];
+}
+
 async function sendRedemptionNotification(redemption, title, body) {
   try {
     const userIds = await getRedemptionNotificationUserIds(redemption.userId);
@@ -428,7 +435,7 @@ export const redemptionService = {
    * List redemptions. Optionally enriches each item with userDisplay: { fullName, loyaltyId, mobile } for the redeemer (userId).
    * Also enriches each item with:
    * - pump: { pumpId, name, code } from usedAtPump
-   * - manager: { managerId, name, managerCode } (prefers pump.managerId; fallback to createdBy when createdByModel='Manager')
+   * - manager: { managerId, name, managerCode } (prefers pump.managerIds[0]; fallback to createdBy when createdByModel='Manager')
    */
   async listRedemptions(filter = {}, options = {}, enrichWithUserDisplay = true) {
     const result = await redemptionRepository.list(filter, options);
@@ -449,14 +456,15 @@ export const redemptionService = {
     const pumpMap = new Map(
       pumps
         .filter(Boolean)
-        .map((p) => [String(p._id), { pumpId: p._id, name: p.name ?? null, code: p.code ?? null, managerId: p.managerId ?? null }])
+        .map((p) => [String(p._id), {
+          pumpId: p._id,
+          name: p.name ?? null,
+          code: p.code ?? null,
+          managerIds: getPumpManagerIds(p),
+        }])
     );
 
-    const managerIdsFromPumps = pumps
-      .filter(Boolean)
-      .map((p) => p.managerId)
-      .filter(Boolean)
-      .map(String);
+    const managerIdsFromPumps = pumps.filter(Boolean).flatMap((p) => getPumpManagerIds(p));
     const managerIdsFromCreator = result.list
       .filter((r) => r.createdByModel === 'Manager' && r.createdBy)
       .map((r) => String(r.createdBy));
@@ -479,8 +487,8 @@ export const redemptionService = {
       })(),
       manager: (() => {
         const pump = r.usedAtPump ? pumpMap.get(String(r.usedAtPump)) : null;
-        const managerId = pump?.managerId
-          ? String(pump.managerId)
+        const managerId = pump?.managerIds?.[0]
+          ? String(pump.managerIds[0])
           : r.createdByModel === 'Manager' && r.createdBy
             ? String(r.createdBy)
             : null;

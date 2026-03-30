@@ -75,7 +75,7 @@ export const staffAssignmentRepository = {
     const [list, total] = await Promise.all([
       StaffAssignment.find(filter)
         .populate('staffId', 'fullName mobile email staffCode profilePhoto')
-        .populate('pumpId', 'name code managerId')
+        .populate('pumpId', 'name code managerId managerIds')
         .sort(sort)
         .skip(skip)
         .limit(limit)

@@ -17,6 +17,23 @@ import { ROLES } from '../constants/roles.js';
 import { USER_STATUS } from '../constants/status.js';
 import Admin from '../models/Admin.js';
 
+function mapAssignedPump(pump) {
+  return {
+    pumpId: pump._id,
+    name: pump.name ?? null,
+    code: pump.code ?? null,
+    status: pump.status ?? null,
+    location: pump.location ?? null,
+  };
+}
+
+function getPumpManagerIds(pump) {
+  if (Array.isArray(pump?.managerIds) && pump.managerIds.length > 0) {
+    return [...new Set(pump.managerIds.filter(Boolean).map((id) => String(id?._id ?? id)))];
+  }
+  return pump?.managerId ? [String(pump.managerId?._id ?? pump.managerId)] : [];
+}
+
 /**
  * PATCH /api/admin/profile
  * Update the authenticated admin's profile photo and/or phone number.
@@ -471,6 +488,24 @@ export const listManagers = asyncHandler(async (req, res) => {
     limit: parseInt(limit, 10) || 10,
     sort: { createdAt: -1 },
   });
+  const managerIds = (result.list || []).map((m) => m._id);
+  const pumps = managerIds.length ? await pumpRepository.findByManagerIds(managerIds) : [];
+  const pumpsByManager = pumps.reduce((acc, pump) => {
+    const managerKeys = getPumpManagerIds(pump);
+    managerKeys.forEach((key) => {
+      if (!acc[key]) acc[key] = [];
+      acc[key].push(mapAssignedPump(pump));
+    });
+    return acc;
+  }, {});
+  result.list = (result.list || []).map((manager) => {
+    const assignedPumps = pumpsByManager[String(manager._id)] || [];
+    return {
+      ...manager,
+      assignedPumpCount: assignedPumps.length,
+      assignedPumps,
+    };
+  });
   return res.sendPaginated(result, 'Managers retrieved', HTTP_STATUS.OK);
 });
 
@@ -490,6 +525,9 @@ export const getManagerById = asyncHandler(async (req, res) => {
   delete manager.passwordEncrypted;
   const referredUserCount = await userService.countUsersByReferrerId(manager._id);
   manager.referredUserCount = referredUserCount;
+  const assignedPumps = await pumpRepository.findByManagerId(manager._id);
+  manager.assignedPumps = assignedPumps.map(mapAssignedPump);
+  manager.assignedPumpCount = manager.assignedPumps.length;
   return res.status(HTTP_STATUS.OK).json(
     ApiResponse.success(addISTToDocument(manager), 'Manager retrieved')
   );

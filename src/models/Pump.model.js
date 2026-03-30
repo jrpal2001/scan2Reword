@@ -5,7 +5,10 @@ const pumpSchema = new mongoose.Schema(
   {
     name: { type: String, required: true, trim: true },
     code: { type: String, required: true, unique: true, trim: true },
+    // Legacy single-manager field kept for backward compatibility with old payloads/clients.
     managerId: { type: mongoose.Schema.Types.ObjectId, ref: 'Manager', default: null },
+    // Multi-manager support: one pump can be assigned to multiple managers.
+    managerIds: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Manager' }],
     location: {
       address: String,
       city: String,
@@ -24,6 +27,7 @@ const pumpSchema = new mongoose.Schema(
 );
 
 pumpSchema.index({ managerId: 1 });
+pumpSchema.index({ managerIds: 1 });
 pumpSchema.index({ status: 1 });
 
 const Pump = mongoose.models.Pump || mongoose.model('Pump', pumpSchema);

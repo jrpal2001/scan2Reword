@@ -1,6 +1,8 @@
 import Joi from 'joi';
 import { PUMP_STATUS } from '../constants/status.js';
 
+const objectIdPattern = /^[0-9a-fA-F]{24}$/;
+
 // Coerce numeric strings/arrays from form-data (e.g. location[lat], location[lng]) to number
 // Some parsers send lat/lng as arrays: { lat: ["17.5677"] }
 const coerceNumber = (min, max) =>
@@ -27,6 +29,29 @@ const locationSchema = Joi.object({
 const optionalLat = Joi.number().min(-90).max(90).optional();
 const optionalLng = Joi.number().min(-180).max(180).optional();
 
+const managerIdCompat = Joi.string()
+  .trim()
+  .allow('', null)
+  .custom((value, helpers) => {
+    if (value === '') return null;
+    if (value && !objectIdPattern.test(value)) return helpers.error('any.invalid');
+    return value;
+  })
+  .optional();
+
+const managerIdsCompat = Joi.alternatives()
+  .try(
+    Joi.array().items(Joi.string().trim().pattern(objectIdPattern)).unique(),
+    Joi.string().trim().pattern(objectIdPattern),
+    Joi.valid('', null)
+  )
+  .custom((value) => {
+    if (value === '' || value === null || value === undefined) return [];
+    if (Array.isArray(value)) return value;
+    return [value];
+  })
+  .optional();
+
 export const pumpValidation = {
   /** Public list: optional lat, lng (query). */
   publicList: Joi.object({
@@ -38,21 +63,8 @@ export const pumpValidation = {
   create: Joi.object({
     name: Joi.string().trim().min(2).max(100).required(),
     code: Joi.string().trim().min(2).max(20).uppercase().optional(), // Auto-generated if omitted (PREFIX + padded number)
-    managerId: Joi.string()
-      .trim()
-      .allow('', null)
-      .custom((value, helpers) => {
-        // If empty string, convert to null
-        if (value === '') {
-          return null;
-        }
-        // If provided, validate it's a valid MongoDB ObjectId (24 hex chars)
-        if (value && !/^[0-9a-fA-F]{24}$/.test(value)) {
-          return helpers.error('any.invalid');
-        }
-        return value;
-      })
-      .optional(),
+    managerId: managerIdCompat,
+    managerIds: managerIdsCompat,
     location: locationSchema.optional(),
     status: Joi.string().valid(...Object.values(PUMP_STATUS)).default(PUMP_STATUS.ACTIVE),
     settings: Joi.object().optional(),
@@ -64,21 +76,8 @@ export const pumpValidation = {
   update: Joi.object({
     name: Joi.string().trim().min(2).max(100).optional(),
     code: Joi.string().trim().min(2).max(20).uppercase().optional(),
-    managerId: Joi.string()
-      .trim()
-      .allow('', null)
-      .custom((value, helpers) => {
-        // If empty string, convert to null
-        if (value === '') {
-          return null;
-        }
-        // If provided, validate it's a valid MongoDB ObjectId (24 hex chars)
-        if (value && !/^[0-9a-fA-F]{24}$/.test(value)) {
-          return helpers.error('any.invalid');
-        }
-        return value;
-      })
-      .optional(),
+    managerId: managerIdCompat,
+    managerIds: managerIdsCompat,
     location: locationSchema.optional(),
     status: Joi.string().valid(...Object.values(PUMP_STATUS)).optional(),
     settings: Joi.object().optional(),

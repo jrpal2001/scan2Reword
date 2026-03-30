@@ -6,7 +6,7 @@ import { HTTP_STATUS } from '../constants/errorCodes.js';
 
 /**
  * POST /api/admin/pumps
- * Body: req.validated (name, code, managerId?, location?, status?, pumpImages?).
+ * Body: req.validated (name, code, managerId? | managerIds?, location?, status?, pumpImages?).
  * Files: pumpImages (multiple) via multipart; URLs in req.s3Uploads.pumpImages (array).
  * Admin only.
  */
@@ -81,14 +81,20 @@ export const getPumpById = asyncHandler(async (req, res) => {
 
 /**
  * GET /api/admin/pumps
- * Query: page?, limit?, status?, managerId?
+ * Query: page?, limit?, status?, managerId?, managerIds? (comma-separated or repeated)
  * Admin only.
  */
 export const listPumps = asyncHandler(async (req, res) => {
-  const { page = 1, limit = 10, status, managerId } = req.query;
+  const { page = 1, limit = 10, status, managerId, managerIds } = req.query;
   const filter = {};
   if (status) filter.status = status;
   if (managerId) filter.managerId = managerId;
+  if (managerIds) {
+    const list = Array.isArray(managerIds)
+      ? managerIds
+      : String(managerIds).split(',').map((id) => id.trim());
+    filter.managerIds = list.filter(Boolean);
+  }
 
   const result = await pumpService.listPumps(filter, {
     page: parseInt(page),

@@ -422,11 +422,18 @@ export const dashboardService = {
       status: p.status,
     }));
 
-    // Manager of this staff: derived from first assigned pump's managerId (staff → pump → manager)
+    // Manager of this staff: derived from first assigned pump's managerIds (staff → pump → manager)
     let manager = null;
-    const firstPumpWithManager = pumps.find((p) => p && p.managerId);
-    if (firstPumpWithManager?.managerId) {
-      const managerDoc = await Manager.findById(firstPumpWithManager.managerId)
+    const firstPumpWithManager = pumps.find(
+      (p) => p && ((Array.isArray(p.managerIds) && p.managerIds.length > 0) || p.managerId)
+    );
+    const primaryManagerId = firstPumpWithManager
+      ? (Array.isArray(firstPumpWithManager.managerIds) && firstPumpWithManager.managerIds.length > 0
+          ? firstPumpWithManager.managerIds[0]
+          : firstPumpWithManager.managerId)
+      : null;
+    if (primaryManagerId) {
+      const managerDoc = await Manager.findById(primaryManagerId)
         .select('_id fullName profilePhoto mobile')
         .lean();
       if (managerDoc) {

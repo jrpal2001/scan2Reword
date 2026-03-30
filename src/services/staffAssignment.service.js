@@ -14,6 +14,13 @@ function buildSearchFilter(search, fields) {
   };
 }
 
+function getManagerIdsFromPump(pump) {
+  if (Array.isArray(pump?.managerIds) && pump.managerIds.length > 0) {
+    return [...new Set(pump.managerIds.filter(Boolean).map((id) => String(id?._id ?? id)))];
+  }
+  return pump?.managerId ? [String(pump.managerId?._id ?? pump.managerId)] : [];
+}
+
 export const staffAssignmentService = {
   /**
    * Assign staff to pump (staffId = Staff model _id)
@@ -108,10 +115,10 @@ export const staffAssignmentService = {
   },
 
   /**
-   * List staff or managers who are not assigned to any pump.
-   * @param {'staff'|'manager'} type - 'staff' = unassigned staff, 'manager' = unassigned managers (or not assigned to given pump)
+   * List staff or managers for assignment UI.
+   * @param {'staff'|'manager'} type - 'staff' = unassigned staff, 'manager' = all managers (or managers not assigned to pumpId when provided)
    * @param {string} [search] - Optional search term; partial match on fullName, mobile, email, staffCode (staff) or managerCode (manager)
-   * @param {{ page: number, limit: number, pumpId?: string }} options - Pagination; pumpId only for type=manager (managers not assigned to that pump)
+   * @param {{ page: number, limit: number, pumpId?: string }} options - Pagination; pumpId only for type=manager (for pump existence validation/context)
    */
   async getUnassignedList(type, search, options = {}) {
     const page = options.page || 1;
@@ -131,17 +138,28 @@ export const staffAssignmentService = {
     }
 
     if (type === 'manager') {
+      const filter = {};
       if (options.pumpId) {
         const pump = await pumpRepository.findById(options.pumpId);
         if (!pump) {
           throw new ApiError(HTTP_STATUS.NOT_FOUND, 'Pump not found');
         }
+        // Exclude managers already assigned to this specific pump.
+        const assignedToPump = getManagerIdsFromPump(pump);
+        if (assignedToPump.length > 0) {
+          filter._id = { $nin: assignedToPump };
+        }
       }
-      // Only show managers who are not assigned to ANY pump (exclude all assigned managers).
-      const assignedManagerIds = await pumpRepository.getAssignedManagerIds();
-      const filter = { _id: { $nin: assignedManagerIds } };
       const searchFilter = buildSearchFilter(search, managerSearchFields);
-      const combined = Object.keys(searchFilter).length ? { $and: [filter, searchFilter] } : filter;
+      const hasFilter = Object.keys(filter).length > 0;
+      const hasSearch = Object.keys(searchFilter).length > 0;
+      const combined = hasFilter && hasSearch
+        ? { $and: [filter, searchFilter] }
+        : hasFilter
+          ? filter
+          : hasSearch
+            ? searchFilter
+            : {};
       return await managerRepository.list(combined, pagination);
     }
 

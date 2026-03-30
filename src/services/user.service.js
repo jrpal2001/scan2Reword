@@ -97,6 +97,13 @@ async function generateOwnerLoyaltyId() {
   return loyaltyId;
 }
 
+function getManagerIdsFromPump(pump) {
+  if (Array.isArray(pump?.managerIds) && pump.managerIds.length > 0) {
+    return [...new Set(pump.managerIds.filter(Boolean).map((id) => String(id?._id ?? id)))];
+  }
+  return pump?.managerId ? [String(pump.managerId?._id ?? pump.managerId)] : [];
+}
+
 export const userService = {
   /**
    * Register user (self-registration with OTP verified)
@@ -769,7 +776,8 @@ export const userService = {
         if (userData.pumpId) {
           const pump = await pumpRepository.findById(userData.pumpId);
           if (!pump) throw new ApiError(HTTP_STATUS.NOT_FOUND, 'Pump not found');
-          if (pump.managerId?.toString() !== operatorId.toString()) {
+          const managerIds = getManagerIdsFromPump(pump);
+          if (!managerIds.includes(String(operatorId))) {
             throw new ApiError(HTTP_STATUS.FORBIDDEN, 'You can only assign staff to pumps you manage');
           }
           try {

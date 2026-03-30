@@ -36,7 +36,7 @@ export const updateProfile = asyncHandler(async (req, res) => {
 
 /**
  * GET /api/manager/pumps
- * List pumps assigned to the current manager (pumps where managerId = current manager).
+ * List pumps assigned to the current manager (pumps where managerIds includes current manager).
  * Query: page?, limit?, status?
  */
 export const listMyPumps = asyncHandler(async (req, res) => {
