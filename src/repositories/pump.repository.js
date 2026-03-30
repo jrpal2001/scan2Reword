@@ -275,7 +275,6 @@ export const pumpRepository = {
         managerIds,
         managers,
         managerId: managerIds[0] ?? null,
-        manager: managers[0] ?? null,
       };
     });
     return { list: listWithManager, total, page, limit, totalPages: Math.ceil(total / limit) };
