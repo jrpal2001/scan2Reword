@@ -49,8 +49,22 @@ router.post('/login', validateRequest(adminValidation.login), adminLogin);
 
 // ——— RBAC: routes below use UserLoyalty JWT (from POST /api/auth/login) ———
 router.get('/me', verifyJWT, requireRoles([ROLES.ADMIN]), (req, res) => {
-  res.status(200).json({ success: true, user: req.user, userType: req.userType });
+  const user = req.user.toObject ? req.user.toObject() : { ...req.user };
+  user.profilePhoto = user.profilePhoto || null;
+  res.status(200).json({ success: true, user, userType: req.userType });
 });
+
+// Admin profile update (photo + phone)
+router.patch(
+  '/profile',
+  verifyJWT,
+  requireRoles([ROLES.ADMIN]),
+  upload.fields([{ name: 'profilePhoto', maxCount: 1 }]),
+  parseBodyJson,
+  uploadToS3('admin'),
+  validateRequest(adminValidation.updateProfile),
+  adminController.updateAdminProfile
+);
 
 // Dashboard
 router.get(

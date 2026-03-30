@@ -15,6 +15,39 @@ import { auditLogService } from '../services/auditLog.service.js';
 import { HTTP_STATUS } from '../constants/errorCodes.js';
 import { ROLES } from '../constants/roles.js';
 import { USER_STATUS } from '../constants/status.js';
+import Admin from '../models/Admin.js';
+
+/**
+ * PATCH /api/admin/profile
+ * Update the authenticated admin's profile photo and/or phone number.
+ * Accepts multipart/form-data with optional `profilePhoto` file and `phone` field.
+ */
+export const updateAdminProfile = asyncHandler(async (req, res) => {
+  const adminId = req.user._id;
+  const v = req.validated || {};
+  const s3Uploads = req.s3Uploads || {};
+
+  const updateFields = {};
+  if (v.phone) updateFields.phone = v.phone;
+  if (s3Uploads.profilePhoto?.[0]) updateFields.profilePhoto = s3Uploads.profilePhoto[0];
+
+  if (Object.keys(updateFields).length === 0) {
+    return res.status(HTTP_STATUS.BAD_REQUEST).json(
+      ApiResponse.error('No fields to update. Provide phone or profilePhoto.')
+    );
+  }
+
+  const updated = await Admin.findByIdAndUpdate(adminId, updateFields, { new: true })
+    .select('-password -refreshToken');
+
+  if (!updated) {
+    throw new ApiError(HTTP_STATUS.NOT_FOUND, 'Admin not found');
+  }
+
+  return res.status(HTTP_STATUS.OK).json(
+    ApiResponse.success(updated, 'Admin profile updated successfully')
+  );
+});
 
 /**
  * POST /api/admin/users

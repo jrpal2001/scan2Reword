@@ -7,6 +7,7 @@ const adminSchema = new mongoose.Schema({
   email: { type: String, required: true, unique: true, lowercase: true, trim: true },
   phone: { type: String, required: true, unique: true, trim: true },
   password: { type: String, required: true },
+  profilePhoto: { type: String, default: null },
   userType: { type: String, default: 'Admin' }, // fixed user type
   refreshToken: { type: String, default: null },
   /** FCM device tokens for push notifications (e.g. new redemption requests). */

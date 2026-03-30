@@ -40,6 +40,7 @@ export const adminLogin = asyncHandler(async (req, res) => {
     name: admin.name,
     email: admin.email,
     phone: admin.phone,
+    profilePhoto: admin.profilePhoto || null,
     userType: admin.userType,
     createdAt: admin.createdAt,
   };

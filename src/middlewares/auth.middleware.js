@@ -40,6 +40,7 @@ export const verifyJWT = asyncHandler(async (req, res, next) => {
       fullName: admin.name,
       email: admin.email,
       phone: admin.phone,
+      profilePhoto: admin.profilePhoto || null,
       role: ROLES.ADMIN,
       status: 'active',
     };

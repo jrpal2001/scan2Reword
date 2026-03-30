@@ -6,4 +6,7 @@ export const adminValidation = {
     email: Joi.string().email().trim().lowercase().required(),
     password: Joi.string().min(1).required(),
   }),
+  updateProfile: Joi.object({
+    phone: Joi.string().trim().optional(),
+  }),
 };
