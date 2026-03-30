@@ -78,8 +78,44 @@ export const campaignService = {
       return;
     }
 
+    const formatDateTime = (value) => {
+      if (!value) return 'N/A';
+      const d = new Date(value);
+      return Number.isNaN(d.getTime()) ? 'N/A' : d.toISOString();
+    };
+
+    const getTypeMessage = () => {
+      if (campaign.type === 'multiplier') {
+        const mult = campaign.multiplier ?? null;
+        return mult ? `Earn ${mult}x points on eligible purchases.` : 'Earn more points on eligible purchases.';
+      }
+      if (campaign.type === 'bonusPoints') {
+        const points = campaign.bonusPoints ?? null;
+        return points ? `Get ${points} extra points on eligible purchases.` : 'Get extra points on eligible purchases.';
+      }
+      if (campaign.type === 'bonusPercentage') {
+        const pct = campaign.bonusPercentage ?? null;
+        return pct ? `Earn ${pct}% extra points on eligible purchases.` : 'Earn extra percentage points on eligible purchases.';
+      }
+      return 'Earn more points on eligible purchases.';
+    };
+
+    const typeMessage = getTypeMessage();
+    const startAt = formatDateTime(campaign.startDate);
+    const endAt = formatDateTime(campaign.endDate);
+    let pumpScopeText = 'Available at all pumps';
+    if (pumpIds && pumpIds.length > 0) {
+      const pumps = await pumpRepository.listByIds(pumpIds);
+      const pumpNameById = new Map(
+        pumps.map((p) => [String(p._id), p.name || p.code || String(p._id)])
+      );
+      const namesInOrder = [...new Set(
+        pumpIds.map((id) => pumpNameById.get(String(id)) || String(id))
+      )];
+      pumpScopeText = `Available at ${namesInOrder.join(', ')}`;
+    }
     const title = 'New offer';
-    const body = `${campaign.name} is now live. Earn more points on your next visit!`;
+    const body = `${campaign.name} is now live. ${typeMessage} Valid from ${startAt} to ${endAt}. ${pumpScopeText}. Visit now and earn rewards!`;
     await notificationService.sendToUsers(userIds, title, body);
   },
 
@@ -155,16 +191,34 @@ export const campaignService = {
   },
 
   async listCampaigns(filter = {}, options = {}, userId, userRole, allowedPumpIds = null) {
+    const query = { ...filter };
+
     // Apply pump scope for manager
     if (userRole === ROLES.MANAGER && allowedPumpIds !== null) {
-      filter.$or = [
+      const requestedPumpId = query.pumpIds ? String(query.pumpIds) : null;
+      const allowed = (allowedPumpIds || []).map((id) => String(id));
+
+      let scopedPumpIds = allowed;
+      if (requestedPumpId) {
+        if (!allowed.includes(requestedPumpId)) {
+          throw new ApiError(HTTP_STATUS.FORBIDDEN, 'Access denied to this pump');
+        }
+        scopedPumpIds = [requestedPumpId];
+      }
+
+      // Remove direct pumpIds filter so global campaigns (pumpIds: []) are still included.
+      delete query.pumpIds;
+
+      query.$or = [
+        { pumpIds: null },
+        { pumpIds: { $exists: false } },
         { pumpIds: { $size: 0 } }, // Global campaigns
-        { pumpIds: { $in: allowedPumpIds } }, // Campaigns for manager's pumps
+        { pumpIds: { $in: scopedPumpIds } }, // Campaigns for manager's pumps
         { createdBy: userId }, // Campaigns created by this manager
       ];
     }
 
-    return campaignRepository.list(filter, options);
+    return campaignRepository.list(query, options);
   },
 
   /**

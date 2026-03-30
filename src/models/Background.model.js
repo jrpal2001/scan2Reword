@@ -23,9 +23,6 @@ const pumpBackgroundSchema = new mongoose.Schema(
     { timestamps: true }
 );
 
-// indexes
-pumpBackgroundSchema.index({ pumpId: 1 });
-
 const PumpBackground =
     mongoose.models.PumpBackground ||
     mongoose.model('PumpBackground', pumpBackgroundSchema);

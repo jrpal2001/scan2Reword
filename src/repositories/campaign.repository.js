@@ -51,6 +51,8 @@ export const campaignRepository = {
     // Pump filter: empty pumpIds = all pumps, or pumpId in pumpIds
     if (pumpId) {
       filter.$or = [
+        { pumpIds: null },
+        { pumpIds: { $exists: false } },
         { pumpIds: { $size: 0 } }, // Global campaign
         { pumpIds: pumpId }, // Campaign for this pump
       ];
