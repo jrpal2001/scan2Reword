@@ -13,6 +13,41 @@ export const staffService = {
     if (!staff) {
       throw new ApiError(HTTP_STATUS.NOT_FOUND, 'Staff not found');
     }
+
+    const { staffAssignmentRepository } = await import('../repositories/staffAssignment.repository.js');
+    const { pumpRepository } = await import('../repositories/pump.repository.js');
+    const { managerRepository } = await import('../repositories/manager.repository.js');
+
+    const activeAssignment = await staffAssignmentRepository.findActiveAssignmentByStaff(staffId);
+    const assignedPump = activeAssignment?.pumpId ? await pumpRepository.findById(activeAssignment.pumpId) : null;
+
+    let managerIdsStr = [];
+    if (assignedPump) {
+      if (Array.isArray(assignedPump.managerIds) && assignedPump.managerIds.length > 0) {
+        managerIdsStr = assignedPump.managerIds.filter(Boolean).map(id => String(id));
+      } else if (assignedPump.managerId) {
+        managerIdsStr = [String(assignedPump.managerId)];
+      }
+    } else if (staff.assignedManagerId) {
+      managerIdsStr = [String(staff.assignedManagerId)];
+    }
+
+    const uniqueManagerIds = [...new Set(managerIdsStr)];
+    const assignedManagersList = await Promise.all(
+      uniqueManagerIds.map(id => managerRepository.findById(id))
+    );
+
+    staff.assignedManager = assignedManagersList.filter(Boolean).map(m => ({
+      _id: m._id,
+      fullName: m.fullName ?? null,
+      managerCode: m.managerCode ?? null,
+      mobile: m.mobile ?? null,
+      profilePhoto: m.profilePhoto ?? null
+    }));
+
+    // Change assignedManagerId to array representation for consistency
+    staff.assignedManagerId = uniqueManagerIds;
+
     return staff;
   },
 

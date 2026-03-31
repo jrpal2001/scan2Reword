@@ -572,9 +572,8 @@ export const getStaffById = asyncHandler(async (req, res) => {
   }
   const staff = staffDoc.toObject ? staffDoc.toObject() : { ...staffDoc };
   const activeAssignment = await staffAssignmentRepository.findActiveAssignmentByStaff(staffId);
-  const [assignedPump, assignedManager] = await Promise.all([
+  const [assignedPump] = await Promise.all([
     activeAssignment?.pumpId ? pumpRepository.findById(activeAssignment.pumpId) : null,
-    staff.assignedManagerId ? managerRepository.findById(staff.assignedManagerId) : null,
   ]);
 
   staff.assignedPump = assignedPump
@@ -585,13 +584,27 @@ export const getStaffById = asyncHandler(async (req, res) => {
       }
     : null;
 
-  staff.assignedManager = assignedManager
-    ? {
-        managerId: assignedManager._id,
-        name: assignedManager.fullName ?? null,
-        managerCode: assignedManager.managerCode ?? null,
-      }
-    : null;
+  let managerIdsStr = [];
+  if (assignedPump) {
+    if (Array.isArray(assignedPump.managerIds) && assignedPump.managerIds.length > 0) {
+      managerIdsStr = assignedPump.managerIds.filter(Boolean).map(id => String(id));
+    } else if (assignedPump.managerId) {
+      managerIdsStr = [String(assignedPump.managerId)];
+    }
+  } else if (staff.assignedManagerId) {
+    managerIdsStr = [String(staff.assignedManagerId)];
+  }
+
+  const uniqueManagerIds = [...new Set(managerIdsStr)];
+  const assignedManagersList = await Promise.all(
+    uniqueManagerIds.map(id => managerRepository.findById(id))
+  );
+
+  staff.assignedManager = assignedManagersList.filter(Boolean).map(m => ({
+    managerId: m._id,
+    name: m.fullName ?? null,
+    managerCode: m.managerCode ?? null,
+  }));
 
   staff.passwordViewable = decryptPassword(staff.passwordEncrypted) ?? null;
   delete staff.passwordHash;

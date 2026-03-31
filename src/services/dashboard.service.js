@@ -422,28 +422,38 @@ export const dashboardService = {
       status: p.status,
     }));
 
-    // Manager of this staff: derived from first assigned pump's managerIds (staff → pump → manager)
-    let manager = null;
-    const firstPumpWithManager = pumps.find(
-      (p) => p && ((Array.isArray(p.managerIds) && p.managerIds.length > 0) || p.managerId)
-    );
-    const primaryManagerId = firstPumpWithManager
-      ? (Array.isArray(firstPumpWithManager.managerIds) && firstPumpWithManager.managerIds.length > 0
-          ? firstPumpWithManager.managerIds[0]
-          : firstPumpWithManager.managerId)
-      : null;
-    if (primaryManagerId) {
-      const managerDoc = await Manager.findById(primaryManagerId)
+    // Manager of this staff: derived from all assigned pumps' managerIds (staff → pump → managers)
+    let manager = [];
+    const managerIdsStr = [];
+    pumps.forEach(p => {
+      if (p) {
+        if (Array.isArray(p.managerIds) && p.managerIds.length > 0) {
+          managerIdsStr.push(...p.managerIds.filter(Boolean).map(String));
+        } else if (p.managerId) {
+          managerIdsStr.push(String(p.managerId));
+        }
+      }
+    });
+
+    const uniqueManagerIds = [...new Set(managerIdsStr)];
+    if (uniqueManagerIds.length === 0) {
+      // Fallback to staff's assignedManagerId if no pumps have managers
+      const staffDoc = await Staff.findById(staffId).select('assignedManagerId').lean();
+      if (staffDoc && staffDoc.assignedManagerId) {
+        uniqueManagerIds.push(String(staffDoc.assignedManagerId));
+      }
+    }
+
+    if (uniqueManagerIds.length > 0) {
+      const managerDocs = await Manager.find({ _id: { $in: uniqueManagerIds } })
         .select('_id fullName profilePhoto mobile')
         .lean();
-      if (managerDoc) {
-        manager = {
-          _id: managerDoc._id,
-          fullName: managerDoc.fullName,
-          profilePhoto: managerDoc.profilePhoto ?? null,
-          mobile: managerDoc.mobile,
-        };
-      }
+      manager = managerDocs.map(managerDoc => ({
+        _id: managerDoc._id,
+        fullName: managerDoc.fullName,
+        profilePhoto: managerDoc.profilePhoto ?? null,
+        mobile: managerDoc.mobile ?? null,
+      }));
     }
 
     // Transactions at staff's pump(s) (where they are operator or any at their pump)
