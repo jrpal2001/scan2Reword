@@ -7,9 +7,12 @@ import { staffRepository } from '../repositories/staff.repository.js';
 import { managerRepository } from '../repositories/manager.repository.js';
 import Admin from '../models/Admin.js';
 import { notificationService } from './notification.service.js';
+import { userRepository } from '../repositories/user.repository.js';
+import { vehicleRepository } from '../repositories/vehicle.repository.js';
 import ApiError from '../utils/ApiError.js';
 import { HTTP_STATUS } from '../constants/errorCodes.js';
 import { TRANSACTION_STATUS } from '../constants/status.js';
+import { buildCreatedAtFilter } from '../utils/dateUtils.js';
 
 export const transactionService = {
   /**
@@ -151,23 +154,96 @@ export const transactionService = {
    * @returns {Object} Paginated transaction list
    */
   async listTransactions(filter = {}, options = {}, allowedPumpIds = null) {
-    // Apply pump scope: Admin sees all; Manager/Staff only their assigned pumps. If they request a specific pumpId, allow it only if it's in their scope.
-    if (allowedPumpIds !== null) {
-      const allowedStr = allowedPumpIds.map((id) => String(id));
-      if (filter.pumpId) {
-        const requested = String(filter.pumpId);
-        if (!allowedStr.includes(requested)) {
-          filter.pumpId = { $in: allowedPumpIds };
-        }
-        // else keep filter.pumpId as the requested pump
-      } else {
-        filter.pumpId = { $in: allowedPumpIds };
+    const scopedFilter = this._applyPumpScope(filter, allowedPumpIds);
+    const result = await transactionRepository.list(scopedFilter, options);
+    result.list = await this._enrichTransactionList(result.list);
+    return result;
+  },
+
+  /**
+   * Build user statement data with optional date/time range.
+   * userId is required. If no date/time filter is provided, full transaction history is returned.
+   */
+  async getUserTransactionsStatement(validated = {}, allowedPumpIds = null) {
+    const { userId } = validated;
+    const user = await userRepository.findById(userId);
+    if (!user) {
+      throw new ApiError(HTTP_STATUS.NOT_FOUND, 'User not found');
+    }
+
+    // Loyalty ID can be null on User for drivers; fallback to first vehicle loyalty ID.
+    let resolvedLoyaltyId = user.loyaltyId || null;
+    if (!resolvedLoyaltyId) {
+      const vehicles = await vehicleRepository.findByUserId(userId);
+      resolvedLoyaltyId = vehicles?.[0]?.loyaltyId || null;
+    }
+
+    let filter = { userId };
+    const createdAt = buildCreatedAtFilter(validated);
+    if (createdAt) {
+      if (createdAt.$and) {
+        filter = { $and: [filter, ...createdAt.$and] };
+      } else if (createdAt.createdAt) {
+        filter.createdAt = createdAt.createdAt;
       }
     }
 
-    const result = await transactionRepository.list(filter, options);
-    result.list = await this._enrichTransactionList(result.list);
-    return result;
+    const scopedFilter = this._applyPumpScope(filter, allowedPumpIds);
+    const transactions = await transactionRepository.listAll(scopedFilter, { sort: { createdAt: 1 } });
+    const enrichedTransactions = await this._enrichTransactionList(transactions);
+
+    const summary = enrichedTransactions.reduce(
+      (acc, tx) => {
+        acc.transactionCount += 1;
+        acc.totalAmount += Number(tx.amount) || 0;
+        acc.totalLiters += Number(tx.liters) || 0;
+        acc.totalPoints += Number(tx.pointsEarned) || 0;
+        return acc;
+      },
+      { transactionCount: 0, totalAmount: 0, totalLiters: 0, totalPoints: 0 }
+    );
+
+    const firstTransactionAt = enrichedTransactions[0]?.createdAt || null;
+    const lastTransactionAt = enrichedTransactions[enrichedTransactions.length - 1]?.createdAt || null;
+
+    return {
+      user: {
+        ...user,
+        loyaltyId: resolvedLoyaltyId,
+      },
+      transactions: enrichedTransactions,
+      summary: {
+        ...summary,
+        firstTransactionAt,
+        lastTransactionAt,
+      },
+      filters: {
+        startDate: validated?.startDate || null,
+        endDate: validated?.endDate || null,
+        startTime: validated?.startTime || null,
+        endTime: validated?.endTime || null,
+      },
+    };
+  },
+
+  /**
+   * Apply pump scope for manager/staff queries.
+   */
+  _applyPumpScope(filter, allowedPumpIds) {
+    const scopedFilter = { ...filter };
+    if (allowedPumpIds === null) return scopedFilter;
+
+    const allowedStr = allowedPumpIds.map((id) => String(id));
+    if (scopedFilter.pumpId) {
+      const requested = String(scopedFilter.pumpId);
+      if (!allowedStr.includes(requested)) {
+        scopedFilter.pumpId = { $in: allowedPumpIds };
+      }
+      return scopedFilter;
+    }
+
+    scopedFilter.pumpId = { $in: allowedPumpIds };
+    return scopedFilter;
   },
 
   /**

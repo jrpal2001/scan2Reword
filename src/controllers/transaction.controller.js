@@ -5,6 +5,7 @@ import { ROLES } from '../constants/roles.js';
 import ApiError from '../utils/ApiError.js';
 import { HTTP_STATUS } from '../constants/errorCodes.js';
 import { addISTToDocument, buildCreatedAtFilter } from '../utils/dateUtils.js';
+import { generateUserStatementPdf } from '../utils/pdfStatement.js';
 
 /**
  * POST /api/transactions
@@ -72,6 +73,24 @@ export const listTransactions = asyncHandler(async (req, res) => {
     req.allowedPumpIds
   );
   return res.sendPaginated(result, 'Transactions retrieved', HTTP_STATUS.OK);
+});
+
+/**
+ * GET /api/transactions/statement/download
+ * Download user transactions statement as PDF.
+ * Query: userId (required), startDate?, endDate?, startTime?, endTime?
+ */
+export const downloadUserStatement = asyncHandler(async (req, res) => {
+  const validated = req.validated || req.query;
+  const statementData = await transactionService.getUserTransactionsStatement(validated, req.allowedPumpIds);
+  const pdfBuffer = await generateUserStatementPdf(statementData);
+  const fileName = `statement-${validated.userId}-${Date.now()}.pdf`;
+
+  res.setHeader('Content-Type', 'application/pdf');
+  res.setHeader('Content-Disposition', `attachment; filename="${fileName}"`);
+  res.setHeader('Content-Length', pdfBuffer.length);
+
+  return res.status(HTTP_STATUS.OK).send(pdfBuffer);
 });
 
 /**

@@ -46,6 +46,16 @@ router.get(
   transactionController.listTransactionsByPump
 );
 
+// Download user statement as PDF. Query: userId(required), startDate?, endDate?, startTime?, endTime?
+router.get(
+  '/statement/download',
+  verifyJWT,
+  requireRoles([ROLES.ADMIN, ROLES.MANAGER, ROLES.STAFF]),
+  attachPumpScope,
+  validateRequest(transactionValidation.downloadStatement, 'query'),
+  transactionController.downloadUserStatement
+);
+
 // Get transaction by ID
 router.get(
   '/:transactionId',

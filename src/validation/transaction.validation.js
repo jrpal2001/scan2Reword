@@ -38,4 +38,12 @@ export const transactionValidation = {
     startTime: Joi.string().trim().pattern(/^([0-1]?[0-9]|2[0-3]):[0-5][0-9](:[0-5][0-9])?$/).optional(),
     endTime: Joi.string().trim().pattern(/^([0-1]?[0-9]|2[0-3]):[0-5][0-9](:[0-5][0-9])?$/).optional(),
   }),
+
+  downloadStatement: Joi.object({
+    userId: Joi.string().hex().length(24).required(),
+    startDate: Joi.date().optional(),
+    endDate: Joi.date().optional(),
+    startTime: Joi.string().trim().pattern(/^([0-1]?[0-9]|2[0-3]):[0-5][0-9](:[0-5][0-9])?$/).optional(),
+    endTime: Joi.string().trim().pattern(/^([0-1]?[0-9]|2[0-3]):[0-5][0-9](:[0-5][0-9])?$/).optional(),
+  }),
 };

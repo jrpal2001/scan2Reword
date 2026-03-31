@@ -27,6 +27,11 @@ export const transactionRepository = {
     return { list, total, page, limit, totalPages: Math.ceil(total / limit) };
   },
 
+  async listAll(filter = {}, options = {}) {
+    const { sort = { createdAt: -1 } } = options;
+    return Transaction.find(filter).sort(sort).lean();
+  },
+
   async update(id, data) {
     const transaction = await Transaction.findByIdAndUpdate(id, { $set: data }, { new: true }).lean();
     return transaction;

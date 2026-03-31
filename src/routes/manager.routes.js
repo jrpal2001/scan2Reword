@@ -269,6 +269,16 @@ router.get(
   transactionController.listTransactions
 );
 
+// Download user statement as PDF for manager's pump scope
+router.get(
+  '/transactions/statement/download',
+  verifyJWT,
+  requireRoles([ROLES.MANAGER]),
+  attachPumpScope,
+  validateRequest(transactionValidation.downloadStatement, 'query'),
+  transactionController.downloadUserStatement
+);
+
 // Get transaction by ID
 router.get(
   '/transactions/:transactionId',
