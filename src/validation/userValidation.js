@@ -199,11 +199,7 @@ export const userValidation = {
       then: Joi.optional(),
       otherwise: Joi.forbidden(),
     }),
-    pumpId: objectIdSchema.when('role', {
-      is: ROLES.STAFF,
-      then: Joi.optional(),
-      otherwise: Joi.forbidden(),
-    }),
+    pumpId: Joi.forbidden(),
     vehicle: Joi.when('ownerOnly', { is: true, then: Joi.forbidden(), otherwise: vehicleSchemaOrString.optional() }),
     referralCode: Joi.string().trim().allow('', null).optional(),
     registeredPumpId: objectIdSchema.optional(),

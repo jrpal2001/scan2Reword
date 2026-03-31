@@ -140,10 +140,28 @@ export const authValidation = {
     purpose: Joi.string().valid('login', 'register', 'change-password').default('register'),
   }),
 
+  userSendOtp: Joi.object({
+    mobile: mobileSchema,
+    purpose: Joi.string().valid('login', 'register', 'change-password').default('login'),
+  }),
+
   verifyOtp: Joi.object({
     mobile: mobileSchema,
     otp: Joi.string().trim().min(4).max(8).required(),
     purpose: Joi.string().valid('login', 'register', 'change-password').default('register'),
+  }),
+
+  userVerifyOtp: Joi.object({
+    mobile: mobileSchema,
+    otp: Joi.string().trim().min(4).max(8).required(),
+    purpose: Joi.string().valid('login', 'register', 'change-password').default('login'),
+    fcmToken: Joi.string().trim().allow('', null).optional(),
+    deviceInfo: Joi.object({
+      deviceId: Joi.string().trim().allow('', null).optional(),
+      deviceName: Joi.string().trim().allow('', null).optional(),
+      platform: Joi.string().valid('ios', 'android', 'web').allow('', null).optional(),
+      appVersion: Joi.string().trim().allow('', null).optional(),
+    }).optional(),
   }),
 
   login: Joi.object({

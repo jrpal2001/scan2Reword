@@ -16,6 +16,17 @@ export const sendOtp = asyncHandler(async (req, res) => {
 });
 
 /**
+ * POST /api/auth/user/send-otp
+ * Body: { mobile, purpose? }
+ * Sends OTP only if mobile belongs to a customer user account.
+ */
+export const sendUserOtp = asyncHandler(async (req, res) => {
+  const value = req.validated;
+  const result = await authService.sendUserOtp(value.mobile, value.purpose);
+  return res.status(HTTP_STATUS.OK).json(ApiResponse.success(result, result.message));
+});
+
+/**
  * POST /api/auth/verify-otp
  * Body: { mobile, otp, purpose?, fcmToken?, deviceInfo? }
  * Returns JWT + user if mobile already registered (login); else { user: null, token: null } for registration flow.
@@ -61,6 +72,40 @@ export const verifyOtp = asyncHandler(async (req, res) => {
         isFleetDriver: false,
       },
       'OTP verified. Proceed to register.'
+    )
+  );
+});
+
+/**
+ * POST /api/auth/user/verify-otp
+ * Body: { mobile, otp, purpose?, fcmToken?, deviceInfo? }
+ * Verifies OTP only for customer user accounts and returns user token payload.
+ */
+export const verifyUserOtp = asyncHandler(async (req, res) => {
+  const value = req.validated;
+  const result = await authService.verifyUserOtp(
+    value.mobile,
+    value.otp,
+    value.purpose,
+    value.fcmToken || null,
+    value.deviceInfo || null,
+    req.ip,
+    req.get('user-agent')
+  );
+  return res.status(HTTP_STATUS.OK).json(
+    ApiResponse.success(
+      {
+        user: result.user,
+        token: result.token,
+        refreshToken: result.refreshToken,
+        requiresPasswordSet: result.requiresPasswordSet ?? false,
+        isManager: result.isManager ?? false,
+        isStaff: result.isStaff ?? false,
+        isIndividualUser: result.isIndividualUser ?? false,
+        isFleetOwner: result.isFleetOwner ?? false,
+        isFleetDriver: result.isFleetDriver ?? false,
+      },
+      'User login successful'
     )
   );
 });

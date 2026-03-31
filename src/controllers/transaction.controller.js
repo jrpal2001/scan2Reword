@@ -85,12 +85,14 @@ export const downloadUserStatement = asyncHandler(async (req, res) => {
   const statementData = await transactionService.getUserTransactionsStatement(validated, req.allowedPumpIds);
   const pdfBuffer = await generateUserStatementPdf(statementData);
   const fileName = `statement-${validated.userId}-${Date.now()}.pdf`;
+  const encodedFileName = encodeURIComponent(fileName);
 
   res.setHeader('Content-Type', 'application/pdf');
-  res.setHeader('Content-Disposition', `attachment; filename="${fileName}"`);
-  res.setHeader('Content-Length', pdfBuffer.length);
+  res.setHeader('Content-Disposition', `attachment; filename="${fileName}"; filename*=UTF-8''${encodedFileName}`);
+  res.setHeader('X-Content-Type-Options', 'nosniff');
+  res.setHeader('Content-Length', String(pdfBuffer.length));
 
-  return res.status(HTTP_STATUS.OK).send(pdfBuffer);
+  return res.status(HTTP_STATUS.OK).end(pdfBuffer);
 });
 
 /**

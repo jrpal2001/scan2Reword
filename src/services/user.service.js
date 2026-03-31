@@ -771,40 +771,9 @@ export const userService = {
         createdByModel: operatorRole === ROLES.MANAGER ? 'Manager' : 'Admin',
       });
 
-      if (operatorRole === ROLES.MANAGER) {
-        if (userData.pumpId) {
-          const pump = await pumpRepository.findById(userData.pumpId);
-          if (!pump) throw new ApiError(HTTP_STATUS.NOT_FOUND, 'Pump not found');
-          const managerIds = getManagerIdsFromPump(pump);
-          if (!managerIds.includes(String(operatorId))) {
-            throw new ApiError(HTTP_STATUS.FORBIDDEN, 'You can only assign staff to pumps you manage');
-          }
-          try {
-            assignment = await staffAssignmentService.assignStaffToPump(created._id, userData.pumpId, operatorId);
-          } catch (error) {
-            console.error('Failed to assign staff to pump during creation:', error.message);
-          }
-        } else {
-          try {
-            const managerPumpIds = await pumpRepository.findPumpIdsByManagerId(operatorId);
-            if (managerPumpIds.length > 0) {
-              try {
-                assignment = await staffAssignmentService.assignStaffToPump(created._id, managerPumpIds[0], operatorId);
-              } catch (error) {
-                console.error('Failed to auto-assign staff to manager pump:', error.message);
-              }
-            }
-          } catch (error) {
-            console.error('Failed to auto-assign staff to manager pump during creation:', error.message);
-          }
-        }
-      } else if (userData.pumpId) {
-        try {
-          assignment = await staffAssignmentService.assignStaffToPump(created._id, userData.pumpId, operatorId);
-        } catch (error) {
-          console.error('Failed to assign staff to pump during creation:', error.message);
-        }
-      }
+      // Staff creation via manager/staff operator API should not auto-assign to any pump.
+      // Pump assignment must be handled explicitly through staff-assignment APIs.
+      assignment = null;
 
       return {
         user: { ...(await staffRepository.findById(created._id)), role: ROLES.STAFF },

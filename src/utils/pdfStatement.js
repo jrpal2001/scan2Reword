@@ -170,10 +170,6 @@ const drawSummaryCards = (doc, summary = {}) => {
 };
 
 const buildTransactionLines = (tx = {}) => {
-  const campaignIds = Array.isArray(tx.campaignIds) && tx.campaignIds.length
-    ? tx.campaignIds.map((id) => String(id)).join(', ')
-    : safeText(tx.campaignId);
-
   const operatorLabel = tx.staffCode ? `${safeText(tx.operatorName)} (${safeText(tx.staffCode)})` : safeText(tx.operatorName);
   const liters = tx.liters === null || tx.liters === undefined ? '-' : formatNumber(tx.liters, 3);
 
@@ -183,7 +179,6 @@ const buildTransactionLines = (tx = {}) => {
     `Operator: ${operatorLabel}`,
     `Fuel Type: ${safeText(tx.fuelType)} | Payment: ${safeText(tx.paymentMode)}`,
     `Amount: ${formatCurrency(tx.amount)} | Liters: ${liters} | Points Earned: ${formatNumber(tx.pointsEarned, 0)}`,
-    `Vehicle ID: ${safeText(tx.vehicleId)} | Campaign IDs: ${safeText(campaignIds)}`,
     `Attachments: ${Array.isArray(tx.attachments) ? tx.attachments.length : 0} | Created: ${formatDateTimeIST(tx.createdAt)} | Updated: ${formatDateTimeIST(tx.updatedAt)}`,
   ];
 };

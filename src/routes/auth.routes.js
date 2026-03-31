@@ -13,6 +13,8 @@ const router = Router();
 // Rate limiting commented out for debugging
 router.post('/send-otp', /* strictRateLimiter, */ validateRequest(authValidation.sendOtp), authController.sendOtp);
 router.post('/verify-otp', /* strictRateLimiter, */ validateRequest(authValidation.verifyOtp), authController.verifyOtp);
+router.post('/user/send-otp', /* strictRateLimiter, */ validateRequest(authValidation.userSendOtp), authController.sendUserOtp);
+router.post('/user/verify-otp', /* strictRateLimiter, */ validateRequest(authValidation.userVerifyOtp), authController.verifyUserOtp);
 
 // Registration: one multer per route, allowed fields from multerConfig
 router.post(

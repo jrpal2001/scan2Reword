@@ -188,7 +188,6 @@ export const createUserByOperator = asyncHandler(async (req, res) => {
     ownerPhoto: s3Uploads.ownerPhoto?.[0] ?? undefined,
     staffCode: v.staffCode || undefined,
     assignedManagerId,
-    pumpId: v.pumpId && v.pumpId.trim() ? v.pumpId : undefined, // For staff - assign to pump during creation
     referralCode: v.referralCode && v.referralCode.trim() ? v.referralCode.trim() : undefined,
     registeredPumpId: v.registeredPumpId && v.registeredPumpId.trim() ? v.registeredPumpId : undefined,
     registeredPumpCode: v.registeredPumpCode && v.registeredPumpCode.trim() ? v.registeredPumpCode.trim() : undefined,

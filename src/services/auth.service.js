@@ -51,6 +51,39 @@ async function sendOtpSms(mobile, otp) {
 }
 
 export const authService = {
+  async assertUserOnlyMobile(mobile) {
+    if (!mobile || !String(mobile).trim()) {
+      throw new ApiError(HTTP_STATUS.BAD_REQUEST, 'Mobile number is required', null, ERROR_CODES.BAD_REQUEST);
+    }
+
+    const trimmed = String(mobile).trim();
+    const [admin, manager, staff, user] = await Promise.all([
+      Admin.findOne({ phone: trimmed }).lean(),
+      managerRepository.findByMobile(trimmed),
+      staffRepository.findByMobile(trimmed),
+      userRepository.findByMobile(trimmed),
+    ]);
+
+    if (admin || manager || staff) {
+      throw new ApiError(
+        HTTP_STATUS.FORBIDDEN,
+        'This OTP endpoint is only for customer users. Use the staff/admin login flow for this mobile number.',
+        null,
+        ERROR_CODES.FORBIDDEN
+      );
+    }
+
+    if (!user) {
+      throw new ApiError(HTTP_STATUS.NOT_FOUND, 'Customer user not found for this mobile number', null, ERROR_CODES.NOT_FOUND);
+    }
+
+    if (user.status !== 'active') {
+      throw new ApiError(HTTP_STATUS.FORBIDDEN, 'Account is inactive or blocked', null, ERROR_CODES.FORBIDDEN);
+    }
+
+    return { mobile: trimmed, user };
+  },
+
   async sendOtp(mobile, purpose = 'register') {
     if (!mobile || !String(mobile).trim()) {
       throw new ApiError(HTTP_STATUS.BAD_REQUEST, 'Mobile number is required', null, ERROR_CODES.BAD_REQUEST);
@@ -62,6 +95,15 @@ export const authService = {
     await Otp.create({ mobile: trimmed, otp, purpose, expiresAt });
     await sendOtpSms(trimmed, otp);
     return { message: 'OTP sent successfully' };
+  },
+
+  /**
+   * Send OTP only for customer user mobiles.
+   * Rejects if the same mobile belongs to Admin/Manager/Staff.
+   */
+  async sendUserOtp(mobile, purpose = 'login') {
+    const resolved = await this.assertUserOnlyMobile(mobile);
+    return this.sendOtp(resolved.mobile, purpose);
   },
 
   /** Verify OTP only (validate and mark used). Does not issue tokens. Used for change-password flow. */
@@ -176,6 +218,38 @@ export const authService = {
       isIndividualUser: false,
       isFleetOwner: false,
       isFleetDriver: false,
+    };
+  },
+
+  /**
+   * Verify OTP only for customer users and return customer token payload.
+   */
+  async verifyUserOtp(mobile, otp, purpose = 'login', fcmToken = null, deviceInfo = null, ipAddress = null, userAgent = null) {
+    const resolved = await this.assertUserOnlyMobile(mobile);
+    await this.verifyOtpOnly(resolved.mobile, otp, purpose);
+
+    const userType = 'UserLoyalty';
+    const accessToken = this.issueJwt(resolved.user, userType);
+    const refreshToken = this.issueRefreshToken(resolved.user, userType);
+    await this.storeRefreshToken(resolved.user._id, userType, refreshToken, fcmToken, deviceInfo, ipAddress, userAgent);
+
+    return {
+      user: {
+        _id: resolved.user._id,
+        fullName: resolved.user.fullName,
+        mobile: resolved.user.mobile,
+        role: ROLES.USER,
+        userType: resolved.user.userType || 'individual',
+        ownerId: resolved.user.ownerId || null,
+      },
+      token: accessToken,
+      refreshToken,
+      requiresPasswordSet: false,
+      isManager: false,
+      isStaff: false,
+      isIndividualUser: resolved.user.userType === 'individual',
+      isFleetOwner: resolved.user.userType === 'owner',
+      isFleetDriver: resolved.user.userType === 'driver',
     };
   },
 
