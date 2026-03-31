@@ -4,7 +4,6 @@ const systemConfigSchema = new mongoose.Schema(
   {
     // Points configuration
     points: {
-      registration: { type: Number, default: 0, min: 0 },
       /** Points given to the referrer (Manager/Staff) when someone uses their referral code */
       referral: { type: Number, default: 0, min: 0 },
       /** Points given to the new user (referred person) when they sign up with a referral code */

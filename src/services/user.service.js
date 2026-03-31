@@ -602,7 +602,6 @@ export const userService = {
    * Create user by Manager/Staff (at pump)
    * Manager can create staff or user, Staff can only create user
    * Supports Individual and Organization (Fleet) account types
-   * Credits registration points to operator (only for regular users, not staff)
    * Auto-generates referral code for staff created by manager
    */
   async createUserByManagerOrStaff(userData, vehicleData, operatorId, operatorRole) {
@@ -854,23 +853,6 @@ export const userService = {
     }
 
     if (userRole === ROLES.USER) {
-      try {
-        const systemConfig = await systemConfigService.getConfig();
-        const registrationPoints = systemConfig.points?.registration || 0;
-        if (registrationPoints > 0) {
-          await pointsService.creditPoints({
-            userId: operatorId,
-            ownerType: operatorType,
-            points: registrationPoints,
-            type: 'credit',
-            reason: `Registration bonus - Created user ${created._id} (${created.fullName})`,
-            createdBy: operatorId,
-          });
-        }
-      } catch (error) {
-        console.error('Failed to credit registration points:', error.message);
-      }
-
       // Credit referral points to referrer (Manager or Staff) and to referred user when referralCode was provided
       if (referrer && referrer._id && (referrer._ownerType === 'Manager' || referrer._ownerType === 'Staff')) {
         try {

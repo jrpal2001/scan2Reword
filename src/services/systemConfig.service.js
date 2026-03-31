@@ -7,7 +7,17 @@ export const systemConfigService = {
    * Get system configuration
    */
   async getConfig() {
-    const config = await systemConfigRepository.getConfig();
+    let config = await systemConfigRepository.getConfig();
+    const points = typeof config?.points?.toObject === 'function' ? config.points.toObject() : config?.points;
+
+    // One-time cleanup for legacy documents that still carry deprecated keys.
+    if (points && ('registration' in points || 'other' in points)) {
+      const cleanedPoints = { ...points };
+      if ('other' in cleanedPoints) delete cleanedPoints.other;
+      if ('registration' in cleanedPoints) delete cleanedPoints.registration;
+      config = await systemConfigRepository.updateConfig({ points: cleanedPoints });
+    }
+
     return config;
   },
 
@@ -23,36 +33,13 @@ export const systemConfigService = {
       }
     }
 
-    // Normalize points configuration - convert number format to object format
+    // Remove unsupported/deprecated points keys
     if (data.points) {
-      const normalizedPoints = { ...data.points };
-      
-      // Convert fuel from number to object format if needed
-      if (typeof normalizedPoints.fuel === 'number') {
-        normalizedPoints.fuel = { pointsPerLiter: normalizedPoints.fuel };
-      }
-      
-      // Convert lubricant from number to object format if needed
-      if (typeof normalizedPoints.lubricant === 'number') {
-        normalizedPoints.lubricant = { pointsPer100Rupees: normalizedPoints.lubricant };
-      }
-      
-      // Convert store from number to object format if needed
-      if (typeof normalizedPoints.store === 'number') {
-        normalizedPoints.store = { pointsPer100Rupees: normalizedPoints.store };
-      }
-      
-      // Convert service from number to object format if needed
-      if (typeof normalizedPoints.service === 'number') {
-        normalizedPoints.service = { pointsPer100Rupees: normalizedPoints.service };
-      }
-      
-      // Remove 'other' field if present (not in schema)
-      if ('other' in normalizedPoints) {
-        delete normalizedPoints.other;
-      }
-      
-      data.points = normalizedPoints;
+      const source = typeof data.points?.toObject === 'function' ? data.points.toObject() : data.points;
+      const cleanedPoints = { ...(source || {}) };
+      if ('other' in cleanedPoints) delete cleanedPoints.other;
+      if ('registration' in cleanedPoints) delete cleanedPoints.registration;
+      data.points = cleanedPoints;
     }
 
     const updated = await systemConfigRepository.updateConfig(data);
