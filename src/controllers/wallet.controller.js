@@ -280,8 +280,18 @@ export const getOwnerWallet = asyncHandler(async (req, res) => {
   };
 
   for (const user of allUsers) {
-    const ws = user.walletSummary || {};
-    totalWalletSummary.totalEarned += ws.totalEarned || 0;
+    const ws = user.walletSummary || {
+      totalEarned: 0,
+      availablePoints: 0,
+      redeemedPoints: 0,
+      expiredPoints: 0,
+    };
+
+    // Reconcile/Self-healing for each user before aggregating
+    const calculatedMinTotal = (ws.availablePoints || 0) + (ws.redeemedPoints || 0) + (ws.expiredPoints || 0);
+    const reconciledTotalEarned = Math.max(ws.totalEarned || 0, calculatedMinTotal);
+
+    totalWalletSummary.totalEarned += reconciledTotalEarned;
     totalWalletSummary.availablePoints += ws.availablePoints || 0;
     totalWalletSummary.redeemedPoints += ws.redeemedPoints || 0;
     totalWalletSummary.expiredPoints += ws.expiredPoints || 0;
