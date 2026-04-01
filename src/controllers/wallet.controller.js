@@ -12,6 +12,35 @@ import Transaction from '../models/Transaction.model.js';
 import User, { USER_TYPES } from '../models/User.model.js';
 
 /**
+ * Consolidate ledger entries by transactionId/redemptionId.
+ * Groups multiple events (e.g. original credit + adjustment) into one,
+ * summing points and keeping metadata from the latest entry.
+ */
+function consolidateLedger(rawLedger) {
+  if (!Array.isArray(rawLedger) || rawLedger.length === 0) return [];
+  
+  const consolidatedMap = new Map();
+  // Sort descending by date to ensure the first one we see is the latest
+  const sortedRaw = [...rawLedger].sort((a,b) => new Date(b.createdAt) - new Date(a.createdAt));
+
+  sortedRaw.forEach(entry => {
+    // Generate a unique key for grouping. If no ID, use entry ID as unique.
+    const key = entry.transactionId ? `tx_${entry.transactionId}` : (entry.redemptionId ? `rd_${entry.redemptionId}` : `oth_${entry._id}`);
+    
+    if (consolidatedMap.has(key)) {
+      const existing = consolidatedMap.get(key);
+      // Sum the points. Adjustments for corrections will correctly update the total points for this transaction.
+      existing.points += entry.points;
+    } else {
+      // First (latest) occurrence of this group
+      consolidatedMap.set(key, { ...entry });
+    }
+  });
+
+  return Array.from(consolidatedMap.values());
+}
+
+/**
  * GET /api/users/:userId/wallet
  * Query: page?, limit?
  * Returns wallet summary and ledger entries.
@@ -32,9 +61,28 @@ export const getWallet = asyncHandler(async (req, res) => {
     limit: parseInt(limit),
   });
 
+  // Consolidate and populate transaction details
+  const consolidatedList = consolidateLedger(result.ledger?.list ?? []);
+  const transactionIds = consolidatedList.map(e => e.transactionId).filter(Boolean);
+  const transactions = transactionIds.length > 0
+    ? await Transaction.find({ _id: { $in: transactionIds } }).lean()
+    : [];
+  const txMap = {};
+  transactions.forEach(t => txMap[String(t._id)] = addISTToDocument(t));
+
+  const finalLedger = consolidatedList.map(entry => {
+    const entryIST = addISTToDocument(entry);
+    if (entry.transactionId && txMap[String(entry.transactionId)]) {
+      entryIST.transaction = txMap[String(entry.transactionId)];
+    } else {
+      entryIST.transaction = null;
+    }
+    return entryIST;
+  });
+
   const data = {
     walletSummary: result.walletSummary,
-    ledger: result.ledger?.list ?? [],
+    ledger: finalLedger,
     ...(result.fleetSummary != null && { fleetSummary: result.fleetSummary }),
   };
   return res.sendPaginatedMeta(data, result.ledger, 'Wallet retrieved', HTTP_STATUS.OK);
@@ -158,9 +206,12 @@ export const getUserWallet = asyncHandler(async (req, res) => {
     limit: parseInt(limit),
   });
 
-  // 3. Collect transactionIds from ledger entries and fetch full transaction details
-  const ledgerList = result.ledger?.list ?? [];
-  const transactionIds = ledgerList
+  // 3. Consolidate ledger entries and fetch details
+  const rawLedger = result.ledger?.list ?? [];
+  const consolidatedList = consolidateLedger(rawLedger);
+
+  // 4. Collect transactionIds and fetch details
+  const transactionIds = consolidatedList
     .map((entry) => entry.transactionId)
     .filter(Boolean);
 
@@ -168,15 +219,13 @@ export const getUserWallet = asyncHandler(async (req, res) => {
     ? await Transaction.find({ _id: { $in: transactionIds } }).lean()
     : [];
 
-  // Build a map of transactionId -> full transaction doc
   const txMap = {};
   transactions.forEach((tx) => {
-    const txWithIST = addISTToDocument(tx);
-    txMap[String(tx._id)] = txWithIST;
+    txMap[String(tx._id)] = addISTToDocument(tx);
   });
 
-  // 4. Replace transactionId with full transaction object in each ledger entry
-  const enrichedLedger = ledgerList.map((entry) => {
+  // 5. Enrich consolidated ledger and apply IST
+  const finalLedger = consolidatedList.map((entry) => {
     const entryWithIST = addISTToDocument(entry);
     if (entry.transactionId && txMap[String(entry.transactionId)]) {
       entryWithIST.transaction = txMap[String(entry.transactionId)];
@@ -188,7 +237,7 @@ export const getUserWallet = asyncHandler(async (req, res) => {
 
   const data = {
     walletSummary: result.walletSummary,
-    ledger: enrichedLedger,
+    ledger: finalLedger,
     ...(result.fleetSummary != null && { fleetSummary: result.fleetSummary }),
   };
 
@@ -247,8 +296,10 @@ export const getOwnerWallet = asyncHandler(async (req, res) => {
 
   const ledgerList = ledgerResult.list ?? [];
 
-  // 5. Fetch full transaction details for all ledger entries
-  const transactionIds = ledgerList
+  // 5. Consolidate and fetch transaction details
+  const consolidatedList = consolidateLedger(ledgerList);
+
+  const transactionIds = consolidatedList
     .map((entry) => entry.transactionId)
     .filter(Boolean);
 
@@ -261,8 +312,8 @@ export const getOwnerWallet = asyncHandler(async (req, res) => {
     txMap[String(tx._id)] = addISTToDocument(tx);
   });
 
-  // 6. Enrich ledger entries with full transaction objects
-  const enrichedLedger = ledgerList.map((entry) => {
+  // 6. Enrich consolidated ledger entries with full transaction objects
+  const enrichedLedger = consolidatedList.map((entry) => {
     const entryWithIST = addISTToDocument(entry);
     if (entry.transactionId && txMap[String(entry.transactionId)]) {
       entryWithIST.transaction = txMap[String(entry.transactionId)];

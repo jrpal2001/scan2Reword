@@ -138,7 +138,7 @@ export const pointsService = {
 
     const updateData = {
       walletSummary: {
-        totalEarned: (user.walletSummary?.totalEarned || 0) + (type === 'credit' ? points : 0),
+        totalEarned: (user.walletSummary?.totalEarned || 0) + (['credit', 'adjustment'].includes(type) ? points : 0),
         availablePoints: balanceAfter,
         redeemedPoints: user.walletSummary?.redeemedPoints || 0,
         expiredPoints: user.walletSummary?.expiredPoints || 0,
@@ -146,6 +146,8 @@ export const pointsService = {
     };
     if (type === 'expiry') {
       updateData.walletSummary.expiredPoints = (user.walletSummary?.expiredPoints || 0) + points;
+      // Expiry shouldn't really use creditPoints, but if it does, handle totalEarned carefully.
+      // Usually expiry is a debit. If it's a credit (e.g. restoring expired points), we might want to increase totalEarned.
     }
 
     await updateFn(userId, updateData);
@@ -230,7 +232,7 @@ export const pointsService = {
     });
     await updateFn(userId, {
       walletSummary: {
-        totalEarned: user.walletSummary?.totalEarned || 0,
+        totalEarned: Math.max(0, (user.walletSummary?.totalEarned || 0) - pointsToDeduct),
         availablePoints: balanceAfter,
         redeemedPoints: user.walletSummary?.redeemedPoints || 0,
         expiredPoints: user.walletSummary?.expiredPoints || 0,
@@ -279,13 +281,22 @@ export const pointsService = {
 
     const ledger = await pointsLedgerRepository.findByUserId(ownerId, { ...options, ownerType });
 
+    const rawSummary = user.walletSummary || {
+      totalEarned: 0,
+      availablePoints: 0,
+      redeemedPoints: 0,
+      expiredPoints: 0,
+    };
+
+    // Reconcile totalEarned if it's lagging (due to old bugs or manual adjustments)
+    // totalEarned should be the sum of what's available now, plus what's been spent/expired.
+    const calculatedMinTotal = (rawSummary.availablePoints || 0) + (rawSummary.redeemedPoints || 0) + (rawSummary.expiredPoints || 0);
+    if ((rawSummary.totalEarned || 0) < calculatedMinTotal) {
+      rawSummary.totalEarned = calculatedMinTotal;
+    }
+
     const result = {
-      walletSummary: user.walletSummary || {
-        totalEarned: 0,
-        availablePoints: 0,
-        redeemedPoints: 0,
-        expiredPoints: 0,
-      },
+      walletSummary: rawSummary,
       ledger,
     };
 
