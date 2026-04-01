@@ -6,6 +6,10 @@ import { auditLogService } from '../services/auditLog.service.js';
 import { ROLES } from '../constants/roles.js';
 import ApiError from '../utils/ApiError.js';
 import { HTTP_STATUS } from '../constants/errorCodes.js';
+import { vehicleRepository } from '../repositories/vehicle.repository.js';
+import { userRepository } from '../repositories/user.repository.js';
+import Transaction from '../models/Transaction.model.js';
+import User, { USER_TYPES } from '../models/User.model.js';
 
 /**
  * GET /api/users/:userId/wallet
@@ -127,4 +131,151 @@ export const redeemEmployeePoints = asyncHandler(async (req, res) => {
   return res.status(HTTP_STATUS.OK).json(
     ApiResponse.success(addISTToDocument(ledgerEntry), 'Employee points redeemed successfully')
   );
+});
+
+/**
+ * GET /api/user/wallet/:vehicleId
+ * Public (no access token required).
+ * Accepts vehicleId as param, resolves the userId from the vehicle,
+ * returns wallet summary + ledger with full transaction details.
+ * Query: page?, limit?
+ */
+export const getUserWallet = asyncHandler(async (req, res) => {
+  const { vehicleId } = req.params;
+
+  // 1. Find vehicle by ID
+  const vehicle = await vehicleRepository.findById(vehicleId);
+  if (!vehicle) {
+    throw new ApiError(HTTP_STATUS.NOT_FOUND, 'Vehicle not found');
+  }
+
+  const userId = vehicle.userId;
+
+  // 2. Get wallet summary + ledger
+  const { page = 1, limit = 10 } = req.query;
+  const result = await pointsService.getWallet(String(userId), {
+    page: parseInt(page),
+    limit: parseInt(limit),
+  });
+
+  // 3. Collect transactionIds from ledger entries and fetch full transaction details
+  const ledgerList = result.ledger?.list ?? [];
+  const transactionIds = ledgerList
+    .map((entry) => entry.transactionId)
+    .filter(Boolean);
+
+  const transactions = transactionIds.length > 0
+    ? await Transaction.find({ _id: { $in: transactionIds } }).lean()
+    : [];
+
+  // Build a map of transactionId -> full transaction doc
+  const txMap = {};
+  transactions.forEach((tx) => {
+    const txWithIST = addISTToDocument(tx);
+    txMap[String(tx._id)] = txWithIST;
+  });
+
+  // 4. Replace transactionId with full transaction object in each ledger entry
+  const enrichedLedger = ledgerList.map((entry) => {
+    const entryWithIST = addISTToDocument(entry);
+    if (entry.transactionId && txMap[String(entry.transactionId)]) {
+      entryWithIST.transaction = txMap[String(entry.transactionId)];
+    } else {
+      entryWithIST.transaction = null;
+    }
+    return entryWithIST;
+  });
+
+  const data = {
+    walletSummary: result.walletSummary,
+    ledger: enrichedLedger,
+    ...(result.fleetSummary != null && { fleetSummary: result.fleetSummary }),
+  };
+
+  return res.sendPaginatedMeta(data, result.ledger, 'User wallet retrieved', HTTP_STATUS.OK);
+});
+
+/**
+ * GET /api/owner/wallet
+ * Authenticated (access token required). Owner only.
+ * Returns aggregated wallet summary across ALL drivers in the owner's fleet,
+ * plus a single combined ledger with full transaction details.
+ * Query: page?, limit?
+ */
+export const getOwnerWallet = asyncHandler(async (req, res) => {
+  const ownerId = req.user._id;
+
+  // 1. Verify the user is an owner
+  const owner = await userRepository.findById(ownerId);
+  if (!owner) {
+    throw new ApiError(HTTP_STATUS.NOT_FOUND, 'Owner not found');
+  }
+
+  const { page = 1, limit = 10 } = req.query;
+  const pageNum = parseInt(page);
+  const limitNum = parseInt(limit);
+
+  // 2. Get all drivers under this owner
+  const { list: drivers } = await userRepository.list({ ownerId }, { page: 1, limit: 500 });
+
+  // Include the owner themselves as well
+  const allUsers = [owner, ...drivers];
+  const allUserIds = allUsers.map((u) => String(u._id));
+
+  // 3. Aggregate total wallet summary from all users
+  const totalWalletSummary = {
+    totalEarned: 0,
+    availablePoints: 0,
+    redeemedPoints: 0,
+    expiredPoints: 0,
+  };
+
+  for (const user of allUsers) {
+    const ws = user.walletSummary || {};
+    totalWalletSummary.totalEarned += ws.totalEarned || 0;
+    totalWalletSummary.availablePoints += ws.availablePoints || 0;
+    totalWalletSummary.redeemedPoints += ws.redeemedPoints || 0;
+    totalWalletSummary.expiredPoints += ws.expiredPoints || 0;
+  }
+
+  // 4. Get combined ledger entries across all users (paginated, sorted newest first)
+  const { pointsLedgerRepository } = await import('../repositories/pointsLedger.repository.js');
+  const ledgerResult = await pointsLedgerRepository.list(
+    { userId: { $in: allUserIds }, ownerType: 'UserLoyalty' },
+    { page: pageNum, limit: limitNum, sort: { createdAt: -1 } }
+  );
+
+  const ledgerList = ledgerResult.list ?? [];
+
+  // 5. Fetch full transaction details for all ledger entries
+  const transactionIds = ledgerList
+    .map((entry) => entry.transactionId)
+    .filter(Boolean);
+
+  const transactions = transactionIds.length > 0
+    ? await Transaction.find({ _id: { $in: transactionIds } }).lean()
+    : [];
+
+  const txMap = {};
+  transactions.forEach((tx) => {
+    txMap[String(tx._id)] = addISTToDocument(tx);
+  });
+
+  // 6. Enrich ledger entries with full transaction objects
+  const enrichedLedger = ledgerList.map((entry) => {
+    const entryWithIST = addISTToDocument(entry);
+    if (entry.transactionId && txMap[String(entry.transactionId)]) {
+      entryWithIST.transaction = txMap[String(entry.transactionId)];
+    } else {
+      entryWithIST.transaction = null;
+    }
+    return entryWithIST;
+  });
+
+  const data = {
+    totalWalletSummary,
+    ledger: enrichedLedger,
+  };
+
+  return res.sendPaginatedMeta(data, ledgerResult, 'Owner wallet retrieved', HTTP_STATUS.OK);
 });

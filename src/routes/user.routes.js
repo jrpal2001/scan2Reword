@@ -54,7 +54,10 @@ router.get(
   userController.lookupCustomer
 );
 
-// Wallet
+// Wallet (public — no access token, by vehicleId)
+router.get('/wallet/:vehicleId', walletController.getUserWallet);
+
+// Wallet (authenticated — by userId)
 router.get('/:userId/wallet', verifyJWT, walletController.getWallet);
 
 //pump background

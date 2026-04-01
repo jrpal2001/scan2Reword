@@ -2,6 +2,7 @@ import { Router } from 'express';
 import * as ownerController from '../controllers/owner.controller.js';
 import * as dashboardController from '../controllers/dashboard.controller.js';
 import * as statsController from '../controllers/stats.controller.js';
+import * as walletController from '../controllers/wallet.controller.js';
 import { verifyJWT } from '../middlewares/auth.middleware.js';
 import { requireRoles } from '../middlewares/rbac.middleware.js';
 import { validateRequest } from '../middlewares/validateRequest.js';
@@ -36,6 +37,14 @@ router.get(
   '/search',
   validateRequest(ownerValidation.searchOwner, 'query'),
   ownerController.searchOwner
+);
+
+// Owner wallet (authenticated — all fleet vehicles wallet + transactions)
+router.get(
+  '/wallet',
+  verifyJWT,
+  requireRoles([ROLES.USER]),
+  walletController.getOwnerWallet
 );
 
 // Owner endpoints (authenticated): one multer per route
