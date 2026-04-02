@@ -594,28 +594,39 @@ export const authService = {
    * userType: 'UserLoyalty' | 'Manager' | 'Staff' | 'Admin' (optional; used when revoking by fcmToken or all devices)
    */
   async logout(userId, refreshTokenString = null, fcmToken = null, userType = null) {
+    // Normalize userType (e.g. 'user' -> 'UserLoyalty', 'manager' -> 'Manager')
+    let normalizedType = userType;
+    if (userType) {
+      const t = userType.toLowerCase();
+      if (t === 'user' || t === 'userloyalty') normalizedType = 'UserLoyalty';
+      else if (t === 'manager') normalizedType = 'Manager';
+      else if (t === 'staff') normalizedType = 'Staff';
+      else if (t === 'admin') normalizedType = 'Admin';
+    }
+
     if (fcmToken) {
-      await refreshTokenRepository.revokeByFcmToken(userId, fcmToken, userType);
-      if (userType && userType !== 'Admin') {
+      await refreshTokenRepository.revokeByFcmToken(userId, fcmToken, normalizedType);
+      if (normalizedType && normalizedType !== 'Admin') {
         let current = null;
-        if (userType === 'UserLoyalty') current = await userRepository.findById(userId);
-        else if (userType === 'Manager') current = await managerRepository.findById(userId);
-        else if (userType === 'Staff') current = await staffRepository.findById(userId);
+        if (normalizedType === 'UserLoyalty') current = await userRepository.findById(userId);
+        else if (normalizedType === 'Manager') current = await managerRepository.findById(userId);
+        else if (normalizedType === 'Staff') current = await staffRepository.findById(userId);
+        
         if (current && current.FcmTokens) {
           const tokens = current.FcmTokens.filter(t => t !== fcmToken);
-          if (userType === 'UserLoyalty') await userRepository.update(userId, { FcmTokens: tokens });
-          else if (userType === 'Manager') await managerRepository.update(userId, { FcmTokens: tokens });
-          else if (userType === 'Staff') await staffRepository.update(userId, { FcmTokens: tokens });
+          if (normalizedType === 'UserLoyalty') await userRepository.update(userId, { FcmTokens: tokens });
+          else if (normalizedType === 'Manager') await managerRepository.update(userId, { FcmTokens: tokens });
+          else if (normalizedType === 'Staff') await staffRepository.update(userId, { FcmTokens: tokens });
         }
       }
     } else if (refreshTokenString) {
       await refreshTokenRepository.revokeByToken(refreshTokenString);
     } else {
-      await refreshTokenRepository.revokeAllUserTokens(userId, userType);
-      if (userType && userType !== 'Admin') {
-        if (userType === 'UserLoyalty') await userRepository.update(userId, { FcmTokens: [] });
-        else if (userType === 'Manager') await managerRepository.update(userId, { FcmTokens: [] });
-        else if (userType === 'Staff') await staffRepository.update(userId, { FcmTokens: [] });
+      await refreshTokenRepository.revokeAllUserTokens(userId, normalizedType);
+      if (normalizedType && normalizedType !== 'Admin') {
+        if (normalizedType === 'UserLoyalty') await userRepository.update(userId, { FcmTokens: [] });
+        else if (normalizedType === 'Manager') await managerRepository.update(userId, { FcmTokens: [] });
+        else if (normalizedType === 'Staff') await staffRepository.update(userId, { FcmTokens: [] });
       }
     }
     return { message: 'Logged out successfully' };
