@@ -183,4 +183,17 @@ export const pumpService = {
     }
     return { list };
   },
+
+  /**
+   * Basic public pump list: returns only _id, name, and code for all active pumps.
+   */
+  async getPublicPumpsBasic() {
+    const pumps = await pumpRepository.listActiveForPublic();
+    const list = pumps.map((p) => ({
+      _id: p._id,
+      name: p.name,
+      code: p.code,
+    }));
+    return { list };
+  },
 };

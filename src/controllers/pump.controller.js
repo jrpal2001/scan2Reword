@@ -117,3 +117,14 @@ export const getPublicPumpList = asyncHandler(async (req, res) => {
     ApiResponse.success(result, 'Pumps retrieved')
   );
 });
+
+/**
+ * GET /api/pumps/list (public, no auth)
+ * Simple list of all active pumps: id, name, and code.
+ */
+export const getPublicPumpsBasicList = asyncHandler(async (req, res) => {
+  const result = await pumpService.getPublicPumpsBasic();
+  return res.status(HTTP_STATUS.OK).json(
+    ApiResponse.success(result.list, 'Pumps retrieved')
+  );
+});
