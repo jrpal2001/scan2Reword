@@ -310,6 +310,15 @@ export const notificationService = {
 
     const type = (recipientType || 'user').toLowerCase();
     const idStr = String(recipientId);
+
+    if (type === 'admin') {
+      if (!notification.forAdmin) {
+        throw new ApiError(HTTP_STATUS.FORBIDDEN, 'You can only delete admin notifications');
+      }
+      await notificationRepository.delete(notificationId);
+      return { success: true };
+    }
+
     const field = type === 'manager' ? 'managerIds' : type === 'staff' ? 'staffIds' : 'users';
     const list = notification[field] || [];
     const inList = list.some((id) => String(id) === idStr);

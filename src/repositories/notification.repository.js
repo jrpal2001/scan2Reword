@@ -13,6 +13,10 @@ export const notificationRepository = {
     return Notification.findById(id).lean();
   },
 
+  async delete(id) {
+    return Notification.findByIdAndDelete(id).lean();
+  },
+
   async findByUserId(userId, options = {}) {
     const { page = 1, limit = 10, sort = { createdAt: -1 } } = options;
     const skip = (page - 1) * limit;
