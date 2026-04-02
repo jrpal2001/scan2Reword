@@ -183,6 +183,8 @@ export const userService = {
         loyaltyId: await generateOwnerLoyaltyId(),
         profilePhoto: ownerPhoto || profilePhoto || null,
         registeredPumpId: resolvedRegisteredPumpId,
+        createdBy: referrer ? referrer._id : null,
+        createdByModel: referrer ? referrer._ownerType : null,
       });
       const pumpName = resolvedPump?.name || 'our';
       return {
@@ -228,6 +230,8 @@ export const userService = {
           loyaltyId: await generateOwnerLoyaltyId(),
           profilePhoto: ownerPhoto || null,
           registeredPumpId: resolvedRegisteredPumpId,
+          createdBy: referrer ? referrer._id : null,
+          createdByModel: referrer ? referrer._ownerType : null,
         });
         ownerId = newOwner._id;
       }
@@ -256,6 +260,8 @@ export const userService = {
       ownerPhoto: null,
       ownerId: ownerId,
       registeredPumpId: resolvedRegisteredPumpId,
+      createdBy: referrer ? referrer._id : null,
+      createdByModel: referrer ? referrer._ownerType : null,
     });
 
     let vehicleCreated;
