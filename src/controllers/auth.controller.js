@@ -281,8 +281,9 @@ export const changePasswordWithVerification = asyncHandler(async (req, res) => {
  * Requires: Authorization header with access token
  * 
  * Logout behavior:
- * - If fcmToken provided: Logs out from that specific device (revokes all tokens for that FCM token)
- * - If refreshToken provided (but no fcmToken): Revokes that specific refresh token
+ * - If fcmToken provided (without refreshToken): Logs out from that specific device (revokes all tokens for that FCM token)
+ * - If refreshToken provided: Revokes that specific refresh token
+ * - If both provided: Revokes only that specific refresh token and cleans that FCM token only when no active token remains for it
  * - If neither provided: Logs out from all devices (revokes all tokens for the user)
  * 
  * Recommended: Send fcmToken to logout from current device

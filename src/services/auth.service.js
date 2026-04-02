@@ -569,18 +569,28 @@ export const authService = {
         revoked: false,
       });
 
-      if (fcmToken && userType !== 'Admin') {
-        let current = null;
-        if (userType === 'UserLoyalty') current = await userRepository.findById(userId);
-        else if (userType === 'Manager') current = await managerRepository.findById(userId);
-        else if (userType === 'Staff') current = await staffRepository.findById(userId);
-        if (current) {
-          const tokens = current.FcmTokens || [];
-          if (!tokens.includes(fcmToken)) {
-            const update = { FcmTokens: [...tokens, fcmToken] };
-            if (userType === 'UserLoyalty') await userRepository.update(userId, update);
-            else if (userType === 'Manager') await managerRepository.update(userId, update);
-            else if (userType === 'Staff') await staffRepository.update(userId, update);
+      if (fcmToken) {
+        if (userType === 'Admin') {
+          const admin = await Admin.findById(userId).select('FcmTokens').lean();
+          if (admin) {
+            const tokens = admin.FcmTokens || [];
+            if (!tokens.includes(fcmToken)) {
+              await Admin.findByIdAndUpdate(userId, { FcmTokens: [...tokens, fcmToken] });
+            }
+          }
+        } else {
+          let current = null;
+          if (userType === 'UserLoyalty') current = await userRepository.findById(userId);
+          else if (userType === 'Manager') current = await managerRepository.findById(userId);
+          else if (userType === 'Staff') current = await staffRepository.findById(userId);
+          if (current) {
+            const tokens = current.FcmTokens || [];
+            if (!tokens.includes(fcmToken)) {
+              const update = { FcmTokens: [...tokens, fcmToken] };
+              if (userType === 'UserLoyalty') await userRepository.update(userId, update);
+              else if (userType === 'Manager') await managerRepository.update(userId, update);
+              else if (userType === 'Staff') await staffRepository.update(userId, update);
+            }
           }
         }
       }
@@ -590,45 +600,148 @@ export const authService = {
   },
 
   /**
+   * Normalize userType (e.g. 'user' -> 'UserLoyalty', 'manager' -> 'Manager')
+   */
+  normalizeAuthUserType(userType) {
+    if (!userType || typeof userType !== 'string') return null;
+    const t = userType.toLowerCase();
+    if (t === 'user' || t === 'userloyalty') return 'UserLoyalty';
+    if (t === 'manager') return 'Manager';
+    if (t === 'staff') return 'Staff';
+    if (t === 'admin') return 'Admin';
+    return userType;
+  },
+
+  /**
+   * Remove a single FCM token from the account document.
+   */
+  async removeFcmTokenFromAccount(userId, userType, fcmToken) {
+    if (!fcmToken) return;
+    if (userType === 'Admin') {
+      const admin = await Admin.findById(userId).select('FcmTokens').lean();
+      if (!admin || !Array.isArray(admin.FcmTokens)) return;
+      const filtered = admin.FcmTokens.filter((token) => token !== fcmToken);
+      await Admin.findByIdAndUpdate(userId, { FcmTokens: filtered });
+      return;
+    }
+
+    if (userType === 'UserLoyalty') {
+      const user = await userRepository.findById(userId);
+      if (!user || !Array.isArray(user.FcmTokens)) return;
+      await userRepository.update(userId, { FcmTokens: user.FcmTokens.filter((token) => token !== fcmToken) });
+      return;
+    }
+
+    if (userType === 'Manager') {
+      const manager = await managerRepository.findById(userId);
+      if (!manager || !Array.isArray(manager.FcmTokens)) return;
+      await managerRepository.update(userId, { FcmTokens: manager.FcmTokens.filter((token) => token !== fcmToken) });
+      return;
+    }
+
+    if (userType === 'Staff') {
+      const staff = await staffRepository.findById(userId);
+      if (!staff || !Array.isArray(staff.FcmTokens)) return;
+      await staffRepository.update(userId, { FcmTokens: staff.FcmTokens.filter((token) => token !== fcmToken) });
+    }
+  },
+
+  /**
+   * Clear all FCM tokens from the account document.
+   */
+  async clearAllFcmTokensFromAccount(userId, userType) {
+    if (userType === 'Admin') {
+      await Admin.findByIdAndUpdate(userId, { FcmTokens: [] });
+      return;
+    }
+    if (userType === 'UserLoyalty') {
+      await userRepository.update(userId, { FcmTokens: [] });
+      return;
+    }
+    if (userType === 'Manager') {
+      await managerRepository.update(userId, { FcmTokens: [] });
+      return;
+    }
+    if (userType === 'Staff') {
+      await staffRepository.update(userId, { FcmTokens: [] });
+    }
+  },
+
+  /**
    * Logout - revoke refresh token and remove FCM token.
    * userType: 'UserLoyalty' | 'Manager' | 'Staff' | 'Admin' (optional; used when revoking by fcmToken or all devices)
    */
   async logout(userId, refreshTokenString = null, fcmToken = null, userType = null) {
-    // Normalize userType (e.g. 'user' -> 'UserLoyalty', 'manager' -> 'Manager')
-    let normalizedType = userType;
-    if (userType) {
-      const t = userType.toLowerCase();
-      if (t === 'user' || t === 'userloyalty') normalizedType = 'UserLoyalty';
-      else if (t === 'manager') normalizedType = 'Manager';
-      else if (t === 'staff') normalizedType = 'Staff';
-      else if (t === 'admin') normalizedType = 'Admin';
+    const normalizedType = this.normalizeAuthUserType(userType);
+    const cleanRefreshToken = typeof refreshTokenString === 'string' ? refreshTokenString.trim() : '';
+    const cleanFcmToken = typeof fcmToken === 'string' ? fcmToken.trim() : '';
+
+    let refreshTokenDoc = null;
+    let refreshTokenBelongsToUser = false;
+
+    // Handle refresh token even when fcmToken is also provided
+    if (cleanRefreshToken) {
+      refreshTokenDoc = await refreshTokenRepository.findByTokenIncludeRevoked(cleanRefreshToken);
+      if (refreshTokenDoc) {
+        const sameUser = String(refreshTokenDoc.userId) === String(userId);
+        const sameType = !normalizedType || !refreshTokenDoc.userType || refreshTokenDoc.userType === normalizedType;
+        refreshTokenBelongsToUser = sameUser && sameType;
+      }
+
+      if (refreshTokenBelongsToUser) {
+        await refreshTokenRepository.revokeByToken(cleanRefreshToken);
+      }
+
+      // Backward compatibility: legacy admin login stored refresh token directly on Admin document.
+      if (normalizedType === 'Admin') {
+        await Admin.findOneAndUpdate({ _id: userId, refreshToken: cleanRefreshToken }, { refreshToken: null });
+      }
     }
 
-    if (fcmToken) {
-      await refreshTokenRepository.revokeByFcmToken(userId, fcmToken, normalizedType);
-      if (normalizedType && normalizedType !== 'Admin') {
-        let current = null;
-        if (normalizedType === 'UserLoyalty') current = await userRepository.findById(userId);
-        else if (normalizedType === 'Manager') current = await managerRepository.findById(userId);
-        else if (normalizedType === 'Staff') current = await staffRepository.findById(userId);
-        
-        if (current && current.FcmTokens) {
-          const tokens = current.FcmTokens.filter(t => t !== fcmToken);
-          if (normalizedType === 'UserLoyalty') await userRepository.update(userId, { FcmTokens: tokens });
-          else if (normalizedType === 'Manager') await managerRepository.update(userId, { FcmTokens: tokens });
-          else if (normalizedType === 'Staff') await staffRepository.update(userId, { FcmTokens: tokens });
-        }
+    // Handle device/session cleanup by fcmToken
+    if (cleanFcmToken) {
+      // If refreshToken is also provided, treat it as specific-session logout.
+      // Do not revoke all tokens for this FCM token.
+      if (!cleanRefreshToken) {
+        await refreshTokenRepository.revokeByFcmToken(userId, cleanFcmToken, normalizedType);
       }
-    } else if (refreshTokenString) {
-      await refreshTokenRepository.revokeByToken(refreshTokenString);
-    } else {
-      await refreshTokenRepository.revokeAllUserTokens(userId, normalizedType);
-      if (normalizedType && normalizedType !== 'Admin') {
-        if (normalizedType === 'UserLoyalty') await userRepository.update(userId, { FcmTokens: [] });
-        else if (normalizedType === 'Manager') await managerRepository.update(userId, { FcmTokens: [] });
-        else if (normalizedType === 'Staff') await staffRepository.update(userId, { FcmTokens: [] });
+
+      const effectiveType = refreshTokenDoc?.userType || normalizedType;
+      const activeForSameDevice = await refreshTokenRepository.findByUserId(userId, {
+        userType: effectiveType,
+        revoked: false,
+        fcmToken: cleanFcmToken,
+      });
+      if (!activeForSameDevice.length && effectiveType) {
+        await this.removeFcmTokenFromAccount(userId, effectiveType, cleanFcmToken);
       }
     }
+
+    // Full logout from all devices
+    if (!cleanFcmToken && !cleanRefreshToken) {
+      await refreshTokenRepository.revokeAllUserTokens(userId, normalizedType);
+      if (normalizedType) {
+        await this.clearAllFcmTokensFromAccount(userId, normalizedType);
+      }
+      if (normalizedType === 'Admin') {
+        await Admin.findByIdAndUpdate(userId, { refreshToken: null });
+      }
+    }
+
+    // If logout is done only by refreshToken, remove its FCM token from account
+    // only when no active tokens remain for that same device.
+    if (!cleanFcmToken && refreshTokenBelongsToUser && refreshTokenDoc?.fcmToken) {
+      const effectiveType = refreshTokenDoc.userType || normalizedType;
+      const activeForSameDevice = await refreshTokenRepository.findByUserId(userId, {
+        userType: effectiveType,
+        revoked: false,
+        fcmToken: refreshTokenDoc.fcmToken,
+      });
+      if (!activeForSameDevice.length && effectiveType) {
+        await this.removeFcmTokenFromAccount(userId, effectiveType, refreshTokenDoc.fcmToken);
+      }
+    }
+
     return { message: 'Logged out successfully' };
   },
 
