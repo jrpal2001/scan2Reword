@@ -1270,16 +1270,19 @@ export const userService = {
    */
   async getVehiclesForUser(userId, { role, queryVehicleId, queryVehicleNumber } = {}) {
     let vehicles;
-    if (role === ROLES.USER) {
-      const user = await userRepository.findById(userId);
-      if (!user) throw new ApiError(HTTP_STATUS.NOT_FOUND, 'User not found');
-      if (user.userType === USER_TYPES.OWNER) {
-        vehicles = await this.getFleetVehicles(userId);
-      } else {
-        vehicles = await vehicleService.getVehiclesByUserId(userId);
-      }
+    const user = await userRepository.findById(userId);
+    if (!user) throw new ApiError(HTTP_STATUS.NOT_FOUND, 'User not found');
+
+    if (role === ROLES.USER && user.userType === USER_TYPES.OWNER) {
+      vehicles = await this.getFleetVehicles(userId);
     } else {
-      vehicles = await vehicleService.getVehiclesByUserId(userId);
+      const rawVehicles = await vehicleService.getVehiclesByUserId(userId);
+      const walletSummary = user.walletSummary || { totalEarned: 0, availablePoints: 0, redeemedPoints: 0, expiredPoints: 0 };
+      vehicles = rawVehicles.map(v => ({
+        ...v,
+        walletSummary,
+        referPoints: (walletSummary.availablePoints ?? 0)
+      }));
     }
     if (queryVehicleId && Array.isArray(vehicles)) {
       vehicles = vehicles.filter((v) => String(v._id) === String(queryVehicleId));
@@ -1394,6 +1397,8 @@ async function getFleetVehiclesForOwner(ownerId) {
         driverId: driver._id,
         driverFullName: driver.fullName,
         driverMobile: driver.mobile,
+        walletSummary: driver.walletSummary || { totalEarned: 0, availablePoints: 0, redeemedPoints: 0, expiredPoints: 0 },
+        referPoints: (driver.walletSummary?.availablePoints ?? 0),
       });
     }
   }

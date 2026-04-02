@@ -109,6 +109,7 @@ export const ownerService = {
         const vehicles = await vehicleRepository.list({ userId: user._id }, { page: 1, limit: 100 });
         return {
           ...user,
+          referPoints: user.walletSummary?.availablePoints ?? 0,
           vehicles: vehicles.list,
         };
       })
