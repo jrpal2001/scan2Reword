@@ -99,6 +99,14 @@ export const userRepository = {
     return User.distinct('_id', { status: 'active' });
   },
 
+  /** Get active customer profile fields needed for WhatsApp campaign sends. */
+  async getActiveCustomerWhatsappTargetsByIds(userIds = []) {
+    if (!Array.isArray(userIds) || userIds.length === 0) return [];
+    return User.find({ _id: { $in: userIds }, status: 'active' })
+      .select('_id fullName mobile status')
+      .lean();
+  },
+
   /**
    * Get fleet member IDs for a fleet owner: owner + all drivers (users with ownerId = ownerId).
    * @param {string|import('mongoose').Types.ObjectId} ownerId

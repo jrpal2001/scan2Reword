@@ -11,6 +11,16 @@ const productionMode = isProductionModeValid ? productionModeRaw : 'dev';
 const mongoEnvKey = productionMode === 'prod' ? 'MONGODB_URI' : 'MONGODB_URI_TEST';
 const mongoUri = process.env[mongoEnvKey] || '';
 
+const parsePositiveInt = (value, fallback) => {
+  const parsed = parseInt(value, 10);
+  return Number.isFinite(parsed) && parsed > 0 ? parsed : fallback;
+};
+
+const whatsappEnabledFromEnv = process.env.WHATSAPP_ENABLED;
+const whatsappEnabled = whatsappEnabledFromEnv == null
+  ? Boolean(process.env.WHATSAPP_API_KEY && process.env.WHATSAPP_API_CAMPAIGN_NAME)
+  : String(whatsappEnabledFromEnv).trim().toLowerCase() === 'true';
+
 export const config = Object.freeze({
   nodeEnv: process.env.NODE_ENV || (productionMode === 'prod' ? 'production' : 'development'),
   port: parseInt(process.env.PORT, 10) || 3000,
@@ -68,6 +78,16 @@ export const config = Object.freeze({
     templateId: process.env.TEMPLATE_ID || '',
     baseUrl: process.env.SMS_BASE_URL || 'https://smsapi.edumarcsms.com/api/v1/sendsms',
     otpMessage: process.env.SMS_OTP_MESSAGE || null,
+  },
+
+  whatsapp: {
+    enabled: whatsappEnabled,
+    baseUrl: process.env.WHATSAPP_API_BASE_URL || 'https://backend.api-wa.co/campaign/combirds/api/v2',
+    apiKey: process.env.WHATSAPP_API_KEY || '',
+    campaignName: process.env.WHATSAPP_API_CAMPAIGN_NAME || '',
+    defaultCountryCode: process.env.WHATSAPP_DEFAULT_COUNTRY_CODE || '91',
+    sendConcurrency: parsePositiveInt(process.env.WHATSAPP_SEND_CONCURRENCY, 10),
+    maxRetries: parsePositiveInt(process.env.WHATSAPP_MAX_RETRIES, 3),
   },
 
   email: {
