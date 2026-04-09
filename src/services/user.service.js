@@ -185,6 +185,8 @@ export const userService = {
         registeredPumpId: resolvedRegisteredPumpId,
         createdBy: referrer ? referrer._id : null,
         createdByModel: referrer ? referrer._ownerType : null,
+        referredBy: referrer ? referrer._id : null,
+        referredByModel: referrer ? referrer._ownerType : null,
       });
       const pumpName = resolvedPump?.name || 'our';
       return {
@@ -232,6 +234,8 @@ export const userService = {
           registeredPumpId: resolvedRegisteredPumpId,
           createdBy: referrer ? referrer._id : null,
           createdByModel: referrer ? referrer._ownerType : null,
+          referredBy: referrer ? referrer._id : null,
+          referredByModel: referrer ? referrer._ownerType : null,
         });
         ownerId = newOwner._id;
       }
@@ -262,6 +266,8 @@ export const userService = {
       registeredPumpId: resolvedRegisteredPumpId,
       createdBy: referrer ? referrer._id : null,
       createdByModel: referrer ? referrer._ownerType : null,
+      referredBy: referrer ? referrer._id : null,
+      referredByModel: referrer ? referrer._ownerType : null,
     });
 
     let vehicleCreated;
@@ -366,6 +372,8 @@ export const userService = {
         profilePhoto: userData.profilePhoto || userData.ownerPhoto || null,
         createdBy: adminId,
         createdByModel: 'Admin',
+        referredBy: null, // No referral code used in this specific owner-only branch
+        referredByModel: null,
         registeredPumpId: resolvedRegisteredPumpId,
       });
       return {
@@ -417,6 +425,8 @@ export const userService = {
           profilePhoto: userData.ownerPhoto || null,
           createdBy: adminId,
           createdByModel: 'Admin',
+          referredBy: null, // No referral code used in this specific owner-only branch
+          referredByModel: null,
           registeredPumpId: resolvedRegisteredPumpId,
         });
         ownerId = newOwner._id;
@@ -538,7 +548,8 @@ export const userService = {
     created = await userRepository.create({
       ...userDataWithoutPassword,
       passwordHash: passwordHash || null,
-      referralCode: referrer ? (referralCode || '').trim() || null : null,
+      referredBy: referrer ? referrer._id : null,
+      referredByModel: referrer ? referrer._ownerType : null,
       userType: ownerId ? USER_TYPES.DRIVER : USER_TYPES.INDIVIDUAL,
       address: userData.address || null,
       profilePhoto: userData.profilePhoto || null,
@@ -648,6 +659,8 @@ export const userService = {
         profilePhoto: userData.profilePhoto || userData.ownerPhoto || null,
         createdBy: operatorId,
         createdByModel: operatorType,
+        referredBy: null,
+        referredByModel: null,
         registeredPumpId: resolvedRegisteredPumpId,
       });
       return {
@@ -704,6 +717,8 @@ export const userService = {
           profilePhoto: userData.profilePhoto || userData.ownerPhoto || null,
           createdBy: operatorId,
           createdByModel: operatorRole === ROLES.MANAGER ? 'Manager' : 'Staff',
+          referredBy: null,
+          referredByModel: null,
           registeredPumpId: resolvedRegisteredPumpId,
         });
         ownerId = newOwner._id;
@@ -800,7 +815,8 @@ export const userService = {
     created = await userRepository.create({
       ...userDataWithoutPassword,
       passwordHash: passwordHash || null,
-      referralCode: userRole === ROLES.USER ? (referralCode && referralCode.trim() ? referralCode.trim() : null) : null,
+      referredBy: referrer ? referrer._id : null,
+      referredByModel: referrer ? referrer._ownerType : null,
       userType: ownerId ? USER_TYPES.DRIVER : USER_TYPES.INDIVIDUAL,
       address: userData.address || null,
       profilePhoto: userData.profilePhoto || null,
@@ -940,7 +956,13 @@ export const userService = {
    * Works for admin (any referrerId), manager/staff (only their own id). Referrer must exist as Manager or Staff.
    */
   async listUsersByReferrerId(referrerId, filter = {}, options = {}) {
-    const baseFilter = { createdBy: referrerId, createdByModel: { $in: ['Manager', 'Staff'] } };
+    const baseFilter = {
+      $or: [
+        { referredBy: referrerId },
+        { createdBy: referrerId, referredBy: { $exists: false } }, // Maintain backward compatibility for users created before this change
+        { createdBy: referrerId, referredBy: null },
+      ],
+    };
     const merged = { ...baseFilter, ...filter };
     const result = await userRepository.list(merged, options);
     if (!result.list || result.list.length === 0) return result;

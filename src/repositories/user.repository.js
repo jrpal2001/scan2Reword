@@ -126,6 +126,12 @@ export const userRepository = {
 
   /** Count users referred/registered by a given manager or staff. */
   async countReferredBy(referrerId) {
-    return User.countDocuments({ createdBy: referrerId, createdByModel: { $in: ['Manager', 'Staff'] } });
+    return User.countDocuments({
+      $or: [
+        { referredBy: referrerId },
+        { createdBy: referrerId, referredBy: { $exists: false } },
+        { createdBy: referrerId, referredBy: null }
+      ]
+    });
   },
 };

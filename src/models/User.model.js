@@ -41,6 +41,9 @@ const userSchema = new mongoose.Schema(
     ownerPhoto: { type: String, default: null },
     createdBy: { type: mongoose.Schema.Types.ObjectId, refPath: 'createdByModel', default: null },
     createdByModel: { type: String, enum: ['Admin', 'Manager', 'Staff'], default: null },
+    /** The person who referred this user (from referralCode). Separate from creator. */
+    referredBy: { type: mongoose.Schema.Types.ObjectId, refPath: 'referredByModel', default: null },
+    referredByModel: { type: String, enum: ['Manager', 'Staff', 'UserLoyalty'], default: null },
     /** Pump (Mongo _id) where this user registered; from registration payload (pumpId or pump code). */
     registeredPumpId: { type: mongoose.Schema.Types.ObjectId, ref: 'Pump', default: null },
   },
@@ -51,6 +54,8 @@ userSchema.index({ mobile: 1 }, { unique: true });
 userSchema.index({ ownerId: 1 });
 userSchema.index({ status: 1 });
 userSchema.index({ userType: 1 });
+userSchema.index({ referredBy: 1 });
+userSchema.index({ createdBy: 1 });
 
 const User = mongoose.models.UserLoyalty || mongoose.model('UserLoyalty', userSchema);
 export default User;
