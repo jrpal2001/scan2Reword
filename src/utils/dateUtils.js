@@ -48,15 +48,29 @@ export function addISTToDocument(doc) {
     doc = doc.toObject();
   }
   const out = { ...doc };
+
+  // Standard date fields to automatically add an IST sibling for
+  const dateFields = [
+    'createdAt',
+    'updatedAt',
+    'startDate',
+    'endDate',
+    'publishedAt',
+    'redeemedAt',
+    'lastTransactionAt',
+    'lastLoginAt',
+    'expiryAt',
+    'expiryDate',
+  ];
+
   for (const key of Object.keys(out)) {
-    if (isObjectId(out[key])) out[key] = out[key].toString();
+    if (isObjectId(out[key])) {
+      out[key] = out[key].toString();
+    } else if (dateFields.includes(key) && out[key] != null) {
+      out[`${key}IST`] = toIST(out[key]);
+    }
   }
-  if (doc.createdAt != null) {
-    out.createdAtIST = toIST(doc.createdAt);
-  }
-  if (doc.updatedAt != null) {
-    out.updatedAtIST = toIST(doc.updatedAt);
-  }
+
   return out;
 }
 
@@ -84,7 +98,7 @@ function addISTToPayloadImpl(payload, seen) {
   seen.add(payload);
   let out = addISTToDocument(payload);
   for (const key of Object.keys(out)) {
-    if (key === 'createdAt' || key === 'updatedAt' || key === 'createdAtIST' || key === 'updatedAtIST') continue;
+    if (key.endsWith('IST')) continue;
     const val = out[key];
     if (isObjectId(val)) out = { ...out, [key]: val.toString() };
     else if (Array.isArray(val)) out = { ...out, [key]: val.map((item) => addISTToPayloadImpl(item, seen)) };

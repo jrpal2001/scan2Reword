@@ -9,6 +9,69 @@ import { HTTP_STATUS } from '../constants/errorCodes.js';
 import { CAMPAIGN_STATUS } from '../constants/status.js';
 import { ROLES } from '../constants/roles.js';
 
+const IST_OFFSET_MS = (5 * 60 + 30) * 60 * 1000;
+const TZ_SUFFIX_REGEX = /(Z|[+-]\d{2}:\d{2}|[+-]\d{4})$/i;
+const ISO_LOCAL_DATE_TIME_REGEX = /^(\d{4})-(\d{2})-(\d{2})(?:[ T](\d{2})(?::(\d{2}))(?::(\d{2})(?:\.(\d{1,3}))?)?)?$/;
+
+function parseCampaignDateInput(value) {
+  if (value == null || value === '') return null;
+
+  if (value instanceof Date) {
+    return Number.isNaN(value.getTime()) ? null : new Date(value.getTime());
+  }
+
+  if (typeof value === 'number') {
+    const d = new Date(value);
+    return Number.isNaN(d.getTime()) ? null : d;
+  }
+
+  if (typeof value !== 'string') {
+    const d = new Date(value);
+    return Number.isNaN(d.getTime()) ? null : d;
+  }
+
+  const raw = value.trim();
+  if (!raw) return null;
+
+  // If timezone is provided explicitly, keep that instant unchanged.
+  if (TZ_SUFFIX_REGEX.test(raw)) {
+    const d = new Date(raw);
+    return Number.isNaN(d.getTime()) ? null : d;
+  }
+
+  // If timezone is missing (e.g. from datetime-local), interpret as IST.
+  const match = raw.match(ISO_LOCAL_DATE_TIME_REGEX);
+  if (match) {
+    const [
+      ,
+      year,
+      month,
+      day,
+      hour = '00',
+      minute = '00',
+      second = '00',
+      millisecond = '0',
+    ] = match;
+
+    const ms = millisecond.padEnd(3, '0').slice(0, 3);
+    const utcMs = Date.UTC(
+      Number(year),
+      Number(month) - 1,
+      Number(day),
+      Number(hour),
+      Number(minute),
+      Number(second),
+      Number(ms)
+    ) - IST_OFFSET_MS;
+
+    const d = new Date(utcMs);
+    return Number.isNaN(d.getTime()) ? null : d;
+  }
+
+  const fallback = new Date(raw);
+  return Number.isNaN(fallback.getTime()) ? null : fallback;
+}
+
 export const campaignService = {
   async createCampaign(data, userId, userRole, allowedPumpIds = null) {
     // Validate pumpIds for manager
@@ -25,8 +88,14 @@ export const campaignService = {
       }
     }
 
+    const parsedStartDate = parseCampaignDateInput(data.startDate);
+    const parsedEndDate = parseCampaignDateInput(data.endDate);
+    if (!parsedStartDate || !parsedEndDate) {
+      throw new ApiError(HTTP_STATUS.BAD_REQUEST, 'Invalid startDate or endDate');
+    }
+
     // Validate dates
-    if (new Date(data.startDate) >= new Date(data.endDate)) {
+    if (parsedStartDate >= parsedEndDate) {
       throw new ApiError(HTTP_STATUS.BAD_REQUEST, 'End date must be after start date');
     }
 
@@ -43,6 +112,8 @@ export const campaignService = {
 
     const campaign = await campaignRepository.create({
       ...data,
+      startDate: parsedStartDate,
+      endDate: parsedEndDate,
       // Default pumpIds to [] so "all pumps" is explicit; omit only for Admin when not sending pumpIds
       pumpIds: data.pumpIds != null ? data.pumpIds : [],
       createdBy: userId,
@@ -228,15 +299,27 @@ export const campaignService = {
     }
 
     // Validate dates if provided
+    const updatePayload = { ...data };
+
     if (data.startDate || data.endDate) {
-      const startDate = data.startDate ? new Date(data.startDate) : new Date(existing.startDate);
-      const endDate = data.endDate ? new Date(data.endDate) : new Date(existing.endDate);
+      const startDate = data.startDate
+        ? parseCampaignDateInput(data.startDate)
+        : new Date(existing.startDate);
+      const endDate = data.endDate
+        ? parseCampaignDateInput(data.endDate)
+        : new Date(existing.endDate);
+      if (!startDate || !endDate) {
+        throw new ApiError(HTTP_STATUS.BAD_REQUEST, 'Invalid startDate or endDate');
+      }
       if (startDate >= endDate) {
         throw new ApiError(HTTP_STATUS.BAD_REQUEST, 'End date must be after start date');
       }
+
+      if (data.startDate) updatePayload.startDate = startDate;
+      if (data.endDate) updatePayload.endDate = endDate;
     }
 
-    const campaign = await campaignRepository.update(campaignId, data);
+    const campaign = await campaignRepository.update(campaignId, updatePayload);
     return campaign;
   },
 
