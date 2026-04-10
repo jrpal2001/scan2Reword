@@ -99,6 +99,12 @@ export const userRepository = {
     return User.distinct('_id', { status: 'active' });
   },
 
+  /** Get active customer IDs who registered at specific pumps. */
+  async getActiveCustomerIdsByRegisteredPumps(pumpIds) {
+    if (!pumpIds || pumpIds.length === 0) return [];
+    return User.distinct('_id', { status: 'active', registeredPumpId: { $in: pumpIds } });
+  },
+
   /** Get active customer profile fields needed for WhatsApp campaign sends. */
   async getActiveCustomerWhatsappTargetsByIds(userIds = []) {
     if (!Array.isArray(userIds) || userIds.length === 0) return [];

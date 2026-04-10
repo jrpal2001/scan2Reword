@@ -141,7 +141,14 @@ export const campaignService = {
     if (!pumpIds || pumpIds.length === 0) {
       return userRepository.getActiveCustomerIds();
     }
-    return transactionRepository.getDistinctUserIdsByPumpIds(pumpIds);
+    const [transactedUserIds, registeredUserIds] = await Promise.all([
+      transactionRepository.getDistinctUserIdsByPumpIds(pumpIds),
+      userRepository.getActiveCustomerIdsByRegisteredPumps(pumpIds)
+    ]);
+    
+    // Combine and return distinct string IDs
+    const allUserIds = [...transactedUserIds, ...registeredUserIds].map(id => String(id));
+    return [...new Set(allUserIds)];
   },
 
   async _buildCampaignNotificationContent(campaign) {
