@@ -112,6 +112,20 @@ export const bannerService = {
       // For manager list view, we intentionally do not include global/other banners.
     }
 
+    // Dynamic status filtering based on endTime
+    if (filter.status) {
+      const now = new Date();
+      if (filter.status === 'active') {
+        filter.endTime = { $gt: now };
+      } else if (filter.status === 'expired') {
+        delete filter.status;
+        filter.$or = [
+          { status: 'expired' },
+          { status: 'active', endTime: { $lte: now } }
+        ];
+      }
+    }
+
     return bannerRepository.list(filter, options);
   },
 

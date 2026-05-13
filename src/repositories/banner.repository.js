@@ -10,16 +10,29 @@ export const bannerRepository = {
   },
 
   async findById(id) {
-    return Banner.findById(id).lean();
+    let banner = await Banner.findById(id).lean();
+    if (banner && banner.status === 'active' && new Date(banner.endTime) < new Date()) {
+      banner = await Banner.findByIdAndUpdate(id, { $set: { status: 'expired' } }, { new: true }).lean();
+    }
+    return banner;
   },
 
   async list(filter = {}, options = {}) {
+    const now = new Date();
+    
+    // Automatically update expired banners in database
+    await Banner.updateMany(
+      { status: 'active', endTime: { $lt: now } },
+      { $set: { status: 'expired' } }
+    );
+
     const { page = 1, limit = 10, sort = { createdAt: -1 } } = options;
     const skip = (page - 1) * limit;
     const [list, total] = await Promise.all([
       Banner.find(filter).sort(sort).skip(skip).limit(limit).lean(),
       Banner.countDocuments(filter),
     ]);
+    
     return { list, total, page, limit, totalPages: Math.ceil(total / limit) };
   },
 
