@@ -196,8 +196,9 @@ router.patch(
   '/managers/:managerId',
   verifyJWT,
   requireRoles([ROLES.ADMIN]),
-  upload.none(),
+  upload.fields([{ name: 'profilePhoto', maxCount: 1 }]),
   parseBodyJson,
+  uploadToS3('managers'),
   validateRequest(userValidation.adminUpdateManager),
   adminController.updateManagerById
 );
@@ -219,8 +220,9 @@ router.patch(
   '/staff/:staffId',
   verifyJWT,
   requireRoles([ROLES.ADMIN]),
-  upload.none(),
+  upload.fields([{ name: 'profilePhoto', maxCount: 1 }]),
   parseBodyJson,
+  uploadToS3('staff'),
   validateRequest(userValidation.adminUpdateStaff),
   adminController.updateStaffById
 );
