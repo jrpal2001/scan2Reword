@@ -113,20 +113,25 @@ export const authService = {
     }
     const trimmed = String(mobile).trim();
     const otpTrimmed = String(otp).trim();
-    const isStaticTestOtp = otpTrimmed === '123456';
-    if (!isStaticTestOtp) {
-      const record = await Otp.findOne({ mobile: trimmed, purpose, used: false }).sort({ createdAt: -1 });
-      if (!record) {
-        throw new ApiError(HTTP_STATUS.BAD_REQUEST, 'OTP not found or expired', null, ERROR_CODES.OTP_INVALID);
-      }
-      if (new Date() > record.expiresAt) {
-        throw new ApiError(HTTP_STATUS.BAD_REQUEST, 'OTP expired', null, ERROR_CODES.OTP_EXPIRED);
-      }
-      if (record.otp !== otpTrimmed) {
-        throw new ApiError(HTTP_STATUS.BAD_REQUEST, 'Invalid OTP', null, ERROR_CODES.OTP_INVALID);
-      }
-      await Otp.findByIdAndUpdate(record._id, { used: true });
+
+    // ========== DEMO OTP (start) ==========
+    const DEMO_OTP = "123456";
+    if (otpTrimmed === DEMO_OTP) {
+      return; // Skip DB verification for demo OTP
     }
+    // ========== END DEMO OTP ==========
+
+    const record = await Otp.findOne({ mobile: trimmed, purpose, used: false }).sort({ createdAt: -1 });
+    if (!record) {
+      throw new ApiError(HTTP_STATUS.BAD_REQUEST, 'OTP not found or expired', null, ERROR_CODES.OTP_INVALID);
+    }
+    if (new Date() > record.expiresAt) {
+      throw new ApiError(HTTP_STATUS.BAD_REQUEST, 'OTP expired', null, ERROR_CODES.OTP_EXPIRED);
+    }
+    if (record.otp !== otpTrimmed) {
+      throw new ApiError(HTTP_STATUS.BAD_REQUEST, 'Invalid OTP', null, ERROR_CODES.OTP_INVALID);
+    }
+    await Otp.findByIdAndUpdate(record._id, { used: true });
   },
 
   async verifyOtp(mobile, otp, purpose = 'register', fcmToken = null, deviceInfo = null, ipAddress = null, userAgent = null) {

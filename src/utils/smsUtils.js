@@ -1,6 +1,9 @@
 import axios from "axios";
 import { config } from "../config/index.js";
 
+// SMS_MODE: 'demo' to skip actual SMS sending & log to console, 'dlt' to send actual DLT SMS
+const SMS_MODE = "dlt";
+
 const SMS_BASE_URL = config.sms.baseUrl;
 const SMS_API_KEY = config.sms.apiKey;
 const SENDER_ID = config.sms.senderId;
@@ -23,6 +26,22 @@ export const sendSMS = async ({ number, message, senderId = SENDER_ID, templateI
   const numberList = Array.isArray(number)
     ? number.map((n) => String(n).trim())
     : [String(number).trim()];
+
+  //for local mode we are bypassing the sms
+  if (SMS_MODE === "demo") {
+    console.log(
+      `[SMS-DEMO] (Bypassed in demo mode) Simulated SMS to ${numberList.join(
+        ", "
+      )}: "${message}"`
+    );
+    return {
+      success: true,
+      data: {
+        msg: "SMS Simulated in Demo Mode",
+        transactionId: `simulated-${Date.now()}`,
+      },
+    };
+  }
 
   const payload = {
     message,
@@ -53,7 +72,7 @@ export const sendSMS = async ({ number, message, senderId = SENDER_ID, templateI
  * Override with SMS_OTP_MESSAGE in .env. Use {{otp}} or {#var#} for OTP placeholder.
  */
 const DEFAULT_OTP_MESSAGE =
-  "Dear User, your Rehotra login OTP is {#var#}. Do not share this OTP with anyone. Rehotra";
+  "Your login OTP for Yashas Shreya Petroleum is {#var#}. Please do not share it with anyone.";
 
 /**
  * Send OTP SMS. Builds DLT-compliant message and calls sendSMS.
